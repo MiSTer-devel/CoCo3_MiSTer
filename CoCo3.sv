@@ -192,7 +192,8 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
-        "OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
+        //"OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
+        "OCD,Multi-Pak Slot,Disk,ECB / Cart,Orc 90;",
         "-;",
         "H2S0,DSK,Load Disk Drive 0;",
         "H2S1,DSK,Load Disk Drive 1;",
@@ -212,28 +213,22 @@ localparam  CONF_STR = {
         "P1-;",
         "P1O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
         "P1O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;", 
-		  "P1OL,Artifact Color,Off - SG4,On - SG6;",
-		  "P1OI,Artifact Color Set,0,1;",
+        "P1OL,Artifact Color,Off - SG4,On - SG6;",
+        "P1OI,Artifact Color Set,0,1;",
         "-;",
         "P2,Debug Menu;",
         "P2-;",
         "P2-, -= Debug Menu =-;",
         "P2-;",
         "P2F3,BIN,Load COCO Font;", 
-		  "P2OG,Cart Interrupt Disabled,OFF,ON;",
+        "P2OG,Cart Interrupt Disabled,OFF,ON;",
         //P2O?,Force Disk 0 DS,Off,On;"
         //P2O?,Force Disk 1 DS,Off,On;"
         "-;",
-
-		  
-		  
-		  "O6,Swap Joysticks,Off,On;",
-		  "RA,Easter Egg;",
-		  "-;",
-		  "OJK,Turbo Speed:,1.78 Mhz,3.58 Mhz,7.16 Mhz, NA;",
-		  
-		  
-		  
+        "O6,Swap Joysticks,Off,On;",
+        "RA,Easter Egg;",
+        "-;",
+        "OJK,Turbo Speed:,1.78 Mhz,3.58 Mhz,7.16 Mhz, NA;",
         "-;",
         "RM,Cold Boot;",
         "R0,Reset;",
@@ -244,11 +239,9 @@ localparam  CONF_STR = {
 
 ////////////////////   CLOCKS   ///////////////////
 
-//wire clk_sys,clk_ram, clk_vid,clk_sys_2;
 wire clk_sys;
 
 assign clk_sys=CLK_57;
-//assign clk_sys=clk_vid; (SRH)
 
 wire pll_locked, pll2_locked;
 wire CLK_114, CLK_57, CLK_28, CLK_14;
@@ -333,8 +326,8 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(1000), .VDNUM(4), .BLKSZ(2)) hps_io
       .joystick_0(joy1),
       .joystick_1(joy2),
 
-      .joystick_analog_0(joya1),
-      .joystick_analog_1(joya2),
+      .joystick_l_analog_0(joya1),
+      .joystick_l_analog_1(joya2),
 		  
       .ps2_key(ps2_key),
 
@@ -557,7 +550,8 @@ wire [5:0] cocosound;
 wire [1:0] turbo_speed = status[20:19];
 
 wire cpu_speed = status[11];
-wire [1:0] mpi = (status[13:12]==2'b00)  ? 2'b00  : status[13:12]==2'b01 ? 2'b10 : status[13:12]==2'b10 ? 2'b11 : 2'b00;		
+
+wire [1:0] mpi = (status[13:12]==2'b10)  ? 2'b00  : status[13:12]==2'b01 ? 2'b10 : status[13:12]==2'b00 ? 2'b11 : 2'b00;		
 wire video=status[14];
 wire cartint=status[16];
 //wire cartint = 1'b0;
