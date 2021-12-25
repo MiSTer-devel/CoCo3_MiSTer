@@ -129,8 +129,14 @@ output [15:0] SOUND_RIGHT,
 // Needs removal.... ???
 input	[3:0]		PADDLE_CLK,
 input	[3:0]		P_SWITCH,
-input [15:0] joya1,
-input [15:0] joya2,
+  // joystick input
+  // digital for buttons
+  input [15:0] joy1,  
+  input [15:0] joy2,
+  // analog for position
+  input [15:0] joya1,
+  input [15:0] joya2,
+  input joy_use_dpad,
 
 //	Config Static switches
 input	[9:0]  		SWITCH,			
@@ -439,12 +445,6 @@ wire			RX_CLK2;
 wire	[7:0]	DATA_RS232;
 reg		[2:0]	ROM_BANK;
 wire			SLOT3_HW;
-wire			UART51_TXD;
-wire			UART51_RXD;
-wire			UART51_RTS;
-wire			UART51_DTR;
-wire			UART50_RXD;
-wire			UART50_RTS;
 reg		[9:0]	SEC;
 reg				TICK0;
 reg				TICK1;
@@ -791,7 +791,7 @@ assign LEDG[3] =  FLASH_CE_S;
 assign LEDG[4] = (ADDRESS == 16'hFF84);								// SDRAM
 assign LEDG[5] =  1'b0;
 assign LEDG[6] = 1'b0;												// SD Card activity
-assign LEDG[7] = !UART50_RXD;
+assign LEDG[7] = 1'b0;
 // SRH DE2-115 Extra Green LED is unused and off
 assign LEDG[8] = 1'b0;
 
@@ -2667,12 +2667,6 @@ assign CPU_IRQ_N =  ( GIME_IRQ  | (HSYNC1_IRQ_N		&	VSYNC1_IRQ_N))
 assign CPU_FIRQ_N = ( GIME_FIRQ | (CART1_FIRQ_N))
 						& (!GIME_FIRQ | (TIMER3_FIRQ_N	&	HSYNC3_FIRQ_N	&	VSYNC3_FIRQ_N	&	KEY3_FIRQ_N	&	CART3_FIRQ_N));
 
-//Swap the DW and RS232 ports on connectors
-assign UART51_RXD =	(!SWITCH[9])	?	OPTRXD:						// Switch 9 off
-													DE1RXD;						// Switch 9 on
-assign UART50_RXD =	(!SWITCH[9])	?	DE1RXD:						// Switch 9 off
-													OPTRXD;						// Switch 9 on
-assign DE1TXD =		UART51_TXD;					
 assign OPTTXD =		1'b0;
 
 // Timer
@@ -4097,26 +4091,73 @@ assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT_EXT}	+ {SOUND, 8'h00};
   Joystick direction code
   buttons are handled below in the keyboard routines 
 */
+// the DAC isn't really a DAC but represents the DAC chip on the schematic. 
+// All the signals have been digitized before it gets here.
+
+reg [15:0] dac_joya1;
+reg [15:0] dac_joya2;
+
+always @(clk_sys) begin
+
+	if (joy_use_dpad)
+	  begin
+		dac_joya1[15:8] <= 8'd128;
+		dac_joya1[7:0]  <= 8'd128;
+		
+		dac_joya2[15:8] <= 8'd128;
+		dac_joya2[7:0]  <= 8'd128;
+		
+		if (joy1[0])	// right
+			dac_joya1[15:8] <= 8'd240;
+
+		if (joy1[1])	// left
+			dac_joya1[15:8] <= 8'd16;
+		
+		if (joy1[2])	// down
+			dac_joya1[7:0] <= 8'd240;
+
+		if (joy1[3])	// up
+			dac_joya1[7:0] <= 8'd16;
+		
+		if (joy2[0])	// right
+			dac_joya2[15:8] <= 8'd240;
+
+		if (joy2[1])	// left
+			dac_joya2[15:8] <= 8'd16;
+		
+		if (joy2[2])	// down
+			dac_joya2[7:0] <= 8'd240;
+
+		if (joy2[3])	// upimg_mounted
+			dac_joya2[7:0] <= 8'd16;
+	  end
+	else
+	  begin
+		dac_joya1 <= joya1;
+		dac_joya2 <= joya2;
+	  end
+end
+
 
 always @(posedge clk_sys) begin
   case (SEL)
   2'b00:
-		if (joya2[15:10] > DTOA_CODE)
+		if (dac_joya2[15:10] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
   2'b01:
-  		if (joya2[7:2] > DTOA_CODE)
+  		if (dac_joya2[7:2] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
 2'b10:
-		if (joya1[15:10] > DTOA_CODE)
+		if (dac_joya1[15:10] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
   2'b11:
-  		if (joya1[7:2] > DTOA_CODE)
+  		if (dac_joya1[7:2] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
