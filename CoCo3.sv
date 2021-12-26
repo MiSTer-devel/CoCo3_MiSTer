@@ -426,7 +426,7 @@ EE_Cold_Bt COCO3_EE_Cold_Bt (
 
 
 wire [15:0] audio_left;
-assign AUDIO_L = { audio_left[15:6], audio_left[5] ^ (status[17] ?  casdout : 1'b0),audio_left[4:0]};
+assign AUDIO_L = { audio_left[15:14],  audio_left[13] ^ (status[17] ?  casdout : 1'b0),audio_left[12:0]};
 //assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
 assign AUDIO_MIX = 0;
