@@ -4269,6 +4269,12 @@ assign PIX_CLK = CLK_14;
 
 wire PIX_CLK_D;
 
+
+//		Add 3 pix_clks to HBLANK for the RGB output...
+wire	HBLANK_1;
+reg		[2:0]    HBLANK_D;
+assign 	HBLANK = HBLANK_D[0];
+
 // Video DAC
 always @ (negedge clk_sys)
 begin
@@ -4282,6 +4288,10 @@ begin
 		GREEN[3:0] <= 4'B0000;
 		BLUE[3:0] <= 4'B0000;
 		VGA_SYNC_N <= 1'b1;
+		
+		HBLANK_D[2] <= HBLANK_1;
+        HBLANK_D[1:0] <= HBLANK_D[2:1];
+
 
 //  	Retrace Black
 //		if(COLOR_BUF[9])
@@ -4498,7 +4508,7 @@ COCO3VIDEO MISTER_COCOVID(
 	.HSYNC_N(H_SYNC_N),
 	.SYNC_FLAG(H_FLAG),			//Have to figure out this one...
 	.VSYNC_N(V_SYNC_N),
-	.HBLANKING(HBLANK),
+	.HBLANKING(HBLANK_1),
 	.VBLANKING(VBLANK),
 
 // RAM / Buffer
