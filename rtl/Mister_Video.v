@@ -43,6 +43,7 @@ PHASE,
 ROM_ADDRESS,
 ROM_DATA1,
 HBORDER,
+VBORDER,
 HBORDER_INT,
 VBORDER_INT
 );
@@ -93,6 +94,7 @@ input               SWITCH;
 output      [10:0]  ROM_ADDRESS;
 input       [7:0]  ROM_DATA1;
 output              HBORDER;
+output              VBORDER;
 output              HBORDER_INT;
 reg                 HBORDER_INT;
 output              VBORDER_INT;

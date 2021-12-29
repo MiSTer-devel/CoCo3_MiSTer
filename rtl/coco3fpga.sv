@@ -1895,7 +1895,7 @@ fdc coco_fdc(
 	.DATA_HDD(DATA_HDD),      			// data out
 	.HALT(HALT),         				// DMA request
 	.NMI_09(NMI_09),
-	.DS_ENABLE(GPIO_DIR[0]),			// DS support - '1 to enable drives 0-2
+	.DS_ENABLE(1'b0),					// Not Used
 
 //	FDC host r/w handling
 	.FF40_CLK(clk_sys),
@@ -4272,9 +4272,10 @@ wire PIX_CLK_D;
 
 //		Add 3 pix_clks to HBLANK for the RGB output...
 wire	HBLANK_1;
-reg		[2:0]    HBLANK_D;
-assign 	HBLANK = HBLANK_D[0];
-
+reg		[3:0]    MISTER_HBLANK_D;
+//assign 	HBLANK = HBLANK_D[0];
+assign 	HBLANK = MISTER_HBLANK_D[1];  // This is 2 clocks...
+assign	VBLANK = ~VBORDER;
 // Video DAC
 always @ (negedge clk_sys)
 begin
@@ -4289,8 +4290,8 @@ begin
 		BLUE[3:0] <= 4'B0000;
 		VGA_SYNC_N <= 1'b1;
 		
-		HBLANK_D[2] <= HBLANK_1;
-        HBLANK_D[1:0] <= HBLANK_D[2:1];
+		MISTER_HBLANK_D[3] <= ~HBORDER;
+        MISTER_HBLANK_D[2:0] <= MISTER_HBLANK_D[3:1];
 
 
 //  	Retrace Black
@@ -4495,6 +4496,8 @@ wire	[10:0]	font_adrs;
 wire	[7:0]	font_data;
 
 wire HBORDER;
+wire VBORDER;
+wire VBLANK_1;
 
 // Video timing and modes
 COCO3VIDEO MISTER_COCOVID(
@@ -4509,7 +4512,7 @@ COCO3VIDEO MISTER_COCOVID(
 	.SYNC_FLAG(H_FLAG),			//Have to figure out this one...
 	.VSYNC_N(V_SYNC_N),
 	.HBLANKING(HBLANK_1),
-	.VBLANKING(VBLANK),
+	.VBLANKING(VBLANK_1),
 
 // RAM / Buffer
 	.RAM_ADDRESS(VIDEO_ADDRESS),
@@ -4546,7 +4549,8 @@ COCO3VIDEO MISTER_COCOVID(
 	.ROM_ADDRESS(font_adrs),
 	.ROM_DATA1(font_data),
 
-	.HBORDER(HBORDER)
+	.HBORDER(HBORDER),
+	.VBORDER(VBORDER)
 
 //HBORDER_INT,
 //VBORDER_INT
