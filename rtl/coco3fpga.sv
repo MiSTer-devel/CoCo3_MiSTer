@@ -4270,12 +4270,15 @@ assign PIX_CLK = CLK_14;
 wire PIX_CLK_D;
 
 
-//		Add 3 pix_clks to HBLANK for the RGB output...
-wire	HBLANK_1;
+// Note HBALNK and VBLANK from the Mister_Video module are unused.
+// This moves the HBLANK just off a H_SYNC color change + inversion.
+// The VBOARDER is used as a VBLANK as is [inverted]
 reg		[3:0]    MISTER_HBLANK_D;
-//assign 	HBLANK = HBLANK_D[0];
-assign 	HBLANK = MISTER_HBLANK_D[1];  // This is 2 clocks...
+
+assign 	HBLANK = MISTER_HBLANK_D[1];  // This is 2 clock delay on the ~HBORDER...
 assign	VBLANK = ~VBORDER;
+
+
 // Video DAC
 always @ (negedge clk_sys)
 begin
@@ -4498,6 +4501,7 @@ wire	[7:0]	font_data;
 wire HBORDER;
 wire VBORDER;
 wire VBLANK_1;
+wire HBLANK_1;
 
 // Video timing and modes
 COCO3VIDEO MISTER_COCOVID(
