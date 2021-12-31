@@ -611,28 +611,6 @@ wire	[7:0]	WF_WRFIFO_DATA;
 wire			WF_WRFIFO_RDEMPTY;
 wire	[7:0]	DATA_COM2;
 
-//reg				SDRAM_READ;
-//wire	[15:0]	HDOUT;
-//reg		[15:0]	SDRAM_DIN;
-//reg		[15:0]	SDRAM_DOUT;
-//reg		[21:0]	SDRAM_ADDR;
-//reg		[2:0]	SDRAM_STATE;
-//reg				SDRAM_START;
-//reg		[1:0]	SDRAM_START_BUF;
-//reg				SDRAM_RD;
-//reg				SDRAM_WR;
-//wire			SDRAM_NEXT;
-//reg		[1:0]	SDRAM_NEXT_BUF;
-//wire			SDRAM_EOB;
-//wire			SDRAM_OB;
-//wire			SDRAM_RDP;
-//wire			SDRAM_DONE;
-//wire			SDRAM_RDD;
-//wire			SDRAM_STATUS;
-//wire	[15:0]	SDRAM_DATA_BUF;
-//wire			SDRAM_DATA_BUF_EN;
-//reg		[1:0]	SDRAM_READY_BUF;
-
 reg				RST_FF00_N;
 reg				RST_FF02_N;
 //reg			RST_FF20_N;
@@ -734,53 +712,10 @@ assign PROBE[23:16] = LEDG[7:0];
 //assign PROBE[31:24] = {3'b000, DATA_OUT[3], MOTOR, DRIVE_SEL_EXT[0], HDD_EN, ADDRESS[0]};
 assign PROBE[31:24] = {2'b00, fdc_probe[5:0]};
 
-assign ROM_BANK = 3'b000;
-
 assign clk_sys = CLK_57;
 
-// SRH MISTer
-//
-//	Assign switches & buttons
-//	instanciate rom
-
-											//  9 UART / DriveWire
-											//		Off - DE1 Port is DriveWire and Analog Board is RS232 PAK
-											//		on  - DE1 Port is RS232 PAK and Analog Board is DriveWire
-											//  8 Serial Port Speed[1]
-											//  7 Serial Port Speed[0]
-											//    [1] [0]
-											//		OFF OFF - 115200	// Swap UART / DriveWire
-											//		OFF ON  - 230400
-											//		ON  OFF - 460800	// Fastest for the DE1 Port
-											//		ON  ON  - 921600
-											//  6 SD Card Presence / Write Protect
-											//		Off - Use card signals
-											//		On  - Ignore Signals
-											//  5 SG4 / SG6 mode select
-											//		Off - SG4
-											//		On  - SG6
-											//  4 Cartridge Interrupt disabled except Disk
-											//  3 Video Odd line black
-											//		Off - Normal video
-											//		On  - Odd lines black
-											//  2 MPI [1]
-											//  1 MPI [0]
-											//    [1] [0]
-											//		OFF OFF - Slot 1
-											//		OFF ON  - Slot 2
-											//		ON  OFF - Slot 3
-											//		ON  ON  - Slot 4
-											//  0 CPU Turbo Speed
-											//		Off - Normal 1.78 MHz
-											//		On  - 25 MHz
-
-
-//assign SWITCH[9:0] = 10'b0000010000; /* synthesis preserve */ // This is ECB
-//assign SWITCH[9:0] = 10'b0000010110; // This is EDB
-//assign SWITCH[9:0] = 10'b0000000000; // This is Orch 80 in ROM
 
 assign BUTTON_N[3:0] = {COCO_RESET_N, 2'b1,EE_N};
-
 
 //assign LEDG = TRACE;														// Floppy Trace
 
@@ -911,51 +846,15 @@ assign	ROM_SEL =		( RAM								== 1'b1)	?	1'b0:	// All RAM Mode excluded
 //10		32 Internal
 //11		32 External
 
-// SRH
-// For DE2-115 concanenate 1'b0 as MSB
-// The two ENA_PAK terms do not function correctly.  They both occur at once meaning the first has priority...  This needs addressed. SRH 8/25
 
-assign	FLASH_ADDRESS =	ENA_DSK		?			{1'b0,9'b000000100, ADDRESS[12:0]}:	//8K Disk BASIC 8K Slot 4
-						ENA_DISK2	?			{1'b0,7'b1111111,   ADDRESS[14:0]}:	//ROM Anternative Disk Controller
-						ENA_ORCC	?			{1'b0,9'b000000101, ADDRESS[12:0]}:	//8K Orchestra 8K 90CC Slot 1
-//						ENA_PAK		?			{1'b0,7'b0000000, 	ADDRESS[14:0]}:	//Internal R/W CART ROM
-//	(ENA_PAK & (ROM == 2'b11))		?			{1'b0,6'b000000, ~ADDRESS[14],	ADDRESS[13:0]}:	//Internal R/W CART ROM
-//						ENA_PAK		?			{1'b0,5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//Internal R/W CART ROM
-						ENA_PAK		?			{1'b0,4'b0000,ROM_BANK,	ADDRESS[14:0]}:	//Internal R/W CART ROM
-// Slot 3 ROMPak
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100000)	?	{1'b0,BANK0,     ADDRESS[14:0]}:	//32K
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110000)	?	{1'b0,BANK0,     ADDRESS[14:0]}:	//32K
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101000)	?	{1'b0,BANK0,1'b0,ADDRESS[13:0]}:	//16K Lower half
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111000)	?	{1'b0,BANK0,1'b1,ADDRESS[13:0]}:	//16K Higher half
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100001)	?	{1'b0,BANK1,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110001)	?	{1'b0,BANK1,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101001)	?	{1'b0,BANK1,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111001)	?	{1'b0,BANK1,1'b1,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100010)	?	{1'b0,BANK2,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110010)	?	{1'b0,BANK2,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101010)	?	{1'b0,BANK2,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111010)	?	{1'b0,BANK2,1'b1,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100011)	?	{1'b0,BANK3,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110011)	?	{1'b0,BANK3,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101011)	?	{1'b0,BANK3,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111011)	?	{1'b0,BANK3,1'b1,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100100)	?	{1'b0,BANK4,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110100)	?	{1'b0,BANK4,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101100)	?	{1'b0,BANK4,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111100)	?	{1'b0,BANK4,1'b1,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100101)	?	{1'b0,BANK5,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110101)	?	{1'b0,BANK5,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101101)	?	{1'b0,BANK5,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111101)	?	{1'b0,BANK5,1'b1,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100110)	?	{1'b0,BANK6,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110110)	?	{1'b0,BANK6,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101110)	?	{1'b0,BANK6,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111110)	?	{1'b0,BANK6,1'b1,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b100111)	?	{1'b0,BANK7,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b110111)	?	{1'b0,BANK7,     ADDRESS[14:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b101111)	?	{1'b0,BANK7,1'b0,ADDRESS[13:0]}:
-//({ENA_PAK,BANK_SIZE,ROM_BANK}== 6'b111111)	?	{1'b0,BANK7,1'b1,ADDRESS[13:0]}:
-												{1'b0,7'b0000000, ADDRESS[14:0]};
+assign	FLASH_ADDRESS =	ENA_DSK							?			{1'b0,9'b000000100, ADDRESS[12:0]}:	//8K Disk BASIC 8K Slot 4
+						ENA_DISK2						?			{1'b0,7'b1111111,   ADDRESS[14:0]}:	//ROM Anternative Disk Controller
+						ENA_ORCC						?			{1'b0,9'b000000101, ADDRESS[12:0]}:	//8K Orchestra 8K 90CC Slot 1
+
+						({ENA_PAK, ROM[1]} == 2'b10)	?			{6'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
+						({ENA_PAK, ROM} == 3'b111)		?			{5'b00000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
+
+																	{1'b0,7'b0000000, ADDRESS[14:0]};
 
 //ROM
 //00		16 Internal + 16 External
@@ -991,15 +890,6 @@ wire			COCO3_ROM_WRITE = (ioctl_index[7:0] == {BOOT0, BOOT})  & ioctl_wr;
 wire			COCO3_DISKROM_WRITE = (ioctl_index[7:0] == {BOOT1, BOOT}) & ioctl_wr;
 wire			COCO3_ORCH90_ROM_WRITE = (ioctl_index[7:0] == {BOOT2, BOOT}) & ioctl_wr;
 
-
-//COCO_ROM CC3_ROM(
-//.ADDR(FLASH_ADDRESS[15:0]),
-//.DATA(ROM_DATA),
-//.CLK(~clk_sys),
-//.WR_ADDR(ioctl_addr[15:0]),
-//.WR_DATA(ioctl_data[7:0]),
-//.WRITE((ioctl_index[5:0] == 6'd0) & ioctl_wr)
-//);
 
 
 COCO_ROM_32K CC3_ROM(
@@ -1039,60 +929,15 @@ assign FLASH_DATA =	ENA_PAK	?								CART_DATA:
 
 
 COCO_ROM_CART CC3_ROM_CART(
-.ADDR({FLASH_ADDRESS[15], (FLASH_ADDRESS[14] ^ inv_a14), FLASH_ADDRESS[13:0]}),
+.ADDR(FLASH_ADDRESS[16:0]),
 .DATA(CART_DATA),
 .CLK(~clk_sys),
-.WR_ADDR(ioctl_addr[15:0]),
+.WR_ADDR(ioctl_addr[16:0]),
 .WR_DATA(ioctl_data[7:0]),
 .WRITE((ioctl_index[5:0] == 6'd1) & ioctl_wr)
 );
 
-wire write_to_cart_0;
-wire inv_a14;
-reg	adrs_monitor;
 
-assign write_to_cart_0 = (ioctl_addr[15:0] == 16'b0000000000000000) ?	1'b1:
-																		1'b0;
-
-
-always @(negedge clk_sys or negedge RESET_N)
-begin
-	if(!RESET_N)
-	begin
-		inv_a14 <= 1'b0;
-		adrs_monitor <= 1'b0;
-	end
-	else
-	begin
-		if (adrs_monitor == 1'b0)
-			inv_a14 <= 1'b1;
-		else
-			inv_a14 <= 1'b0;
-			
-		if (write_to_cart_0)
-			adrs_monitor <= 1'b0;
-		if ((ioctl_index[5:0] == 6'd1) & ioctl_wr)
-			adrs_monitor <= adrs_monitor | ioctl_addr[14];
-	end
-end
-
-
-// Removal of sram [V5]
-//COCO_SRAM CC3_SRAM0(
-//.CLK(~clk_sys),
-//.ADDR(RAM0_ADDRESS[15:0]),
-//.R_W(RAM0_RW_N | RAM0_BE0_N),
-//.DATA_I(RAM0_DATA_I[7:0]),
-//.DATA_O(RAM0_DATA_O[7:0])
-//);
-
-//COCO_SRAM CC3_SRAM1(
-//.CLK(~clk_sys),
-//.ADDR(RAM0_ADDRESS[15:0]),
-//.R_W(RAM0_RW_N | RAM0_BE1_N),
-//.DATA_I(RAM0_DATA_I[15:8]),
-//.DATA_O(RAM0_DATA_O[15:8])
-//);
 
 assign	ENA_ORCC =	({ROM_SEL, MPI_CTS} == 3'b100)						?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
 																								1'b0;
@@ -1106,12 +951,28 @@ assign	HDD_EN = ({MPI_SCS[0], ADDRESS[15:4]} == 13'b1111111110100)	?	1'b1:		// F
 																								1'b0;
 assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)				?	1'b1:		//FF68-FF6B
 																								1'b0;
-//assign	SPI_EN = (ADDRESS[15:1]  == 15'b111111110110010)				?	1'b1:		// SPI FF64-FF65
-//																								1'b0;
 assign	SLOT3_HW = ({MPI_SCS, ADDRESS[15:5]} == 13'b1011111111010)	?	1'b1:		// FF40-FF5F
 																								1'b0;
 assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)					?	1'b1:		// FF7E
 																								1'b0;
+
+always @(negedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		ROM_BANK <= 3'b000;
+	end
+	else
+	begin
+		if({PH_2, SLOT3_HW, RW_N} == 3'b110)
+//			case (ADDRESS[4:0])
+//			5'h00:
+//			begin
+				ROM_BANK <= DATA_OUT[2:0];
+//			end
+//			endcase
+	end
+end
 
 /*
 $FF40 - This is the bank latch. The same latch that is used by the Super Program Paks to bank 16K of the Pak ROM
