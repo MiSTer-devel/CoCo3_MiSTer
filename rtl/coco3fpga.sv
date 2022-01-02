@@ -83,8 +83,6 @@ input				CLK_57,
 input				CLK_28,
 input				CLK_14,
 
-input				CLK50MHZ,
-
 input 				COCO_RESET_N,
 
 // Video
@@ -4426,6 +4424,7 @@ COCO3VIDEO MISTER_COCOVID(
 
 parameter SHDOW_FONT_LOCK_REG = 16'hfff0;
 parameter SHDOW_FONT_DATA_REG = 16'hfff1;
+parameter SHDOW_FONT_ADRS_REG = 16'hfff2;
 
 parameter SHDOW_FONT_UNLOCK_UPPER_VAL = 8'hA5;
 parameter SHDOW_FONT_UNLOCK_LOWER_VAL = 8'h5A;
@@ -4434,7 +4433,9 @@ parameter SHDOW_FONT_USE_ALT = 8'hC3;
 
 reg		[7:0]	Font_Lock_Register;
 reg		[7:0]	Font_Data_Register;
+reg		[7:0]	Font_ADRS_Register;
 reg				Font_Data_Write_Strobe;
+reg				Font_Adrs_Write_Strobe;
 wire	[1:0]	Font_ROM_Unlocks;
 wire			Font_ROM_Unlocked;
 wire			Font_ROM_Upper_Select;
@@ -4457,6 +4458,7 @@ begin
 	else
 	begin
 		Font_Data_Write_Strobe <= 1'b0;
+		Font_Adrs_Write_Strobe <= 1'b0;
 		if (PH_2)
 		begin
 			if(!RW_N)
@@ -4471,6 +4473,12 @@ begin
 				begin
 					Font_Data_Register <= DATA_OUT[7:0];
 					Font_Data_Write_Strobe <= 1'b1;
+				end
+//				SHDOW_FONT_ADRS_REG = 16'hfff2;
+				SHDOW_FONT_ADRS_REG:
+				begin
+					Font_ADRS_Register <= DATA_OUT[7:0];
+					Font_Adrs_Write_Strobe <= 1'b1;
 				end
 				endcase;
 			end
@@ -4502,6 +4510,8 @@ begin
 		Font_ROM_Mach_Shft[3:1] <= Font_ROM_Mach_Shft[2:0];
 		if (Font_ROM_Mach_Shft[3])
 			Font_ROM_CPU_W <= Font_ROM_CPU_W + 1'b1;
+		if (Font_Adrs_Write_Strobe)
+			Font_ROM_CPU_W <= {Font_ADRS_Register[6:0], 4'b0000};
 	end
 end
 
@@ -4531,13 +4541,16 @@ coco3_Char_ROM coco3_Char_ROM(
 reg     [4:0]           CLK_6551;
 // 14.31818
 // 50 MHz / 27 = 1.852 MHz
-always @(negedge CLK50MHZ or negedge RESET_N)
+// Targeting 1.8432 Mhz.
+// 57.272727 Mhz / 31 = 1.8475 Mhz
+
+always @(negedge clk_sys or negedge RESET_N)
 begin
         if(!RESET_N)
                 CLK_6551 <= 5'd0;
         else
                 case(CLK_6551)
-                5'd26:
+                5'd30:
                         CLK_6551 <= 5'd0;
                 default:
                         CLK_6551 <= CLK_6551 + 1'b1;

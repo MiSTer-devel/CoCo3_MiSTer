@@ -339,19 +339,19 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(1000), .VDNUM(4), .BLKSZ(2)) hps_io
 
 // SD block level interface
 wire	[3:0]  		img_mounted;
-wire				   img_readonly;
+wire			    img_readonly;
 wire	[19:0] 		img_size;
 
 wire	[31:0] 		sd_lba[4];
 wire	[5:0] 		sd_blk_cnt[4];
 
-wire	[3:0]		   sd_rd;
-wire	[3:0]		   sd_wr;
-wire	[3:0]		   sd_ack;
+wire	[3:0]		sd_rd;
+wire	[3:0]		sd_wr;
+wire	[3:0]		sd_ack;
 
 // SD byte level access. Signals for 2-PORT altsyncram.
-wire  	[8:0]    sd_buff_addr;
-wire  	[7:0]    sd_buff_dout;
+wire  	[8:0]       sd_buff_addr;
+wire  	[7:0]       sd_buff_dout;
 wire 	[7:0]       sd_buff_din[4];
 wire        		sd_buff_wr;
 
@@ -447,8 +447,6 @@ coco3fpga coco3 (
   .CLK_57(CLK_57),
   .CLK_28(CLK_28),
   .CLK_14(CLK_14),
-
-  .CLK50MHZ(CLK_50M),
 
   // Reset
   .COCO_RESET_N((~reset & Programmed_RESET_N)),
