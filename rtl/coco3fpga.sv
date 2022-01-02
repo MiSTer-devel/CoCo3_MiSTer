@@ -4518,12 +4518,13 @@ assign Font_ROM_Data_Buf = (Font_ROM_Unlocked) ?	Font_Data_Register:
 // COCO3 Character rom
 
 coco3_Char_ROM coco3_Char_ROM(
-	.CLK(clk_sys),
-	.ADDR_R({Font_ROM_Upper_Select, font_adrs}),
-	.ADDR_W(Font_ROM_Adrs_Buf),
+	.WR_CLK(clk_sys),
 	.WE(((ioctl_index[5:0] == 6'd3) & ioctl_wr) | Font_ROM_Mach_WE), // Can be just Font_ROM_Mach_WE if no MISTer
-    .DATA_R(font_data),
-    .DATA_W(Font_ROM_Data_Buf)
+	.ADDR_W(Font_ROM_Adrs_Buf),
+    .DATA_W(Font_ROM_Data_Buf),
+	.RD_CLK(CLK_14),
+	.ADDR_R({(COCO1 ^ Font_ROM_Upper_Select), font_adrs}),
+    .DATA_R(font_data)
 );
 
 

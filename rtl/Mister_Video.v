@@ -103,7 +103,7 @@ reg                 VBORDER_INT;
 //reg                 HBLANKING;
 reg     [9:0]       LINE;
 reg     [3:0]       VLPR;
-reg     [3:0]       COCO_VLPR;
+//reg     [3:0]       COCO_VLPR;
 reg     [10:0]      PIXEL_COUNT;
 reg     [15:0]      CHAR_LATCH_0_TMP;
 reg     [15:0]      CHAR_LATCH_1_TMP;
@@ -154,7 +154,7 @@ reg     [1:0]       FUTURE;
 wire    [8:0]       BUF_ADD_BASE;
 //reg   [353:0]       VSYNC_DELAY;
 //reg                 VBLANKING;
-wire    [3:0]       SG_VLPR;
+//wire    [3:0]       SG_VLPR;
 reg     [139:0]     VSYNC_DELAY;
 reg                 VBORDER;
 reg                 VSYNC_FLAG;
@@ -254,9 +254,9 @@ assign BUF_ADD_BASE =
 // CoCo1 Text and SEMIGRAPHICS
                                             {4'b0000,  PIXEL_COUNT[9:5]};   //32 characters / line
 // SRH fix for 80 col mode...
-wire [3:0]	COCO3_VLPR;
+//wire [3:0]	COCO3_VLPR;
 //assign COCO3_VLPR = VLPR + 2'b11;
-assign COCO3_VLPR = VLPR;
+//assign COCO3_VLPR = VLPR;
 
 always @ (negedge MASTER_CLK)
     PIX_CLK_DELAY <= PIX_CLK;
@@ -306,7 +306,7 @@ always @ (negedge MASTER_CLK)
         4'b0110:
         begin
             if(!COCO1)
-                ROM_ADDRESS <=  {CHAR_LATCH_0_TMP[6:0],COCO3_VLPR[3:0]};                                  // COCO3 Text 1 (40 and 80)
+                ROM_ADDRESS <=  {CHAR_LATCH_0_TMP[6:0],VLPR};                                  // COCO3 Text 1 (40 and 80)
             else
             begin
                 if({COCO1,VID_CONT[0],CHAR_LATCH_0_TMP[6:5]} == 4'b1100)
@@ -324,7 +324,7 @@ always @ (negedge MASTER_CLK)
         begin
             BUFF_ADD <= BUFF_ADD + 1'b1;
             CHAR_LATCH_2_TMP <= RAM_DATA[15:0];
-            ROM_ADDRESS <=  {CHAR_LATCH_0_TMP[14:8],COCO3_VLPR[3:0]};                                     // COCO3 Text 1 (40 and 80)
+            ROM_ADDRESS <=  {CHAR_LATCH_0_TMP[14:8],VLPR};                                     // COCO3 Text 1 (40 and 80)
             CHARACTER0_TMP <=   ROM_DATA1;
         end
         4'b1001:
@@ -338,7 +338,7 @@ always @ (negedge MASTER_CLK)
 //            CHAR_LATCH_4_TMP <= RAM_DATA[15:0];
     //Attribute less TEXT only
             CHARACTER1_TMP <=   ROM_DATA1;
-            ROM_ADDRESS <=  {CHAR_LATCH_1_TMP[6:0],COCO3_VLPR[3:0]};                                      // COCO3 Text 1 (40 and 80)
+            ROM_ADDRESS <=  {CHAR_LATCH_1_TMP[6:0],VLPR};                                      // COCO3 Text 1 (40 and 80)
         end
 //        4'b1011:
 //        begin
@@ -1363,7 +1363,7 @@ always @ (negedge MASTER_CLK)
         end
         11'd724:                            // End of right border 720 + 44 - 1 (+ 64) start of back porch
         begin
-			SYNC_FLAG <= !LINE[0];					// Every other line with the first visable line has sync [addrd SH]
+            SYNC_FLAG <= !LINE[0];          // Every other line with the first visable line has sync [addrd SH]
             HBORDER <= 1'b0;                // 736 - 28
             PIXEL_COUNT <= 11'd725;
         end
@@ -1447,12 +1447,16 @@ assign LINES_ROW =
 
                                                         4'b1011;    // 12
 
-assign SG_VLPR = VLPR + 1'b1;
-assign SIX =    (SG_VLPR[3:2] == 2'b00)     ?   1'b0:   //0-3 SG4
-                (SG_VLPR[3:1] == 3'b010)    ?   1'b0:   //4-5 SG4
-                                                1'b1;   //6-11
+//assign SG_VLPR = VLPR + 1'b1;
+//assign SIX =    (SG_VLPR[3:2] == 2'b00)     ?   1'b0:   //0-3 SG4
+//                (SG_VLPR[3:1] == 3'b010)    ?   1'b0:   //4-5 SG4
+//                                                1'b1;   //6-11
+assign SIX =    (VLPR[3:2] == 2'b00)     ?   1'b0:   //0-3 SG4
+                (VLPR[3:1] == 3'b010)    ?   1'b0:   //4-5 SG4
+                                             1'b1;   //6-11
 
-assign SG6 = SG_VLPR[3:2];
+//assign SG6 = SG_VLPR[3:2];
+assign SG6 = VLPR[3:2];
 
 /************************************
 * Generate clock for VSYNC_N by
@@ -1473,6 +1477,72 @@ always @ (negedge MASTER_CLK)
 always @ (negedge MASTER_CLK)
     HBORDER_DELAY <= HBORDER;
 
+always @ (negedge MASTER_CLK)
+begin
+    // VBLANKING is triggered by leading edge of HSYNC_N
+    if(VBLANKING)
+    begin
+        ROW_ADD <= 25'h0000000;
+        UNDERLINE <= 1'b0;
+//        FIRST <= 1'b1;
+        if(COCO1 == 1'b0)
+        begin
+            //25 bits =          6 bits     +    8 bits    +     8 bits    +     3 bits
+            //                   24-19      +    18-11     +     10-3      +     2-0
+            SCREEN_START_ADD <= {SCRN_START_HSB, SCRN_START_MSB, SCRN_START_LSB, 3'h0};
+            //SCREEN_START_ADD <= 25'h0000000;
+        end
+        else
+        begin
+            //25 bits            6 bits     +    3 bits               7 bits + 6 bits               3 bits
+            //                   24-19      +    18-16      +         15-9   + 8-3                  2-0
+            SCREEN_START_ADD <= {SCRN_START_HSB, SCRN_START_MSB[7:5], VERT,    SCRN_START_LSB[5:0], 3'h0};
+        end
+        if(LINES_ROW == 4'b0000)                      // Vertical Fine Scroll not in single row graphics modes
+        begin
+            VLPR <= 4'h0;
+        end
+        else
+        begin
+            if(COCO1)
+                VLPR <= VERT_FIN_SCRL + 1'b1;               // -1 + 1 = 0
+            else
+                VLPR <= VERT_FIN_SCRL;
+        end
+    end
+    else
+    begin
+        if(HBORDER == 1'b0 && HBORDER_DELAY == 1'b1)
+        begin
+//            if(FIRST)                                               // Skip the first line since Blanking goes away before the HORDER signal
+//            begin
+//                FIRST <= 1'b0;
+//            end
+//            else
+//            begin
+                if(VLPR == 4'b0110)             // 1 less than 7 (Last line)
+                    UNDERLINE <= 1'b1;
+                else
+                    UNDERLINE <= 1'b0;
+                if (VLPR == LINES_ROW)
+                begin
+                    if (LINES_ROW != 4'hF)
+                    begin
+                        VLPR <= 4'h0;
+                        ROW_ADD <= OFFSET;
+                    end
+                end
+                else
+                begin
+                    VLPR <= VLPR + 1'b1;
+                end
+//            end
+        end
+    end
+end
+
+
+/*
 always @ (negedge MASTER_CLK)
 begin
     // Falling edge of horizontal border
@@ -1503,7 +1573,7 @@ begin
         end
         else
         begin
-            if(FIRST)						// Skip the first line since Blanking goes away before the HORDER signal
+            if(FIRST)                                               // Skip the first line since Blanking goes away before the HORDER signal
             begin
                 FIRST <= 1'b0;
             end
@@ -1615,6 +1685,7 @@ begin
                 end
                 else
                 begin
+*/
 /*
 Alpha       12 / 1 = 12
 SemiGraphics 4   12 / 1 = 12
@@ -1623,6 +1694,7 @@ SemiGraphbics 8  12 / 4 = 3 (A, 1, 4, 7)
 SemiGraphics 12  12 / 6 = 2 (A, 0, 2, 4, 6, 8)
 SemiGraphics 24  12 / 12 = 1
 */
+/*
 // This gets triggered towards the end of the row
                     case (VLPR)
                     // Line 1
@@ -1768,6 +1840,7 @@ SemiGraphics 24  12 / 12 = 1
         end
     end
 end
+*/
 
 always @ (negedge MASTER_CLK)
     HSYNC_N_DELAY <= HSYNC_N;
