@@ -66,36 +66,40 @@ assign O_SEC  = (4'd10 * data[SEC][6:4]) + data[SEC][3:0];
 always @(posedge clk) 
 begin
 	seccnt <= seccnt + 1;
-	if(seccnt >= CLOCK_RATE) begin
+	if(seccnt >= CLOCK_RATE)
+	begin
 		seccnt <= 1;
-		if(!data[SEC][7]) begin
-			if (data[SEC][3:0] != 9) data[SEC][3:0] <= data[SEC][3:0] + 1'd1;
-			else begin
+		if(!data[SEC][7])
+		begin
+			if (data[SEC][3:0] != 9)
+				data[SEC][3:0] <= data[SEC][3:0] + 1'd1;
+			else
+			begin
 				data[SEC][3:0] <= 0;
-				if (data[SEC][6:4] != 5) data[SEC][6:4] <= data[SEC][6:4] + 1'd1;
-				else begin
+				if (data[SEC][6:4] != 5)
+					data[SEC][6:4] <= data[SEC][6:4] + 1'd1;
+				else
+				begin
 					data[SEC][6:4] <= 0;
-					if (data[MIN][3:0] != 9) data[MIN][3:0] <= data[MIN][3:0] + 1'd1;
-					else begin
+					if (data[MIN][3:0] != 9)
+						data[MIN][3:0] <= data[MIN][3:0] + 1'd1;
+					else
+					begin
 						data[MIN][3:0] <= 0;
-						if (data[MIN][6:4] != 5) data[MIN][6:4] <= data[MIN][6:4] + 1'd1;
-						else begin
+						if (data[MIN][6:4] != 5) 
+							data[MIN][6:4] <= data[MIN][6:4] + 1'd1;
+						else
+						begin
 							data[MIN][6:4] <= 0;
-							if (data[HR][3:0] == 9) begin
+							if (data[HR][3:0] == 9)
+							begin
 								data[HR][3:0] <= 0;
 								data[HR][5:4] <= data[HR][5:4] + 1'd1;
 							end
-							else if (data[HR][6:0] == {3'd2,4'd3}) begin
+							else if (data[HR][6:0] == {3'd2,4'd3})
+							begin
 								data[HR][3:0] <= 4'd0;
 								data[HR][6:4] <= 3'd0;
-//							end
-//							else if ((data[HR][6:0] != {2'b11,5'd12}) &&	(data[HR][6:0] != 23)) data[HR][3:0] <= data[HR][3:0] + 1'd1;
-//							else
-//							begin
-//								if (data[HR][6])
-//									data[HR][5:0] <= 1;
-//								else
-//									data[HR][5:0] <= 0;
 
 								data[DAY] <= &data[DAY][2:0] ? 8'd1 : (data[DAY][2:0] + 1'd1);
 
@@ -104,23 +108,32 @@ begin
 									 ({data[MON], data[DATE]} == 16'h0630) ||
 									 ({data[MON], data[DATE]} == 16'h0930) ||
 									 ({data[MON], data[DATE]} == 16'h1130) ||
-									 (data[DATE] == 8'h31)) begin
-									
+									 (data[DATE] == 8'h31)) 
+								begin
 									data[DATE][5:0] <= 1;
-									if (data[MON][3:0] == 9) data[MON][4:0] <= 'h10;
-									else if (data[MON][4:0] != 5'h12) data[MON][3:0] <= data[MON][3:0] + 1'd1;
-									else begin 
+									if (data[MON][3:0] == 9)
+										data[MON][4:0] <= 'h10;
+									else if (data[MON][4:0] != 5'h12)
+										data[MON][3:0] <= data[MON][3:0] + 1'd1;
+									else
+									begin 
 										data[MON][4:0] <= 5'h1;
-										if (data[YEAR][3:0] != 9) data[YEAR][3:0] <= data[YEAR][3:0] + 1'd1;
-										else begin
+										if (data[YEAR][3:0] != 9) 
+											data[YEAR][3:0] <= data[YEAR][3:0] + 1'd1;
+										else
+										begin
 											data[YEAR][3:0] <= 0;
-											if (data[YEAR][7:4] != 9) data[YEAR][7:4] <= data[YEAR][7:4] + 1'd1;
-											else data[YEAR][7:4] <= 0;
+											if (data[YEAR][7:4] != 9)
+												data[YEAR][7:4] <= data[YEAR][7:4] + 1'd1;
+											else
+												data[YEAR][7:4] <= 0;
 										end
 									end
 								end
-								else if (data[DATE][3:0] != 9) data[DATE][3:0] <= data[DATE][3:0] + 1'd1;
-								else begin
+								else if (data[DATE][3:0] != 9)
+									data[DATE][3:0] <= data[DATE][3:0] + 1'd1;
+								else 
+								begin
 									data[DATE][3:0] <= 0;
 									data[DATE][5:4] <= data[DATE][5:4] + 1'd1;
 								end
@@ -133,7 +146,8 @@ begin
 	end
 
 	flg <= RTC[64];
-	if (flg != RTC[64]) begin
+	if (flg != RTC[64])
+	begin
 		data[SEC]  <= RTC[6:0];
 		data[MIN]  <= RTC[15:8];
 		data[HR]   <= RTC[21:16];

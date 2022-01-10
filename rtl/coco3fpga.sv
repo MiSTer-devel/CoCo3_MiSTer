@@ -1036,8 +1036,8 @@ in any banks in any order, by simply writing the proper data into these latches.
 
 
 assign	DATA_IN =
-														(RAM0_BE0_L & end_hold)		?	hold_data[7:0]:
-														(RAM0_BE1_L & end_hold)		?	hold_data[15:8]:
+														(RAM0_BE0_L & end_hold)		?	hold_data_L[7:0]:
+														(RAM0_BE1_L & end_hold)		?	hold_data_L[15:8]:
 //														RAM0_BE0		?	RAM0_DATA_O[7:0]: Removal of sram data out [V5]
 //														RAM0_BE1		?	RAM0_DATA_O[15:8]:
 //														RAM1_BE0		?	RAM1_DATA[7:0]:
@@ -1420,7 +1420,7 @@ begin
 end
 
 reg				end_hold;
-reg		[15:0]	hold_data;
+reg		[15:0]	hold_data, hold_data_L;
 reg				RAM0_BE0_L, RAM0_BE1_L;
 reg				clear_data_ready, data_ready;
 
@@ -1483,6 +1483,7 @@ begin
 				hold <= 1'b0;
 				end_hold <= 1'b1;
 				clear_data_ready <= 1'b1;
+				hold_data_L <= hold_data;
 //				hold_cnt <= 1'b00;
 			end
 		end
