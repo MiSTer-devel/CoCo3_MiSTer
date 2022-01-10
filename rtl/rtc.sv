@@ -85,14 +85,17 @@ begin
 								data[HR][3:0] <= 0;
 								data[HR][5:4] <= data[HR][5:4] + 1'd1;
 							end
-							else if (data[HR][6:0] == {2'b10,5'd12}) begin
-								data[HR][4:0] <= 1;
-								data[HR][5]   <= 1;
-							end
-							else if ((data[HR][6:0] != {2'b11,5'd12}) &&	(data[HR][6:0] != 23)) data[HR][3:0] <= data[HR][3:0] + 1'd1;
-							else begin
-								if (data[HR][6]) data[HR][5:0] <= 1;
-								else data[HR][5:0] <= 0;
+							else if (data[HR][6:0] == {3'd2,4'd3}) begin
+								data[HR][3:0] <= 4'd0;
+								data[HR][6:4] <= 3'd0;
+//							end
+//							else if ((data[HR][6:0] != {2'b11,5'd12}) &&	(data[HR][6:0] != 23)) data[HR][3:0] <= data[HR][3:0] + 1'd1;
+//							else
+//							begin
+//								if (data[HR][6])
+//									data[HR][5:0] <= 1;
+//								else
+//									data[HR][5:0] <= 0;
 
 								data[DAY] <= &data[DAY][2:0] ? 8'd1 : (data[DAY][2:0] + 1'd1);
 
@@ -105,9 +108,9 @@ begin
 									
 									data[DATE][5:0] <= 1;
 									if (data[MON][3:0] == 9) data[MON][4:0] <= 'h10;
-									else if (data[MON][4:0] != 'h12) data[MON][3:0] <= data[MON][3:0] + 1'd1;
+									else if (data[MON][4:0] != 5'h12) data[MON][3:0] <= data[MON][3:0] + 1'd1;
 									else begin 
-										data[MON][4:0] <= 1;
+										data[MON][4:0] <= 5'h1;
 										if (data[YEAR][3:0] != 9) data[YEAR][3:0] <= data[YEAR][3:0] + 1'd1;
 										else begin
 											data[YEAR][3:0] <= 0;
