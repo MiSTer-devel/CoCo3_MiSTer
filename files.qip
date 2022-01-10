@@ -15,6 +15,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/coco3fpga.sv
 set_global_assignment -name VERILOG_FILE rtl/pll.v
 set_global_assignment -name VERILOG_FILE rtl/pll/pll_0002.v
 set_global_assignment -name VERILOG_FILE rtl/cassette.v
+set_global_assignment -name VERILOG_FILE rtl/rtc.sv
 set_global_assignment -name VERILOG_FILE rtl/square_gen.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fdc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram/sdram2.sv

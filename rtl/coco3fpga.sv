@@ -12,7 +12,7 @@
 //
 // Color Computer 3 compatible system on a chip
 //
-// Version : 4.1.2
+// Version : 5.x
 //
 // Copyright (c) 2008 Gary Becker (gary_l_becker@yahoo.com)
 //
@@ -66,10 +66,9 @@
 // gary_L_becker@yahoo.com
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-// MISTer Conversion by Stan Hodge and Alan Steremberg
+// MISTer Conversion by Stan Hodge and Alan Steremberg (& Gary Becker)
 // stan.pda@gmail.com
 // 
-// This code is a fork of the DE2-115 conversion.
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -78,6 +77,7 @@ module coco3fpga(
 // Input Clocks
 //	CLOCKS
 
+input				CLK_50M,
 input				CLK_114,
 input				CLK_57,
 input				CLK_28,
@@ -195,8 +195,9 @@ input				sdram_vid_ready,
 
 input				sdram_busy,
 
-input	[1:0]		turbo_speed
+input	[64:0]		RTC,
 
+input	[1:0]		turbo_speed
  
 );
 
@@ -443,7 +444,6 @@ wire			RX_CLK2;
 wire	[7:0]	DATA_RS232;
 reg		[2:0]	ROM_BANK;
 wire			SLOT3_HW;
-reg		[9:0]	SEC;
 reg				TICK0;
 reg				TICK1;
 reg				TICK2;
@@ -701,6 +701,31 @@ wire			clk_sys;
 reg 			hold;
 reg 			cpu_ena;
 
+
+wire	[4:0]	CENT; // BIN Values
+wire	[6:0]	YEAR;
+wire	[3:0]	MNTH;
+wire	[4:0]	DMTH;
+wire	[2:0]	DWK;
+wire	[4:0]	HOUR;
+wire	[5:0]	MIN;
+wire	[5:0]	SEC;
+
+
+rtc #(50000000) CC3_rtc(
+.clk(CLK_50M),
+.RTC(RTC),
+.O_CENT(CENT),
+.O_YEAR(YEAR),
+.O_MNTH(MNTH),
+.O_DMTH(DMTH),
+.O_DWK(DWK),
+.O_HOUR(HOUR),
+.O_MIN(MIN),
+.O_SEC(SEC)
+);
+
+
 // Probe's defined
 //assign PROBE[6:0] = {CART1_POL, CART1_BUF_RESET_N, CART1_FIRQ_STAT_N, CART1_CLK_N, CART1_FIRQ_N, RESET_N, PH_2};
 //assign PROBE[7:0] = {1'b0, CART1_POL, CART1_FIRQ_N, CART1_FIRQ_BUF[0], CART1_CLK_N_D, CART1_FIRQ_RESET_N, CART1_CLK_N, PH_2};
@@ -816,7 +841,7 @@ assign RAM_CS =					(ROM_SEL)										?	1'b0:		// Any slot
 								({RAM, ADDRESS[15:10]} == 7'b0111110)			?	1'b0:		// ROM (F800-FBFF)
 								({RAM, ADDRESS[15:9]}  == 8'b01111110)			?	1'b0:		// ROM (FC00-FDFF)
 //								({BLOCK_ADDRESS[9:8]} != 2'b10)					?	1'b0:		// 0 - 4M
-								(ADDRESS[15:0]== 18'h2FF73)						?	1'b1:		// GART
+								(ADDRESS[15:0] == 18'h2FFE8)					?	1'b1:		// GART
 //								(!VMA & (GART_CNT != 17'h00000))				?	1'b1:		// Chip Select is not needed for the memcopy
 								({ADDRESS[15:8]}== 8'hFF)						?	1'b0:		// Hardware (FF00-FFFF)
 																					1'b1;
@@ -1125,14 +1150,14 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFFBD)		?	{2'b00, PALETTE[13][5:0]}:
 									(ADDRESS == 16'hFFBE)		?	{2'b00, PALETTE[14][5:0]}:
 									(ADDRESS == 16'hFFBF)		?	{2'b00, PALETTE[15][5:0]}:
-//									(ADDRESS == 16'hFFC0)		?	{3'b000, CENT}:
-//									(ADDRESS == 16'hFFC1)		?	{1'b0, YEAR}:
-//									(ADDRESS == 16'hFFC2)		?	{4'h0, MNTH}:
-//									(ADDRESS == 16'hFFC3)		?	{3'b000, DMTH}:
-//									(ADDRESS == 16'hFFC4)		?	{5'b00000, DWK}:
-//									(ADDRESS == 16'hFFC5)		?	{3'b000, HOUR}:
-//									(ADDRESS == 16'hFFC6)		?	{2'b00, MIN}:
-//									(ADDRESS == 16'hFFC7)		?	{2'b00, SEC}:
+									(ADDRESS == 16'hFFC0)		?	{3'b000, CENT}:
+									(ADDRESS == 16'hFFC1)		?	{1'b0, YEAR}:
+									(ADDRESS == 16'hFFC2)		?	{4'h0, MNTH}:
+									(ADDRESS == 16'hFFC3)		?	{3'b000, DMTH}:
+									(ADDRESS == 16'hFFC4)		?	{5'b00000, DWK}:
+									(ADDRESS == 16'hFFC5)		?	{3'b000, HOUR}:
+									(ADDRESS == 16'hFFC6)		?	{2'b00, MIN}:
+									(ADDRESS == 16'hFFC7)		?	{2'b00, SEC}:
 
 									(ADDRESS == 16'hFFCC)		?	{KEY[51],KEY[52],KEY[72],KEY[71],
 																			 KEY[28],KEY[27],KEY[30],KEY[29]}:
@@ -1486,24 +1511,45 @@ begin
 			begin
 				cpu_ena <= 1'b1;
 
-				if (VMA & RAM_CS)
+				if (VMA & RAM_CS) // FFE8 is now in RAM_CS
 				begin
 //					sdram memory cycle
-//					get which byte
-					RAM0_BE0_L <=  !ADDRESS[0];
-					RAM0_BE1_L <=  ADDRESS[0];
-
-					if (RW_N & cache_hit & ~last_write)		// Read cache hit on stored on 16 hold_data value?
+					if (ADDRESS[15:0] == 18'h2FFE8) // GART
 					begin
-						end_hold <= 1'b1;					// If so then end the cpu_ena cycle with the updated byte enable
-					end
-					else
-					begin
-						sdram_cpu_addr_L <= sdram_cpu_addr;	// Else set hold and start a sdram cycle
+						if (~RW_N)
+						begin // Gart Write
+							RAM0_BE0_L <=  !GART_WRITE[0];
+							RAM0_BE1_L <=  GART_WRITE[0];
+							sdram_cpu_addr_L <= {2'b00, GART_WRITE};
+						end
+						else
+						begin // Gart Read
+							RAM0_BE0_L <=  !GART_READ[0];
+							RAM0_BE1_L <=  GART_READ[0];
+							sdram_cpu_addr_L <= {2'b00, GART_READ};
+						end
 						hold <= 1'b1;
 						sdram_cpu_req <= 1'b1;
 						sdram_cpu_rnw <= RW_N;
 						last_write <= ~RW_N;
+					end
+					else  // Normal CPU cycle
+//						get which byte
+						RAM0_BE0_L <=  !ADDRESS[0];
+						RAM0_BE1_L <=  ADDRESS[0];
+
+						if (RW_N & cache_hit & ~last_write)		// Read cache hit on stored on 16 hold_data value?
+						begin
+							end_hold <= 1'b1;					// If so then end the cpu_ena cycle with the updated byte enable
+						end
+						else
+						begin
+							sdram_cpu_addr_L <= sdram_cpu_addr;	// Else set hold and start a sdram cycle
+							hold <= 1'b1;
+							sdram_cpu_req <= 1'b1;
+							sdram_cpu_rnw <= RW_N;
+							last_write <= ~RW_N;
+						end
 					end
 				end
 			end
@@ -1513,55 +1559,55 @@ begin
 // Gart
 //***************************************
 //	This needs a total rework
-			if(ADDRESS[15:0]==16'hFF73)
-			begin
-				RAM0_RW_N <= RW_N;
-				if(!RW_N)
-				begin
-					RAM0_ADDRESS <= GART_WRITE[20:1];
-				end
-				else
-				begin
-					RAM0_ADDRESS <= GART_READ[20:1];
-				end
-				if (!RW_N)
-				begin
-					RAM0_DATA_I[15:0] <= {DATA_OUT, DATA_OUT};
-				end
-			end
-			else
-			begin
-				if(!VMA & (GART_CNT != 17'h00000))
-				begin
-					if(GART_CNT[0])
-					begin
-						RAM0_RW_N <= 1'b0;
-						RAM0_ADDRESS <= GART_WRITE[20:1];
-						RAM0_DATA_I[15:0] <= {GART_BUF, GART_BUF};
-					end
-					else
-					begin
-						RAM0_RW_N <= 1'b1;
-						RAM0_ADDRESS <= GART_READ[20:1];
-					end
-				end
-				else
-				begin
-					RAM0_RW_N <= RW_N;
-					RAM0_ADDRESS <= {BLOCK_ADDRESS[7:0], ADDRESS[12:1]};
-					if (!RW_N)
-					begin
-						RAM0_DATA_I[15:0] <= {DATA_OUT, DATA_OUT};
-					end
-				end
-			end
-		end
+//			if(ADDRESS[15:0]==16'hFF73)
+//			begin
+//				RAM0_RW_N <= RW_N;
+//				if(!RW_N)
+//				begin
+//					RAM0_ADDRESS <= GART_WRITE[20:1];
+//				end
+//				else
+//				begin
+//					RAM0_ADDRESS <= GART_READ[20:1];
+//				end
+//				if (!RW_N)
+//				begin
+//					RAM0_DATA_I[15:0] <= {DATA_OUT, DATA_OUT};
+//				end
+//			end
+//			else
+//			begin
+//				if(!VMA & (GART_CNT != 17'h00000))
+//				begin
+//					if(GART_CNT[0])
+//					begin
+//						RAM0_RW_N <= 1'b0;
+//						RAM0_ADDRESS <= GART_WRITE[20:1];
+//						RAM0_DATA_I[15:0] <= {GART_BUF, GART_BUF};
+//					end
+//					else
+//					begin
+//						RAM0_RW_N <= 1'b1;
+//						RAM0_ADDRESS <= GART_READ[20:1];
+//					end
+//				end
+//				else
+//				begin
+//					RAM0_RW_N <= RW_N;
+//					RAM0_ADDRESS <= {BLOCK_ADDRESS[7:0], ADDRESS[12:1]};
+//					if (!RW_N)
+//					begin
+//						RAM0_DATA_I[15:0] <= {DATA_OUT, DATA_OUT};
+//					end
+//				end
+//			end
+//		end
 		6'h01:
 		begin
-			if(!VMA & !GART_CNT[0])
-			begin
-				GART_BUF <= DATA_IN;
-			end
+//			if(!VMA & !GART_CNT[0])
+//			begin
+//				GART_BUF <= DATA_IN;
+//			end
 			PH_2_RAW <= 1'b0;
 
 //			if we are not in a memory read [hold] then terminate cpu_ena - just like PH_2
@@ -2672,12 +2718,6 @@ begin
 		CART1_POL <= 1'b0;
 		DDR4 <= 1'b0;
 		SOUND_EN <= 1'b0;
-// FF70-FF72
-		GART_WRITE <= 23'h000000;			// 19' for 512kb
-// FF74-FF76
-		GART_READ <= 23'h000000;			// 19' for 512kb
-// FF77
-		GART_INC <= 2'b00;
 //	FF78-FF79
 		GART_CNT <= 17'h00000;
 // FF7A
@@ -2849,6 +2889,12 @@ begin
 		RATE <= 1'b0;
 // FFDE / FFDF
 		RAM <= 1'b0;
+// FFE1-FFE3
+		GART_WRITE <= 23'h000000;
+// FFE4-FFE6
+		GART_READ <= 23'h000000;
+// FFE7
+		GART_INC <= 2'b00;
 	end
 	else
 	begin
@@ -3362,47 +3408,47 @@ begin
 					DDR4 <= DATA_OUT[2];
 					SOUND_EN <= DATA_OUT[3];
 				end
-				16'hFF70:
-				begin
-					GART_WRITE[22:16] <= DATA_OUT[6:0];	//2MB    512Kb: GART_WRITE[18:16] <= DATA_OUT[2:0];
-				end
-				16'hFF71:
-				begin
-					GART_WRITE[15:8] <= DATA_OUT;
-				end
-				16'hFF72:
-				begin
-					GART_WRITE[7:0] <= DATA_OUT;
-				end
-				16'hFF73:
-				begin
-					if(GART_INC[0])
-						GART_WRITE <= GART_WRITE + 1'b1;
-				end
-				16'hFF74:
-				begin
-					GART_READ[22:16] <= DATA_OUT[6:0];	//2MB     512:GART_READ[18:16] <= DATA_OUT[2:0];
-				end
-				16'hFF75:
-				begin
-					GART_READ[15:8] <= DATA_OUT;
-				end
-				16'hFF76:
-				begin
-					GART_READ[7:0] <= DATA_OUT;
-				end
-				16'hFF77:
-				begin
-					GART_INC <= DATA_OUT[1:0];
-				end
-				16'hFF78:
-				begin
-					GART_CNT[16:9] <= DATA_OUT;
-				end
-				16'hFF79:
-				begin
-					GART_CNT[8:0] <= {DATA_OUT,1'b0};
-				end
+//				16'hFF70:
+//				begin
+//					GART_WRITE[22:16] <= DATA_OUT[6:0];	//2MB    512Kb: GART_WRITE[18:16] <= DATA_OUT[2:0];
+//				end
+//				16'hFF71:
+//				begin
+//					GART_WRITE[15:8] <= DATA_OUT;
+//				end
+//				16'hFF72:
+//				begin
+//					GART_WRITE[7:0] <= DATA_OUT;
+//				end
+//				16'hFF73:
+//				begin
+//					if(GART_INC[0])
+//						GART_WRITE <= GART_WRITE + 1'b1;
+//				end
+//				16'hFF74:
+//				begin
+//					GART_READ[22:16] <= DATA_OUT[6:0];	//2MB     512:GART_READ[18:16] <= DATA_OUT[2:0];
+//				end
+//				16'hFF75:
+//				begin
+//					GART_READ[15:8] <= DATA_OUT;
+//				end
+//				16'hFF76:
+//				begin
+//					GART_READ[7:0] <= DATA_OUT;
+//				end
+//				16'hFF77:
+//				begin
+//					GART_INC <= DATA_OUT[1:0];
+//				end
+//				16'hFF78:
+//				begin
+//					GART_CNT[16:9] <= DATA_OUT;
+//				end
+//				16'hFF79:
+//				begin
+//					GART_CNT[8:0] <= {DATA_OUT,1'b0};
+//				end
 				16'hFF7A:
 				begin
 					ORCH_LEFT <= DATA_OUT;
@@ -3908,27 +3954,79 @@ begin
 				begin
 					RAM <= 1'b1;
 				end
+                16'hFFE1:
+                begin
+                    GART_WRITE[22:16]<= DATA_OUT[6:0];
+                end
+                16'hFFE2:
+                begin
+                    GART_WRITE[15:8]<= DATA_OUT;
+                end
+                16'hFFE3:
+                begin
+                    GART_WRITE[7:0]<= DATA_OUT;
+                end
+                16'hFFE4:
+                begin
+                    GART_READ[22:16] <= DATA_OUT[6:0];
+                end
+                16'hFFE5:
+                begin
+                    GART_READ[15:8] <= DATA_OUT;
+                end
+                16'hFFE6:
+                begin
+                    GART_READ[7:0] <= DATA_OUT;
+                end
+                16'hFFE7:
+                begin
+                    GART_INC <= DATA_OUT[1:0];
+                end
+                16'hFFE8:
+                begin
+                    if(GART_INC[0])
+                        GART_WRITE <= GART_WRITE + 1'b1;
+                end
+                16'hFFE9:
+                begin
+                    if(GART_INC[0])
+                        GART_WRITE <= GART_WRITE + 1'b1;
+                end
+
 				endcase
 			end
 			else
 			begin
-				if(ADDRESS == 16'hFF73)
-				begin
-					if(GART_INC[1])
-						GART_READ <= GART_READ + 1'b1;
-				end
-				else
-				begin
-					if(!VMA & (GART_CNT != 17'h00000))
-					begin
-						GART_CNT <= GART_CNT - 1'b1;
-						if(GART_CNT[0] & GART_INC[0])
-							GART_WRITE <= GART_WRITE + 1'b1;
-						else
-							if(!GART_CNT[0] & GART_INC[1])
-								GART_READ <= GART_READ + 1'b1;
-					end
-				end
+//				if(ADDRESS == 16'hFF73)
+//				begin
+//					if(GART_INC[1])
+//						GART_READ <= GART_READ + 1'b1;
+//				end
+//				else
+//				begin
+//					if(!VMA & (GART_CNT != 17'h00000))
+//					begin
+//						GART_CNT <= GART_CNT - 1'b1;
+//						if(GART_CNT[0] & GART_INC[0])
+//							GART_WRITE <= GART_WRITE + 1'b1;
+//						else
+//							if(!GART_CNT[0] & GART_INC[1])
+//								GART_READ <= GART_READ + 1'b1;
+//					end
+//				end
+                if(ADDRESS == 16'hFFE8)
+                begin
+                    if(GART_INC[1])
+                        GART_READ <= GART_READ + 1'b1;
+                end
+                else
+                begin
+                    if(ADDRESS == 16'hFFE9)
+                    begin
+                        if(GART_INC[1])
+                            GART_READ <= GART_READ + 1'b1;
+                    end
+                end
 			end
 		end
 	end

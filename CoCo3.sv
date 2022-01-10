@@ -283,6 +283,7 @@ wire [21:0] gamma_bus;
 
 assign CLK_VIDEO = clk_sys;
 
+wire [64:0] RTC;
 
 // SD - 4 drives 512 size blocks [the wd1793 translates to a 256 byte sector size]	
 hps_io #(.CONF_STR(CONF_STR),.PS2DIV(1000), .VDNUM(4), .BLKSZ(2)) hps_io
@@ -296,6 +297,7 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(1000), .VDNUM(4), .BLKSZ(2)) hps_io
       .status(status),
       .status_menumask({ (mpi != 2'b11), (mpi != 2'b10),direct_video}),
       .forced_scandoubler(forced_scandoubler),
+	  .RTC(RTC),
       .gamma_bus(gamma_bus),
       .direct_video(direct_video),
 
@@ -443,6 +445,7 @@ assign USER_OUT[6:0] = probe[6:0];
 coco3fpga coco3 (
   //	CLOCKS
 
+  .CLK_50M(CLK_50M),
   .CLK_114(CLK_114),
   .CLK_57(CLK_57),
   .CLK_28(CLK_28),
@@ -518,7 +521,6 @@ coco3fpga coco3 (
 //	SDRAM
 
   .sdram_cpu_addr(sdram_cpu_addr),
-//  .sdram_ldout(sdram_ldout),
   .sdram_dout(sdram_dout),
   .sdram_cpu_din(sdram_cpu_din),
   .sdram_cpu_req(sdram_cpu_req),
@@ -530,19 +532,20 @@ coco3fpga coco3 (
   .sdram_vid_req(sdram_vid_req),
   .sdram_vid_ack(sdram_vid_ack),
   .sdram_vid_ready(sdram_vid_ready),
-  
+
   .sdram_busy(sdram_busy),
   
   .turbo_speed(turbo_speed),
 
-	.UART_TXD(UART_TXD),
-	.UART_RXD(UART_RXD),
-	.UART_RTS(UART_RTS),
-	.UART_CTS(UART_CTS),
-	.UART_DTR(UART_DTR),
-	.UART_DSR(UART_DSR)
-  
+  .RTC(RTC),
 
+
+  .UART_TXD(UART_TXD),
+  .UART_RXD(UART_RXD),
+  .UART_RTS(UART_RTS),
+  .UART_CTS(UART_CTS),
+  .UART_DTR(UART_DTR),
+  .UART_DSR(UART_DSR)
 );
 
 wire [5:0] cocosound;
@@ -554,7 +557,6 @@ wire cpu_speed = status[11];
 wire [1:0] mpi = (status[13:12]==2'b10)  ? 2'b00  : status[13:12]==2'b01 ? 2'b10 : status[13:12]==2'b00 ? 2'b11 : 2'b00;		
 wire video=status[14];
 wire cartint=status[16];
-//wire cartint = 1'b0;
 wire sg4v6 = status[21];
 
 wire PHASE = status[18];
@@ -601,6 +603,7 @@ wire sdram_vid_req;
 wire sdram_vid_ready;
 wire sdram_busy;
 
+
 sdram_32r8w coco3_sdram
 (
 	.*,
@@ -619,8 +622,10 @@ sdram_32r8w coco3_sdram
 	.sdram_vid_req(sdram_vid_req),
 	.sdram_vid_ack(sdram_vid_ack),
 	.sdram_vid_ready(sdram_vid_ready),
+
 	.sdram_busy(sdram_busy)
 );
+
 
 wire casdout;
 wire cas_relay;
