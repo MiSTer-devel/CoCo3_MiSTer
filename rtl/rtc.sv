@@ -65,6 +65,7 @@ assign O_SEC  = (4'd10 * data[SEC][6:4]) + data[SEC][3:0];
 
 always @(posedge clk) 
 begin
+
 	seccnt <= seccnt + 1;
 	if(seccnt >= CLOCK_RATE)
 	begin
@@ -96,7 +97,9 @@ begin
 								data[HR][3:0] <= 0;
 								data[HR][5:4] <= data[HR][5:4] + 1'd1;
 							end
-							else if (data[HR][6:0] == {3'd2,4'd3})
+							else
+								data[HR][3:0] <= data[HR][3:0] + 1'd1;
+							if (data[HR][6:0] == {3'd2,4'd3})
 							begin
 								data[HR][3:0] <= 4'd0;
 								data[HR][6:4] <= 3'd0;

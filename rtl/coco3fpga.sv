@@ -1036,8 +1036,8 @@ in any banks in any order, by simply writing the proper data into these latches.
 
 
 assign	DATA_IN =
-														(RAM0_BE0_L & end_hold)		?	hold_data_L[7:0]:
-														(RAM0_BE1_L & end_hold)		?	hold_data_L[15:8]:
+														(sdram_BE_0)	?	hold_data_L[7:0]:
+														(sdram_BE_1)	?	hold_data_L[15:8]:
 //														RAM0_BE0		?	RAM0_DATA_O[7:0]: Removal of sram data out [V5]
 //														RAM0_BE1		?	RAM0_DATA_O[15:8]:
 //														RAM1_BE0		?	RAM1_DATA[7:0]:
@@ -1384,26 +1384,7 @@ begin
 end
 
 
-// Combinatorial clocks :(
-//assign UART1_CLK = (SWITCH[8:7] == 2'b11)	?	COM1_CLOCK_X:	// 921600
-//															COM1_CLOCK;
-//assign WF_CLOCK  = (WF_BAUD == 2'b11)		?	COM1_CLOCK_X:	// 921600
-//															COM3_CLOCK;
 
-// Clock for RS232 PAK (6551)
-// 24 MHz / 13 = 1.846 MHz
-/*always @(negedge CLK24MHZ or negedge RESET_N)
-begin
-	if(!RESET_N)
-	begin
-		COM2_STATE <= 13'b0000000000001;
-	end
-	else
-	begin
-		COM2_STATE <= {COM2_STATE[11:0],COM2_STATE[12]};
-	end
-end
-*/
 // 14.814814815 MHz / 8 = 1.851851852 MHz / 16 = 115740.741 = 115200 + 0.469393%
 // CLK_57
 always @(negedge clk_sys or negedge RESET_N)
@@ -1442,6 +1423,8 @@ assign sdram_cpu_addr = {4'b0000, BLOCK_ADDRESS[7:0], ADDRESS[12:1], ADDRESS[0]}
 assign sdram_cpu_din = DATA_OUT;
 reg		[24:0]	sdram_cpu_addr_L;
 reg				last_write;
+reg				sdram_BE_0, sdram_BE_1;
+
 
 wire	cache_hit  /* synthesis preserve */;
 assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
@@ -1469,10 +1452,14 @@ begin
 		sdram_cpu_rnw <= 1'b1;
 		sdram_cpu_addr_L <= 24'h000000;
 		last_write <= 1'b1;
+		sdram_BE_0 <= 1'b0;
+		sdram_BE_1 <= 1'b0;
 	end
 	else
 	begin
 		clear_data_ready <= 1'b0;
+		sdram_BE_0 <= 1'b0;
+		sdram_BE_1 <= 1'b0;
 
 //		If we are in hold were done @ data_ready.
 		if (hold)
@@ -1484,7 +1471,8 @@ begin
 				end_hold <= 1'b1;
 				clear_data_ready <= 1'b1;
 				hold_data_L <= hold_data;
-//				hold_cnt <= 1'b00;
+				sdram_BE_0 <= RAM0_BE0_L;
+				sdram_BE_1 <= RAM0_BE1_L;
 			end
 		end
 
@@ -1542,6 +1530,8 @@ begin
 						if (RW_N & cache_hit & ~last_write)		// Read cache hit on stored on 16 hold_data value?
 						begin
 							end_hold <= 1'b1;					// If so then end the cpu_ena cycle with the updated byte enable
+							sdram_BE_0 <= !ADDRESS[0];
+							sdram_BE_1 <= ADDRESS[0];
 						end
 						else
 						begin
@@ -1555,113 +1545,36 @@ begin
 				end
 			end
 			
-
-//***************************************
-// Gart
-//***************************************
-//	This needs a total rework
-//			if(ADDRESS[15:0]==16'hFF73)
-//			begin
-//				RAM0_RW_N <= RW_N;
-//				if(!RW_N)
-//				begin
-//					RAM0_ADDRESS <= GART_WRITE[20:1];
-//				end
-//				else
-//				begin
-//					RAM0_ADDRESS <= GART_READ[20:1];
-//				end
-//				if (!RW_N)
-//				begin
-//					RAM0_DATA_I[15:0] <= {DATA_OUT, DATA_OUT};
-//				end
-//			end
-//			else
-//			begin
-//				if(!VMA & (GART_CNT != 17'h00000))
-//				begin
-//					if(GART_CNT[0])
-//					begin
-//						RAM0_RW_N <= 1'b0;
-//						RAM0_ADDRESS <= GART_WRITE[20:1];
-//						RAM0_DATA_I[15:0] <= {GART_BUF, GART_BUF};
-//					end
-//					else
-//					begin
-//						RAM0_RW_N <= 1'b1;
-//						RAM0_ADDRESS <= GART_READ[20:1];
-//					end
-//				end
-//				else
-//				begin
-//					RAM0_RW_N <= RW_N;
-//					RAM0_ADDRESS <= {BLOCK_ADDRESS[7:0], ADDRESS[12:1]};
-//					if (!RW_N)
-//					begin
-//						RAM0_DATA_I[15:0] <= {DATA_OUT, DATA_OUT};
-//					end
-//				end
-//			end
-//		end
 		6'h01:
 		begin
-//			if(!VMA & !GART_CNT[0])
-//			begin
-//				GART_BUF <= DATA_IN;
-//			end
 			PH_2_RAW <= 1'b0;
 
 //			if we are not in a memory read [hold] then terminate cpu_ena - just like PH_2
 			if (!hold)
 				cpu_ena <= 1'b0;
-
-//			Grab sram data to supply after the read hold delay
-//			hold_data <= RAM0_DATA_O;
-				
 			CLK <= 6'h02;
 		end
 		6'h07:								//	64/8 = 7.16
 		begin
-			if(SWITCH_L == 3'b101)				//Rate = 7.16?
+			if(SWITCH_L == 3'b101)			//Rate = 7.16
 				CLK <= 6'h00;
 			else
 				CLK <= 6'h08;
 		end
 		6'h0F:								//	64/16 = 3.58
 		begin
-			if(SWITCH_L == 3'b011)				//Rate = 3.58?
+			if(SWITCH_L == 3'b011)			//Rate = 3.58
 				CLK <= 6'h00;
 			else
 				CLK <= 6'h10;
 		end
 		6'h1F:								//	64/32 = 1.7857
 		begin
-			if(SWITCH_L == 3'b001)				//Rate = 1.78?
+			if(SWITCH_L == 3'b001)			//Rate = 1.78?
 				CLK <= 6'h00;
 			else
 				CLK <= 6'h20;
 		end
-//		6'h1B:								//	50/28 = 1.7857
-//		6'h17:								//	50/24 = 2.0833
-//		begin
-//			RAM0_ADDRESS <= VIDEO_ADDRESS[19:0];
-
-//			RAM0_BE0_N <= !(!VIDEO_ADDRESS[21] & !VIDEO_ADDRESS[20]);
-//			RAM0_BE1_N <= !(!VIDEO_ADDRESS[21] & !VIDEO_ADDRESS[20]);
-//			VIDEO_BUFFER <= RAM0_DATA_O;
-//			if(SWITCH_L[0])				//Rate = 1?
-//				CLK <= 6'h00;
-//			else
-//				CLK <= 6'h20;
-//		end
-//		6'h37:								// 50/56 = 0.89286
-//		begin
-//			RAM0_ADDRESS <= VIDEO_ADDRESS[19:0];
-//			RAM0_BE0_N <= !(!VIDEO_ADDRESS[21] & !VIDEO_ADDRESS[20]);
-//			RAM0_BE1_N <= !(!VIDEO_ADDRESS[21] & !VIDEO_ADDRESS[20]);
-//			VIDEO_BUFFER <= RAM0_DATA_O;
-//			CLK <= 6'h00;
-//		end
 		6'h3F:								// Just in case
 		begin
 			CLK <= 6'h00;
@@ -1669,10 +1582,6 @@ begin
 		default:
 		begin
 			CLK <= CLK + 1'b1;
-//			RAM0_ADDRESS <= VIDEO_ADDRESS[19:0];
-//			RAM0_BE0_N <= !(!VIDEO_ADDRESS[21] & !VIDEO_ADDRESS[20]);
-//			RAM0_BE1_N <= !(!VIDEO_ADDRESS[21] & !VIDEO_ADDRESS[20]);
-//			VIDEO_BUFFER <= RAM0_DATA_O;
 		end
 		endcase
 	end
