@@ -66,9 +66,16 @@
 // Gary Becker
 // gary_L_becker@yahoo.com
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// MISTer Conversion by Stan Hodge and Alan Steremberg (& Gary Becker)
+// stan.pda@gmail.com
+// 
+//	1/11/22		Changed to be super synchronus
+////////////////////////////////////////////////////////////////////////////////
 
 module glb6551(
 RESET_N,
+CLK,
 RX_CLK,
 RX_CLK_IN,
 XTAL_CLK_IN,
@@ -89,6 +96,7 @@ DSR
 );
 
 input					RESET_N;
+input					CLK;
 output				RX_CLK;
 input					RX_CLK_IN;
 input					XTAL_CLK_IN;
@@ -137,7 +145,8 @@ reg		[7:0]		LOOPBACK;
 wire					RX_DATA;
 wire					TX_DATA;
 reg					RESET_NX;
-reg					TX_CLK_REG;
+reg					TX_CLK_REG_T;
+reg			 		TX_CLK_REG;
 reg		[1:0]		READ_STATE;
 wire					GOT_DATA;
 reg					READY0;
@@ -162,183 +171,197 @@ E	9600	6
 F	19200	3
 */
 
-always @ (negedge XTAL_CLK_IN or negedge RESET_X)
+//assign TX_CLK_REG = TX_CLK_REG_T & XTAL_CLK_IN;
+
+always @ (negedge CLK or negedge RESET_X)
 begin
-	if(~RESET_X)
+	if(!RESET_X)
 	begin
 		TX_CLK_DIV <= 11'h000;
+		TX_CLK_REG_T <= 1'b0;
 		TX_CLK_REG <= 1'b0;
 	end
 	else
-		case (TX_CLK_DIV)
-		11'h000:
+	begin
+		TX_CLK_REG <= 1'b0;
+		if (XTAL_CLK_IN)
 		begin
-			TX_CLK_DIV <= 11'h001;
-			TX_CLK_REG <= ~TX_CLK_REG;
-		end
-		11'h002:
-		begin
-			if(CTL_REG[3:0] == 4'hF)
+			case (TX_CLK_DIV)
+			11'h000:
+			begin
+				TX_CLK_DIV <= 11'h001;
+				TX_CLK_REG_T <= ~TX_CLK_REG_T;
+				if (TX_CLK_REG_T)
+					TX_CLK_REG <= 1'b1;
+			end
+			11'h002:
+			begin
+				if(CTL_REG[3:0] == 4'hF)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h003;
+			end
+			11'h005:
+			begin
+				if(CTL_REG[3:0] == 4'hE)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h006;
+			end
+			11'h007:
+			begin
+				if(CTL_REG[3:0] == 4'hD)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h008;
+			end
+			11'h00B:
+			begin
+				if(CTL_REG[3:0] == 4'hC)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h00C;
+			end
+			11'h00F:
+			begin
+				if(CTL_REG[3:0] == 4'hB)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h010;
+			end
+			11'h017:
+			begin
+				if(CTL_REG[3:0] == 4'hA)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h018;
+			end
+			11'h01F:
+			begin
+				if(CTL_REG[3:0] == 4'h9)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h020;
+			end
+			11'h02F:
+			begin
+				if(CTL_REG[3:0] == 4'h8)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h030;
+			end
+			11'h05F:
+			begin
+				if(CTL_REG[3:0] == 4'h7)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h060;
+			end
+			11'h0BF:
+			begin
+				if(CTL_REG[3:0] == 4'h6)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h0C0;
+			end
+			11'h17F:
+			begin
+				if(CTL_REG[3:0] == 4'h5)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h180;
+			end
+			11'h1AB:
+			begin
+				if(CTL_REG[3:0] == 4'h4)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h1AC;
+			end
+			11'h20B:
+			begin
+				if(CTL_REG[3:0] == 4'h3)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h20C;
+			end
+			11'h2FF:
+			begin
+				if(CTL_REG[3:0] == 4'h2)
+					TX_CLK_DIV <= 11'h000;
+				else
+					TX_CLK_DIV <= 11'h300;
+			end
+			11'h47F:
+			begin
 				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h003;
+			end
+			default:
+			begin
+				TX_CLK_DIV <= TX_CLK_DIV +1'b1;
+			end
+			endcase
 		end
-		11'h005:
-		begin
-			if(CTL_REG[3:0] == 4'hE)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h006;
-		end
-		11'h007:
-		begin
-			if(CTL_REG[3:0] == 4'hD)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h008;
-		end
-		11'h00B:
-		begin
-			if(CTL_REG[3:0] == 4'hC)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h00C;
-		end
-		11'h00F:
-		begin
-			if(CTL_REG[3:0] == 4'hB)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h010;
-		end
-		11'h017:
-		begin
-			if(CTL_REG[3:0] == 4'hA)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h018;
-		end
-		11'h01F:
-		begin
-			if(CTL_REG[3:0] == 4'h9)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h020;
-		end
-		11'h02F:
-		begin
-			if(CTL_REG[3:0] == 4'h8)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h030;
-		end
-		11'h05F:
-		begin
-			if(CTL_REG[3:0] == 4'h7)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h060;
-		end
-		11'h0BF:
-		begin
-			if(CTL_REG[3:0] == 4'h6)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h0C0;
-		end
-		11'h17F:
-		begin
-			if(CTL_REG[3:0] == 4'h5)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h180;
-		end
-		11'h1AB:
-		begin
-			if(CTL_REG[3:0] == 4'h4)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h1AC;
-		end
-		11'h20B:
-		begin
-			if(CTL_REG[3:0] == 4'h3)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h20C;
-		end
-		11'h2FF:
-		begin
-			if(CTL_REG[3:0] == 4'h2)
-				TX_CLK_DIV <= 11'h000;
-			else
-				TX_CLK_DIV <= 11'h300;
-		end
-		11'h47F:
-		begin
-				TX_CLK_DIV <= 11'h000;
-		end
-		default:
-		begin
-			TX_CLK_DIV <= TX_CLK_DIV +1'b1;
-		end
-		endcase
+	end
 end
 
 assign TX_CLK = (CTL_REG[3:0] == 4'h0)	?	XTAL_CLK_IN:
-														TX_CLK_REG;
+											TX_CLK_REG;
 
 assign RX_CLK = (CTL_REG[4] == 1'b0)	?	RX_CLK_IN:
-														TX_CLK;
+											TX_CLK;
 
 assign RESET_X = RESET_NX 					?	1'b0:
-														RESET_N;
+												RESET_N;
 
-always @ (negedge TX_CLK)
+always @ (negedge CLK)
 begin
-		LOOPBACK <= {LOOPBACK[6:0], TX_DATA};			//half bit time FIFO
+		if (TX_CLK)
+			LOOPBACK <= {LOOPBACK[6:0], TX_DATA};			//half bit time FIFO
 end
 
 assign RX_DATA = (CMD_REG[4:2] == 3'b100)	?	LOOPBACK[7]:
-															RXDATA_IN;
+												RXDATA_IN;
 
-assign TXDATA_OUT  =	(CMD_REG[4:2] == 3'b100)	?	1'b1:
-																	TX_DATA;
+assign TXDATA_OUT =	(CMD_REG[4:2] == 3'b100)	?	1'b1:
+													TX_DATA;
 
 assign STATUS_REG = {!IRQ, DSR, DCD, TDRE, RDRF, OVERRUN, FRAME, PARITY};
 
 assign DO =	(RS == 2'b00)	?	RX_REG:
-				(RS == 2'b01)	?	STATUS_REG:
-				(RS == 2'b10)	?	CMD_REG:
-										CTL_REG;
+			(RS == 2'b01)	?	STATUS_REG:
+			(RS == 2'b10)	?	CMD_REG:
+								CTL_REG;
 
-assign IRQ =	({CMD_REG[1:0], RDRF} == 3'b011)							?	1'b0:
-					({CMD_REG[3:2], CMD_REG[0], TDRE} == 4'b0111)		?	1'b0:	1'b1;
+assign IRQ =	({CMD_REG[1:0], RDRF} == 3'b011)						?	1'b0:
+				({CMD_REG[3:2], CMD_REG[0], TDRE} == 4'b0111)			?	1'b0:
+																			1'b1;
 
 assign RTS = (CMD_REG[3:2] == 2'b00);
 assign DTR = ~CMD_REG[0];
 
-assign STOP =	(CTL_REG[7] == 1'b0)								?	1'b0:		// Stop = 1
-					({CTL_REG[7:5], CMD_REG[5]} == 4'b1001)	?	1'b0:		// Stop >1 but 8bit word and parity
-																				1'b1;		// Stop > 1
+assign STOP =	(CTL_REG[7] == 1'b0)									?	1'b0:		// Stop = 1
+				({CTL_REG[7:5], CMD_REG[5]} == 4'b1001)					?	1'b0:		// Stop >1 but 8bit word and parity
+																			1'b1;		// Stop > 1
 
 assign PAR_DIS = ~CMD_REG[5];
 assign WORD_SELECT = CTL_REG[6:5];
 
-always @ (negedge PH_2 or negedge RESET_N)
+always @ (negedge CLK or negedge RESET_N)
 begin
 	if(!RESET_N)
 		RESET_NX <= 1'b1;
 	else
 	begin
-		if({RW_N, CS, RS} == 5'b00101)						// Software RESET
-			RESET_NX <= 1'b1;
-		else
-			RESET_NX <= 1'b0;
-	end
+		if (PH_2)
+			if({RW_N, CS, RS} == 5'b00101)						// Software RESET
+				RESET_NX <= 1'b1;
+			else
+				RESET_NX <= 1'b0;
+			end
 end
 
-always @ (negedge PH_2 or negedge RESET_X)
+always @ (negedge CLK or negedge RESET_X)
 begin
 	if(!RESET_X)
 	begin
@@ -362,96 +385,100 @@ begin
 	end
 	else
 	begin
-		TX_DONE1 <= TX_DONE0;			// sync TX_DONE with E clock for metastability?
-		TX_DONE0 <= TX_DONE;
-		READY1 <= READY0;
-		READY0 <= GOT_DATA;
-		case (READ_STATE)
-		2'b00:
+		if (PH_2)
 		begin
-			if(READY1)				//Stop bit
+			TX_DONE1 <= TX_DONE0;			// sync TX_DONE with E clock for metastability?
+			TX_DONE0 <= TX_DONE;
+			READY1 <= READY0;
+			READY0 <= GOT_DATA;
+			case (READ_STATE)
+			2'b00:
 			begin
-				RDRF <= 1'b1;
-				READ_STATE <= 2'b01;
-				RX_REG <= RX_BUFFER;
-				OVERRUN <= 1'b0;
-				PARITY <= (PARITY_ERR & !PAR_DIS);
-				FRAME <= FRAME_BUF;
-			end
-		end
-		2'b01:
-		begin
-			if({RW_N, CS, RS} == 5'b10100)
-			begin
-				RDRF <= 1'b0;
-				READ_STATE <= 2'b10;
-				PARITY <= 1'b0;
-				OVERRUN <= 1'b0;
-				FRAME <= 1'b0;
-			end
-			else
-			begin
-				if(~READY1)
-					READ_STATE <= 2'b11;
-			end
-		end
-		2'b10:
-		begin
-			if(~READY1)
-				READ_STATE <= 2'b00;
-		end
-		2'b11:
-		begin
-			if({RW_N, CS, RS} == 5'b10100)
-			begin
-				RDRF <= 1'b0;
-				READ_STATE <= 2'b00;
-				PARITY <= 1'b0;
-				OVERRUN <= 1'b0;
-				FRAME <= 1'b0;
-			end
-			else
-			begin
-				if(READY1)
+				if(READY1)				//Stop bit
 				begin
 					RDRF <= 1'b1;
 					READ_STATE <= 2'b01;
-					OVERRUN <= 1'b1;
+					RX_REG <= RX_BUFFER;
+					OVERRUN <= 1'b0;
 					PARITY <= (PARITY_ERR & !PAR_DIS);
 					FRAME <= FRAME_BUF;
-					RX_REG <= RX_BUFFER;
 				end
 			end
-		end
-		endcase
+			2'b01:
+			begin
+				if({RW_N, CS, RS} == 5'b10100)
+				begin
+					RDRF <= 1'b0;
+					READ_STATE <= 2'b10;
+					PARITY <= 1'b0;
+					OVERRUN <= 1'b0;
+					FRAME <= 1'b0;
+				end
+				else
+				begin
+					if(~READY1)
+						READ_STATE <= 2'b11;
+				end
+			end
+			2'b10:
+			begin
+				if(~READY1)
+					READ_STATE <= 2'b00;
+			end
+			2'b11:
+			begin
+				if({RW_N, CS, RS} == 5'b10100)
+				begin
+					RDRF <= 1'b0;
+					READ_STATE <= 2'b00;
+					PARITY <= 1'b0;
+					OVERRUN <= 1'b0;
+					FRAME <= 1'b0;
+				end
+				else
+				begin
+					if(READY1)
+					begin
+						RDRF <= 1'b1;
+						READ_STATE <= 2'b01;
+						OVERRUN <= 1'b1;
+						PARITY <= (PARITY_ERR & !PAR_DIS);
+						FRAME <= FRAME_BUF;
+						RX_REG <= RX_BUFFER;
+					end
+				end
+			end
+			endcase
 
-		if({RW_N, CS, RS} == 5'b00100)						// Write TX data register
-			TX_REG <= DI;
+			if({RW_N, CS, RS} == 5'b00100)						// Write TX data register
+				TX_REG <= DI;
 
-		if({RW_N, CS, RS} == 5'b00110)						// Write CMD register
-			CMD_REG <= DI;
+			if({RW_N, CS, RS} == 5'b00110)						// Write CMD register
+				CMD_REG <= DI;
 
-		if({RW_N, CS, RS} == 5'b00111)						// Write CTL register
-			CTL_REG <= DI;
+			if({RW_N, CS, RS} == 5'b00111)						// Write CTL register
+				CTL_REG <= DI;
 
-		if(~TDRE & TX_DONE1 & ~TX_START & ~(CS == 2'b01))
-		begin
-			TX_BUFFER <= TX_REG;
-			TDRE <= 1'b1;
-			TX_START <= 1'b1;
-		end
-		else
-		begin
-			if({RW_N, CS, RS} == 5'b00100)					// Write TX data register
-				TDRE <= 1'b0;
-			if(~TX_DONE1)
-				TX_START <= 1'b0;
+			if(~TDRE & TX_DONE1 & ~TX_START & ~(CS == 2'b01))
+			begin
+				TX_BUFFER <= TX_REG;
+				TDRE <= 1'b1;
+				TX_START <= 1'b1;
+			end
+			else
+			begin
+				if({RW_N, CS, RS} == 5'b00100)					// Write TX data register
+					TDRE <= 1'b0;
+				if(~TX_DONE1)
+					TX_START <= 1'b0;
+			end
 		end
 	end
 end
 
 uart51_tx tx(
 .RESET_N(RESET_X),
+.CLK(CLK),
 .BAUD_CLK(TX_CLK),
 .TX_DATA(TX_DATA),
 .TX_START(TX_START),
@@ -466,6 +493,7 @@ uart51_tx tx(
 
 uart51_rx rx(
 .RESET_N(RESET_X),
+.CLK(CLK),
 .BAUD_CLK(RX_CLK),
 .RX_DATA(RX_DATA),
 .RX_BUFFER(RX_BUFFER),

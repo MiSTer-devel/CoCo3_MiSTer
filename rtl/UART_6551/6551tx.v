@@ -68,8 +68,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module uart51_tx(
-BAUD_CLK,
 RESET_N,
+CLK,
+BAUD_CLK,
 TX_DATA,
 TX_START,
 TX_DONE,
@@ -81,8 +82,9 @@ CTS,
 TX_BUFFER
 );
 
-input					BAUD_CLK;
 input					RESET_N;
+input					CLK;
+input					BAUD_CLK;
 output				TX_DATA;
 reg					TX_DATA;
 input					TX_START;
@@ -114,7 +116,7 @@ assign PARITY =	(~TX_PARITY[1]
 
 					^	  ~TX_PARITY[0];
 
-always @ (negedge BAUD_CLK or negedge RESET_N)
+always @ (negedge CLK or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
@@ -127,99 +129,103 @@ begin
 	end
 	else
 	begin
-		TX_START0 <= TX_START;
-		TX_START1 <= TX_START0;
-		case (STATE)
-		7'b0000000:
+		if (BAUD_CLK)
 		begin
-			BIT <= 3'b000;
-			TX_DATA <= 1'b1;
-			if(TX_START1 == 1'b1)
+			TX_START0 <= TX_START;
+			TX_START1 <= TX_START0;
+			case (STATE)
+			7'b0000000:
 			begin
-				TX_DONE <= 1'b0;
-				STATE <= 7'b0000001;
+				BIT <= 3'b000;
+				TX_DATA <= 1'b1;
+				if(TX_START1 == 1'b1)
+				begin
+					TX_DONE <= 1'b0;
+					STATE <= 7'b0000001;
+				end
 			end
-		end
-		7'b0000001:									// Start bit
-		begin
-			TX_DATA <= 1'b0;
-			STATE <= 7'b0000010;
-		end
-		7'b0010001:
-		begin
-			TX_DATA <= TX_BUFFER[BIT];
-			STATE <= 7'b0010010;
-		end
-		7'b0100000:
-		begin
-			BIT <= BIT + 1;
-			if((TX_WORD == 2'b00) && (BIT != 3'b111))
+			7'b0000001:									// Start bit
 			begin
-				STATE <= 7'b0010001;
+				TX_DATA <= 1'b0;
+				STATE <= 7'b0000010;
 			end
-			else
+			7'b0010001:
 			begin
-				if((TX_WORD == 2'b01) && (BIT != 3'b110))
+				TX_DATA <= TX_BUFFER[BIT];
+				STATE <= 7'b0010010;
+			end
+			7'b0100000:
+			begin
+				BIT <= BIT + 1'b1;
+				if((TX_WORD == 2'b00) && (BIT != 3'b111))
 				begin
 					STATE <= 7'b0010001;
 				end
 				else
 				begin
-					if((TX_WORD == 2'b10) && (BIT != 3'b101))
+					if((TX_WORD == 2'b01) && (BIT != 3'b110))
 					begin
 						STATE <= 7'b0010001;
 					end
 					else
 					begin
-						if((TX_WORD == 2'b11) && (BIT != 3'b100))
+						if((TX_WORD == 2'b10) && (BIT != 3'b101))
 						begin
 							STATE <= 7'b0010001;
 						end
 						else
 						begin
-							if(!TX_PAR_DIS)
+							if((TX_WORD == 2'b11) && (BIT != 3'b100))
 							begin
-								STATE <= 7'b0100001;				// do parity
+								STATE <= 7'b0010001;
 							end
 							else
 							begin
-								STATE <= 7'b0110001;				// do stop
+								if(!TX_PAR_DIS)
+								begin
+									STATE <= 7'b0100001;				// do parity
+								end
+								else
+								begin
+									STATE <= 7'b0110001;				// do stop
+								end
 							end
 						end
 					end
 				end
 			end
-		end
 // Start parity bit
-		7'b0100001:
-		begin
-			TX_DATA <= PARITY;
-			STATE <= 7'b0100010;
-		end
-// start stop
-		7'b0110001:
-		begin
-			TX_DONE <= 1'b1;
-			TX_DATA <= 1'b1;
-			STATE <= 7'b0110010;
-		end
-// end of first stop bit-1
-		7'b0111111:
-		begin
-			if(!TX_STOP)
-				STATE <= 7'b1001111;						// go check for CTS
-			else
-				STATE <= 7'b1000000;
-		end
-		7'b1001111:
-		begin
-			if(!CTS)								// this is not correct for a 6551
+			7'b0100001:
 			begin
-				STATE <= 7'b0000000;
+				TX_DATA <= PARITY;
+				STATE <= 7'b0100010;
 			end
+// start stop
+			7'b0110001:
+			begin
+				TX_DONE <= 1'b1;
+				TX_DATA <= 1'b1;
+				STATE <= 7'b0110010;
+			end
+// end of first stop bit-1
+			7'b0111111:
+			begin
+				if(!TX_STOP)
+					STATE <= 7'b1001111;						// go check for CTS
+				else
+					STATE <= 7'b1000000;
+			end
+			7'b1001111:
+			begin
+				if(!CTS)								// this is not correct for a 6551
+				begin
+					STATE <= 7'b0000000;
+				end
+			end
+			default:
+				STATE <= STATE + 1'b1;
+			endcase
 		end
-		default: STATE <= STATE + 1;
-		endcase
 	end
 end
 endmodule

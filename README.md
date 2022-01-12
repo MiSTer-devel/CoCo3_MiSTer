@@ -11,6 +11,8 @@ This is a port of Gary Becker's famous CoCo3 in an FPGA to the MiSTer platform b
 * boot1.rom - 8K extended color basic rom
 * boot2.rom - 8K orch90 rom
 
+Note: This core requires the external sdram memory module to function.
+
 Rename your roms, and place them in the games/CoCo3/ directory
 otherwise you will get a black screen
 

@@ -4357,8 +4357,8 @@ VDAC	VDAC_inst (
 	.rdaddress ( COLOR[7:0] ),
 	.rdclock ( PIX_CLK ),
 	.wraddress ( DATA_OUT ),
-	.wrclock ( PH_2 ),
-	.wren ( VDAC_EN ),
+	.wrclock ( clk_sys ),
+	.wren ( VDAC_EN & PH_2 ),
 	.q ( VDAC_OUT )
 	);
 
@@ -4551,29 +4551,38 @@ reg     [4:0]           CLK_6551;
 // 50 MHz / 27 = 1.852 MHz
 // Targeting 1.8432 Mhz.
 // 57.272727 Mhz / 31 = 1.8475 Mhz
+reg						CLK_6551_EN;
 
 always @(negedge clk_sys or negedge RESET_N)
 begin
-        if(!RESET_N)
-                CLK_6551 <= 5'd0;
-        else
-                case(CLK_6551)
-                5'd30:
-                        CLK_6551 <= 5'd0;
-                default:
-                        CLK_6551 <= CLK_6551 + 1'b1;
-                endcase
+    if(!RESET_N)
+	begin
+        CLK_6551 <= 5'd0;
+		CLK_6551_EN <= 1'b0;
+	end
+    else
+	begin
+		CLK_6551_EN <= 1'b0;
+        case(CLK_6551)
+        5'd30:
+		begin
+			CLK_6551_EN <= 1'b1;
+            CLK_6551 <= 5'd0;
+		end
+        default:
+            CLK_6551 <= CLK_6551 + 1'b1;
+        endcase
+	end
 end
 
 
 // RS232PAK UART
 glb6551 RS232(
 .RESET_N(RESET_N),
-.RX_CLK(RX_CLK2),
-.RX_CLK_IN(CLK_6551[4]),
-.XTAL_CLK_IN(CLK_6551[4]),
-//.RX_CLK_IN(COM2_STATE[2]),
-//.XTAL_CLK_IN(COM2_STATE[2]),
+.CLK(clk_sys),
+.RX_CLK(RX_CLK2), 				// This is a output [nc]
+.RX_CLK_IN(CLK_6551_EN),		// These are now enables
+.XTAL_CLK_IN(CLK_6551_EN),
 .PH_2(PH_2),
 .DI(DATA_OUT),
 .DO(DATA_RS232),

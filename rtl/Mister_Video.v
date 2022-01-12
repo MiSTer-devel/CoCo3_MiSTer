@@ -149,8 +149,8 @@ wire    [9:0]       BORDER;
 wire    [9:0]       CCOLOR;
 wire                MODE6;
 wire                SG6_ENABLE;
-reg     [1:0]       HISTORY;
-reg     [1:0]       FUTURE;
+//reg     [1:0]       HISTORY;
+//reg     [1:0]       FUTURE;
 wire    [8:0]       BUF_ADD_BASE;
 //reg   [353:0]       VSYNC_DELAY;
 //reg                 VBLANKING;
@@ -289,17 +289,17 @@ always @ (negedge MASTER_CLK)
                 |({COCO1,BP,HRES[3],HRES[2],HRES[1]}==5'b01001)))                                  //CoCo3 32/40 bytes/line
                 begin
                     CHAR_LATCH_0_TMP <= {8'h00,CHAR_LATCH_0_TMP[15:8]};
-                    HISTORY <= CHAR_LATCH_0_TMP[1:0];
-                    FUTURE <= CHAR_LATCH_1_TMP[7:6];
+//                    HISTORY <= CHAR_LATCH_0_TMP[1:0];
+//                    FUTURE <= CHAR_LATCH_1_TMP[7:6];
                 end
                 else
                 begin
                     CHAR_LATCH_0_TMP <= RAM_DATA[15:0];                                             // Everything else
-                    FUTURE <= RAM_DATA[15:14];
-                    if (HBLANKING)
-                        HISTORY <= {VID_CONT[3],VID_CONT[3]};                                       // First history after hblanking depends on the border
-                    else
-                        HISTORY <= CHAR_LATCH_0_TMP[1:0];                                           // After that, it is the last two pixels
+//                    FUTURE <= RAM_DATA[15:14];
+//                    if (HBLANKING)
+//                        HISTORY <= {VID_CONT[3],VID_CONT[3]};                                       // First history after hblanking depends on the border
+//                    else
+//                        HISTORY <= CHAR_LATCH_0_TMP[1:0];                                           // After that, it is the last two pixels
                 end
             end
         end

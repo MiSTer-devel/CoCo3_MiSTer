@@ -66,9 +66,16 @@
 // Gary Becker
 // gary_L_becker@yahoo.com
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// MISTer Conversion by Stan Hodge and Alan Steremberg (& Gary Becker)
+// stan.pda@gmail.com
+// 
+//	1/11/22		Changed to be super synchronus
+////////////////////////////////////////////////////////////////////////////////
 
 module uart51_rx(
 RESET_N,
+CLK,
 BAUD_CLK,
 //E,
 //REG_READ,
@@ -84,6 +91,7 @@ FRAME,
 READY
 );
 input					RESET_N;
+input					CLK;
 input					BAUD_CLK;
 //input					E;
 //input					REG_READ;
@@ -147,7 +155,7 @@ reg					RX_DATA1;
 //end
 
 
-always @ (posedge BAUD_CLK or negedge RESET_N)
+always @ (posedge CLK or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
@@ -162,69 +170,71 @@ begin
 	end
 	else
 	begin
-		RX_DATA0 <= RX_DATA;
-		RX_DATA1 <= RX_DATA0;
-		case (STATE)
-		6'b000000:										// States 0-15 will be start bit
+		if (BAUD_CLK)
 		begin
-			BIT <= 3'b000;
-			if(~RX_DATA1)
-				STATE <= 6'b000001;
-		end
-		6'b001111:								// End of start bit, flag data not ready
-		begin										// If data is not retrieved before this, then overrun
-			READY <= 1'b0;
-			STATE <= 6'b010000;
-		end
-		6'b010111:										// Each data bit is states 16-31, the middle is 23
-		begin
-			RX_BUFFER[BIT] <= RX_DATA1;
-//			OVERRUN <= RX_READY;
-			STATE <= 6'b011000;
-		end
-		6'b011111:										// End of the data bits
-		begin
-			if(BIT == 3'b111)
+			RX_DATA0 <= RX_DATA;
+			RX_DATA1 <= RX_DATA0;
+			case (STATE)
+			6'b000000:										// States 0-15 will be start bit
 			begin
-				STATE <= 6'b100000;
+				BIT <= 3'b000;
+				if(~RX_DATA1)
+					STATE <= 6'b000001;
 			end
-			else
+			6'b001111:								// End of start bit, flag data not ready
+			begin										// If data is not retrieved before this, then overrun
+				READY <= 1'b0;
+				STATE <= 6'b010000;
+			end
+			6'b010111:										// Each data bit is states 16-31, the middle is 23
 			begin
-				if((RX_WORD == 2'b01) && (BIT == 3'b110))
+				RX_BUFFER[BIT] <= RX_DATA1;
+//				OVERRUN <= RX_READY;
+				STATE <= 6'b011000;
+			end
+			6'b011111:										// End of the data bits
+			begin
+				if(BIT == 3'b111)
 				begin
 					STATE <= 6'b100000;
 				end
 				else
 				begin
-					if((RX_WORD == 2'b10) && (BIT == 3'b101)) 
+					if((RX_WORD == 2'b01) && (BIT == 3'b110))
 					begin
 						STATE <= 6'b100000;
 					end
 					else
 					begin
-						if((RX_WORD == 2'b11) && (BIT == 3'b100))
+						if((RX_WORD == 2'b10) && (BIT == 3'b101)) 
 						begin
 							STATE <= 6'b100000;
 						end
 						else
 						begin
-							BIT <= BIT + 1;
-							STATE <= 6'b010000;
+							if((RX_WORD == 2'b11) && (BIT == 3'b100))
+							begin
+								STATE <= 6'b100000;
+							end
+							else
+							begin
+								BIT <= BIT + 1'b1;
+								STATE <= 6'b010000;
+							end
 						end
 					end
 				end
 			end
-		end
-		6'b100000:										// First tick of Stop or Parity, Parity is 32 - 47
-		begin
-			if(RX_PAR_DIS)
-				STATE <= 6'b110001;		// get stop
-			else
-				STATE <= 6'b100001;		// get parity
-		end
-		6'b100111:										// Middle of Parity is 39
-		begin
-			PARITY_ERR <= ~RX_PARITY[1] &											// Get but do not check Parity if 1 is set
+			6'b100000:										// First tick of Stop or Parity, Parity is 32 - 47
+			begin
+				if(RX_PAR_DIS)
+					STATE <= 6'b110001;		// get stop
+				else
+					STATE <= 6'b100001;		// get parity
+			end
+			6'b100111:										// Middle of Parity is 39
+			begin
+				PARITY_ERR <= ~RX_PARITY[1] &											// Get but do not check Parity if 1 is set
 							 (((RX_BUFFER[0] ^ RX_BUFFER[1])
 							 ^ (RX_BUFFER[2] ^ RX_BUFFER[3]))
 
@@ -232,26 +242,28 @@ begin
 							 ^ (RX_BUFFER[6] ^ RX_BUFFER[7]))	// clear bit #8 if only 7 bits
 
 							 ^ (~RX_PARITY[0] ^ RX_DATA1));
-			STATE <= 6'b101000;
+				STATE <= 6'b101000;
 // 1 bit early for timing reasons
-		end
-		6'b110111:										// first stop bit is 32 or 48 then 49 - 63
-		begin
-//			OVERRUN <= 1'b0;
-			FRAME <= !RX_DATA1;			// if data != 1 then not stop bit
-			READY <= 1'b1;
-			STATE <= 6'b111000;
-		end
+			end
+			6'b110111:										// first stop bit is 32 or 48 then 49 - 63
+			begin
+//				OVERRUN <= 1'b0;
+				FRAME <= !RX_DATA1;			// if data != 1 then not stop bit
+				READY <= 1'b1;
+				STATE <= 6'b111000;
+			end
 // In case of a framing error, wait until data is 1 then start over
 // We skipped this check for 6 clock cycles so CPU speed is not a factor
 // in the RX_READY state machine above
-		6'b111000:
-		begin
-			if(RX_DATA1)
-				STATE <= 6'b000000;
+			6'b111000:
+			begin
+				if(RX_DATA1)
+					STATE <= 6'b000000;
+			end
+			default: 
+				STATE <= STATE + 1'b1;
+			endcase
 		end
-		default: STATE <= STATE + 1;
-		endcase
 	end
 end
 endmodule
