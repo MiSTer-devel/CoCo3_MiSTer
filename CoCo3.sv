@@ -286,7 +286,7 @@ assign CLK_VIDEO = clk_sys;
 wire [64:0] RTC;
 
 // SD - 4 drives 512 size blocks [the wd1793 translates to a 256 byte sector size]	
-hps_io #(.CONF_STR(CONF_STR),.PS2DIV(1000), .VDNUM(4), .BLKSZ(2)) hps_io
+hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(4), .BLKSZ(2)) hps_io
 (
       .clk_sys(clk_sys),
 //		.clk_sys(CLK_50M), (SRH)

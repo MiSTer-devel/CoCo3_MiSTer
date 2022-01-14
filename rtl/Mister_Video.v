@@ -6,7 +6,6 @@ RESET_N,
 // Video Out
 COLOR,
 HSYNC_N,
-SYNC_FLAG,
 VSYNC_N,
 HBLANKING,
 VBLANKING,
@@ -56,8 +55,6 @@ output      [9:0]   COLOR;
 reg         [9:0]   COLOR;
 output              HSYNC_N;
 reg                 HSYNC_N;
-output				SYNC_FLAG;
-reg					SYNC_FLAG;
 output              VSYNC_N;
 output				HBLANKING;
 reg					HBLANKING;
@@ -1363,7 +1360,6 @@ always @ (negedge MASTER_CLK)
         end
         11'd724:                            // End of right border 720 + 44 - 1 (+ 64) start of back porch
         begin
-            SYNC_FLAG <= !LINE[0];          // Every other line with the first visable line has sync [addrd SH]
             HBORDER <= 1'b0;                // 736 - 28
             PIXEL_COUNT <= 11'd725;
         end

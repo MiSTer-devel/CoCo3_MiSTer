@@ -96,7 +96,7 @@ reg					RESET;
 output				RESET_INS;
 reg					RESET_INS = 1'b0;
 
-reg		[5:0]		SLO_RESET;
+reg		[7:0]		SLO_RESET = 8'h00;
 reg					SLO_RESET_N;
 reg		[4:0]		KB_CLK;
 wire	[7:0]		SCAN;
@@ -189,28 +189,35 @@ reg					KB_CLK_D;
 70			PgDn
 */
 
-//always @ (negedge SLO_CLK or negedge RESET_N)
+wire	[7:0]	RESET_TIME;
+
+assign RESET_TIME = 8'h3f;
+
 always @ (negedge CLK50MHZ)
 begin
-//	if(~RESET_N)
-//	begin
-//		SLO_RESET <= 6'h00;
-//	end
-//	else
 
 	if(RESET)
-		SLO_RESET <= 6'h00;
-	SLO_RESET_N <= (SLO_RESET == 6'h3F);
-
+	begin
+		SLO_RESET <= 8'h00;
+		SLO_RESET_N <= 1'b0;
+	end
+	
 	SLO_CLK_D <= SLO_CLK;
 	if (SLO_CLK == 1'b0 && SLO_CLK_D == 1'b1)
-		if(SLO_RESET != 6'h3F)
+		if(SLO_RESET != RESET_TIME)
+		begin
 			SLO_RESET <= SLO_RESET + 1'b1;
+			SLO_RESET_N <= 1'b0;
+		end
+		else
+		begin
+			SLO_RESET_N <= 1'b1;
+		end
+
 //	end
 end
-//assign SLO_RESET_N = (SLO_RESET == 6'h3F);
 
-//always @(posedge KB_CLK[4] or negedge SLO_RESET_N)
+
 always @(posedge CLK50MHZ or negedge SLO_RESET_N)
 begin
 	if(~SLO_RESET_N)

@@ -224,7 +224,6 @@ reg				write_d;
 reg		[7:0]	DATA_IN_L;
 reg				r_w_active;
 reg				clk_8Mhz_enable_found;
-reg				second_clk_8Mhz_enable_found;
 reg				read1;
 reg				write1;
 reg		[1:0]	ADDRESS_L;
@@ -251,7 +250,6 @@ begin
 		write_d <= 1'b0;
 		r_w_active <= 1'b0;
 		clk_8Mhz_enable_found <= 1'b0;
-		second_clk_8Mhz_enable_found <= 1'b0;
 		WR[0] <= 1'b0;
 		WR[1] <= 1'b0;
 		WR[2] <= 1'b0;
@@ -323,15 +321,10 @@ begin
 		if (ena_8Mhz && r_w_active)
 			clk_8Mhz_enable_found <= 1'b1;
 
-//		if (ena_8Mhz && clk_8Mhz_enable_found)
-//			second_clk_8Mhz_enable_found <= 1'b1;
-
 //		1 50Mhz clock later...
-//		if (second_clk_8Mhz_enable_found)
 		if (clk_8Mhz_enable_found)
 		begin
 			clk_8Mhz_enable_found <= 1'b0;
-			second_clk_8Mhz_enable_found <= 1'b0;
 			r_w_active <= 1'b0;
 			
 			WR[0] <= 1'b0;

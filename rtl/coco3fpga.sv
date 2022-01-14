@@ -1184,7 +1184,7 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFFFD)		?	8'hFD:
 									(ADDRESS == 16'hFFFE)		?	8'h8C:
 									(ADDRESS == 16'hFFFF)		?	8'h1B:
-																			8'h55;
+																	8'h55;
 
 assign	DATA_REG1	= !DDR1	?	DD_REG1:
 											KEYBOARD_IN;
@@ -1588,7 +1588,6 @@ begin
 end
 
 assign PH_2 = PH_2_RAW;
-
 
 
 assign RESET_P =	!BUTTON_N[3]					// Button
@@ -2048,7 +2047,6 @@ begin
 	begin
 		CART1_FIRQ_BUF <= 2'b11;
 		CART1_FIRQ_N <= 1'b1;
-//		CART1_CLK_N_D <= 1'b1;
 	end
 	else
 	begin
@@ -2521,28 +2519,6 @@ end
 
 
 
-//always @ (negedge clk_sys or negedge RESET_N)
-//begin
-//	if(!RESET_N)
-//	begin
-//		DIV_7 <= 3'b000;
-//		TMR_CLK_D <= 1'b0;
-//	end
-//	else
-//	begin
-//		TMR_CLK_D <= TMR_CLK;
-//		case (DIV_7)
-//		3'b110:
-//		begin
-//			DIV_7 <= 3'b000;
-//			DIV_14 <= !DIV_14;
-//		end
-//		default:
-//			DIV_7 <= DIV_7 + 1'b1;
-//		endcase
-//	end
-//end
-
 always @(negedge clk_sys or negedge TMR_RST_N)
 begin
 	if(!TMR_RST_N)
@@ -2644,23 +2620,9 @@ begin
 		W_PROT <= 2'b11;
 		MPI_SCS <= SWITCH[2:1];
 		MPI_CTS <= SWITCH[2:1];
-// FF80
-//		CK_START <= 1'b0;
-// FF81
-//		CK_DATA_OUT <= 8'h00;
-// FF82
-//		CK_DEVICE <= 8'h00;
-// FF83
-//		CK_REG <= 8'h00;
-// FF84
-//		SDRAM_READ <= 1'b0;
-// FF85-FF86
-//		SDRAM_DIN <= 16'h0000;
-// FF87-FF88
-//		SDRAM_ADDR[21:7] <= 15'h0000;
 // FF8E-FF8F
-		GPIO_DIR <= 8'd0;
-		GPIO_OUT <= 8'h00;
+		GPIO_DIR <= 8'h00;
+		GPIO_OUT <= 8'h55;
 // FF90
 		ROM <= 2'b00;
 		ST_SCS <= 1'b0;
@@ -3318,47 +3280,6 @@ begin
 					DDR4 <= DATA_OUT[2];
 					SOUND_EN <= DATA_OUT[3];
 				end
-//				16'hFF70:
-//				begin
-//					GART_WRITE[22:16] <= DATA_OUT[6:0];	//2MB    512Kb: GART_WRITE[18:16] <= DATA_OUT[2:0];
-//				end
-//				16'hFF71:
-//				begin
-//					GART_WRITE[15:8] <= DATA_OUT;
-//				end
-//				16'hFF72:
-//				begin
-//					GART_WRITE[7:0] <= DATA_OUT;
-//				end
-//				16'hFF73:
-//				begin
-//					if(GART_INC[0])
-//						GART_WRITE <= GART_WRITE + 1'b1;
-//				end
-//				16'hFF74:
-//				begin
-//					GART_READ[22:16] <= DATA_OUT[6:0];	//2MB     512:GART_READ[18:16] <= DATA_OUT[2:0];
-//				end
-//				16'hFF75:
-//				begin
-//					GART_READ[15:8] <= DATA_OUT;
-//				end
-//				16'hFF76:
-//				begin
-//					GART_READ[7:0] <= DATA_OUT;
-//				end
-//				16'hFF77:
-//				begin
-//					GART_INC <= DATA_OUT[1:0];
-//				end
-//				16'hFF78:
-//				begin
-//					GART_CNT[16:9] <= DATA_OUT;
-//				end
-//				16'hFF79:
-//				begin
-//					GART_CNT[8:0] <= {DATA_OUT,1'b0};
-//				end
 				16'hFF7A:
 				begin
 					ORCH_LEFT <= DATA_OUT;
@@ -3380,43 +3301,6 @@ begin
 					MPI_SCS <= DATA_OUT[1:0];
 					MPI_CTS <= DATA_OUT[5:4];
 				end
-//				16'hFF80:
-//				begin
-//					CK_START <= DATA_OUT[0];
-//				end
-//				16'hFF81:
-//				begin
-//					CK_DATA_OUT <= DATA_OUT;
-//				end
-//				16'hFF82:
-//				begin
-//					CK_DEVICE <= DATA_OUT;
-//				end
-//				16'hFF83:
-//				begin
-//					CK_REG <= DATA_OUT;
-//				end
-//SRH Removal
-//				16'hFF84:
-//				begin
-//					SDRAM_READ <= DATA_OUT[0];
-//				end
-//				16'hFF85:
-//				begin
-//					SDRAM_DIN[7:0] <= DATA_OUT;
-//				end
-//				16'hFF86:
-//				begin
-//					SDRAM_DIN[15:8] <= DATA_OUT;
-//				end
-//				16'hFF87:
-//				begin
-//					SDRAM_ADDR[21:15] <= DATA_OUT[6:0];
-//				end
-//				16'hFF88:
-//				begin
-//					SDRAM_ADDR[14:7] <= DATA_OUT;
-//				end
 				16'hFF8E:
 					GPIO_DIR <= DATA_OUT;
 				16'hFF8F:
@@ -3907,23 +3791,6 @@ begin
 			end
 			else
 			begin
-//				if(ADDRESS == 16'hFF73)
-//				begin
-//					if(GART_INC[1])
-//						GART_READ <= GART_READ + 1'b1;
-//				end
-//				else
-//				begin
-//					if(!VMA & (GART_CNT != 17'h00000))
-//					begin
-//						GART_CNT <= GART_CNT - 1'b1;
-//						if(GART_CNT[0] & GART_INC[0])
-//							GART_WRITE <= GART_WRITE + 1'b1;
-//						else
-//							if(!GART_CNT[0] & GART_INC[1])
-//								GART_READ <= GART_READ + 1'b1;
-//					end
-//				end
                 if(ADDRESS == 16'hFFE8)
                 begin
                     if(GART_INC[1])
@@ -4118,7 +3985,6 @@ COCOKEY coco_keyboard(
 		.RESET_N(RESET_N),
 		.CLK50MHZ(clk_sys),
 		.SLO_CLK(V_SYNC_N),
-//		.SLO_CLK(MCLOCK[19]),
 		.PS2_CLK(ps2_clk),
 		.PS2_DATA(ps2_data),
 		.KEY(KEY),
@@ -4164,14 +4030,6 @@ begin
         MISTER_HBLANK_D[2:0] <= MISTER_HBLANK_D[3:1];
 
 
-//  	Retrace Black
-//		if(COLOR_BUF[9])
-//		begin
-//			RED[7:4] <=	4'B0000;
-//			GREEN[7:4] <= 4'B0000;
-//			BLUE[7:4] <= 4'B0000;
-//		end
-//  Retrace Black
         if(COLOR_BUF[9])
         begin
             case(COLOR_BUF[7:0])
@@ -4380,7 +4238,6 @@ COCO3VIDEO MISTER_COCOVID(
 // Video Out
 	.COLOR(COLOR),
 	.HSYNC_N(H_SYNC_N),
-	.SYNC_FLAG(H_FLAG),			//Have to figure out this one...
 	.VSYNC_N(V_SYNC_N),
 	.HBLANKING(HBLANK_1),
 	.VBLANKING(VBLANK_1),
@@ -4399,7 +4256,7 @@ COCO3VIDEO MISTER_COCOVID(
  	.CSS(CSS),
 	.LPF(LPF),
 	.VERT_FIN_SCRL(VERT_FIN_SCRL),
-	.HLPR(HLPR & !SWITCH[3]),
+	.HLPR(HLPR),
 	.LPR(LPR),
 	.HRES(HRES),
 	.CRES(CRES),
@@ -4540,7 +4397,7 @@ coco3_Char_ROM coco3_Char_ROM(
 	.WE(((ioctl_index[5:0] == 6'd3) & ioctl_wr) | Font_ROM_Mach_WE), // Can be just Font_ROM_Mach_WE if no MISTer
 	.ADDR_W(Font_ROM_Adrs_Buf),
     .DATA_W(Font_ROM_Data_Buf),
-	.RD_CLK(CLK_14),
+	.RD_CLK(PIX_CLK),
 	.ADDR_R({(COCO1 ^ Font_ROM_Upper_Select), font_adrs}),
     .DATA_R(font_data)
 );
@@ -4598,8 +4455,5 @@ glb6551 RS232(
 .DTR(UART_DTR),
 .DSR(UART_DSR)
 );
-
-
-
 
 endmodule
