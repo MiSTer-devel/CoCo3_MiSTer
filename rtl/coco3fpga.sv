@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Project Name:	CoCo3FPGA Version 4.1.2
+// Project Name:	CoCo3FPGA Version 5.x.x
 // File Name:		coco3fpga.v
 //
 // CoCo3 in an FPGA
@@ -104,24 +104,17 @@ input				ps2_clk,
 input				ps2_data,
 
 // RS-232
-output	UART_TXD,
-input 	UART_RXD,
-output 	UART_RTS,
-input 	UART_CTS,
-output	UART_DTR,
-input 	UART_DSR,
+output				UART_TXD,
+input 				UART_RXD,
+output 				UART_RTS,
+input 				UART_CTS,
+output				UART_DTR,
+input 				UART_DSR,
 
 
-
-output				DE1TXD,
-input				DE1RXD,
-output				OPTTXD,
-input				OPTRXD,
-
-
-output [5:0] SOUND_OUT,
-output [15:0] SOUND_LEFT,
-output [15:0] SOUND_RIGHT,
+output [5:0] 		SOUND_OUT,
+output [15:0] 		SOUND_LEFT,
+output [15:0] 		SOUND_RIGHT,
 
 // CoCo Joystick
 // Needs removal.... ???
@@ -129,12 +122,12 @@ input	[3:0]		PADDLE_CLK,
 input	[3:0]		P_SWITCH,
   // joystick input
   // digital for buttons
-  input [15:0] joy1,  
-  input [15:0] joy2,
+  input [15:0]		joy1,  
+  input [15:0]		joy2,
   // analog for position
-  input [15:0] joya1,
-  input [15:0] joya2,
-  input joy_use_dpad,
+  input [15:0]		joya1,
+  input [15:0]		joya2,
+  input 			joy_use_dpad,
 
 //	Config Static switches
 input	[9:0]  		SWITCH,			
@@ -180,7 +173,6 @@ input				casdout,
 //	SDRAM
 
 output	[24:0]		sdram_cpu_addr,
-//input	[31:0]		sdram_ldout,
 input	[15:0]		sdram_dout,
 output	[7:0]		sdram_cpu_din,
 output				sdram_cpu_req,
@@ -226,19 +218,13 @@ parameter BOARD_TYPE = 8'h01;	// No Riser - 2M
 
 
 
-reg		[15:0]	RAM0_DATA_O;
-//reg			[15:0]	RAM0_DATA_O;
-
 reg		[15:0]	RAM0_DATA_I;
 
 wire			RAM_CS;						// DATA_IN Mux select
 
-
  
-//Flash ROM
 wire	[21:0]	FLASH_ADDRESS;
 
-//	SRH	MISTer
 wire	[7:0]	FLASH_DATA;
 
 // LEDs
@@ -253,18 +239,9 @@ wire	[17:0]	LEDR;
 //	SRH	MISTer
 //	Static Buttons
 wire   	[3:0]	 BUTTON_N;
-											//  3 RESET
-											//  2 SD Card Inserted (0=Inserted) wired to switche on the SD card
-											//  1 SD Write Protect (1=Protected) wired to switche on the SD card
-											//  0 Easter Egg
 									
 reg				CLK3_57MHZ;
 
-//WiFi
-wire 			WF_RXD;
-wire 			WF_TXD;
-
-wire			WF_RTS;
 wire			EF;
 wire			PH_2;
 reg 			PH_2_RAW;
@@ -415,12 +392,6 @@ reg		[12:0]	TIMER;
 wire			TMR_CLK;
 reg				TMR_CLK_D;
 wire			SER_IRQ;
-reg		[4:0]	COM1_STATE;
-reg				COM1_CLOCK_X;
-reg				COM1_CLOCK_X_D;
-//reg				COM1_CLOCK;
-reg		[2:0]	COM1_CLK;
-reg		[2:0]	COM2_STATE;
 reg				COM3_CLOCK;
 reg		[2:0]	COM3_CLK;
 wire	[7:0]	DATA_HDD;
@@ -457,7 +428,7 @@ reg				JOY_TRIGGER0;
 reg				JOY_TRIGGER1;
 reg				JOY_TRIGGER2;
 reg				JOY_TRIGGER3;
-reg			JSTICK;
+reg				JSTICK;
 wire			JOY1;
 wire			JOY2;
 wire			JOY3;
@@ -583,15 +554,6 @@ wire			BI_TO_RST;
 reg				ANALOG;
 wire			VDAC_EN;
 wire	[15:0]	VDAC_OUT;
-reg		[5:0]	COM2_CLK;
-wire			COM2_EN;
-wire			WF_WRFIFO_RDREQ;
-wire			WF_RDFIFO_WRREQ;
-wire			WF_RDFIFO_WRFULL;
-wire			WF_WRFIFO_WRREQ;
-wire	[7:0]	WF_WRFIFO_DATA;
-wire			WF_WRFIFO_RDEMPTY;
-wire	[7:0]	DATA_COM2;
 
 reg				RST_FF00_N;
 reg				RST_FF02_N;
@@ -695,6 +657,12 @@ wire	[4:0]	HOUR;
 wire	[5:0]	MIN;
 wire	[5:0]	SEC;
 
+//	This is a Real Time Clock.  It is initialized by RTC which is provided by MISTER
+//	RTC is provided only once after reset to initialize the clock.  RTC is in BCD
+//	format.  The output here is in BIN values.  Note while CENT will roll in the clock
+//	it is NOT initialized from MiSTer.  As such - it is a static value set to 5'd20.
+//	BASIC does not use this.  OS9 does not by default, however it is designed to be
+//	compatiable with CoCo3FPGA's RTC at the register level.
 
 rtc #(50000000) CC3_rtc(
 .clk(CLK_50M),
@@ -999,18 +967,10 @@ in any banks in any order, by simply writing the proper data into these latches.
 assign	DATA_IN =
 														(sdram_BE_0)	?	hold_data_L[7:0]:
 														(sdram_BE_1)	?	hold_data_L[15:8]:
-//														RAM0_BE0		?	RAM0_DATA_O[7:0]: Removal of sram data out [V5]
-//														RAM0_BE1		?	RAM0_DATA_O[15:8]:
-//														RAM1_BE0		?	RAM1_DATA[7:0]:
-//														RAM1_BE1		?	RAM1_DATA[15:8]:
-//														RAM1_BE2		?	RAM1_DATA[7:0]:
-//														RAM1_BE3		?	RAM1_DATA[15:8]:
 														FLASH_CE_S		?	FLASH_DATA:
 														HDD_EN			?	DATA_HDD:
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
-//														WF_RDFIFO_RDREQ	?	WF_RDFIFO_DATA:
-//														SPI_EN			?	SPI_DATA:
 // FF00, FF04, FF08, FF0C
 ({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000000)	?	DATA_REG1:
 // FF01, FF05, FF09, FF0D
@@ -1180,185 +1140,6 @@ assign	GPIO[6] = GPIO_DIR[6]	?	GPIO_OUT[6]:
 assign	GPIO[7] = GPIO_DIR[7]	?	GPIO_OUT[7]:
 												1'bZ;
 
-
-// Clock for Drivewire UART on the slave processor(6850)
-// 8 cycles in 50 MHz / 27 = 8*50/27 = 14.815 MHz
-//				111	1111 1111 0000 0000	0000 0000
-//				A98 7654 3210 fedc ba98	7654 3210
-// 27 bit.....  011 0010 0110 0100 1001 1001 0010
-// 
-always @(negedge clk_sys or negedge RESET_N)
-begin
-	if(!RESET_N)
-	begin
-		COM1_STATE <= 5'h00;
-		COM1_CLOCK_X <= 1'b0;
-	end
-	else
-	begin
-		COM1_CLOCK_X_D <= COM1_CLOCK_X;
-		case (COM1_STATE)
-		5'h00:
-		begin
-			COM1_STATE <= 5'h01;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h01:
-		begin
-			COM1_STATE <= 5'h02;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h02:
-		begin
-			COM1_STATE <= 5'h03;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h04:
-		begin
-			COM1_STATE <= 5'h05;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h05:
-		begin
-			COM1_STATE <= 5'h06;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h07:
-		begin
-			COM1_STATE <= 5'h08;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h09:
-		begin
-			COM1_STATE <= 5'h0A;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h0B:
-		begin
-			COM1_STATE <= 5'h0C;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h0C:
-		begin
-			COM1_STATE <= 5'h0D;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h0E:
-		begin
-			COM1_STATE <= 5'h0F;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h0F:
-		begin
-			COM1_STATE <= 5'h10;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h11:
-		begin
-			COM1_STATE <= 5'h12;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h13:
-		begin
-			COM1_STATE <= 5'h14;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h15:
-		begin
-			COM1_STATE <= 5'h16;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h16:
-		begin
-			COM1_STATE <= 5'h17;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h18:
-		begin
-			COM1_STATE <= 5'h19;
-			COM1_CLOCK_X <= 1'b1;
-		end
-		5'h1A:
-		begin
-			COM1_STATE <= 5'h00;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		5'h1F:
-		begin
-			COM1_STATE <= 5'h00;
-			COM1_CLOCK_X <= 1'b0;
-		end
-		default:
-		begin
-			COM1_STATE <= COM1_STATE + 1'b1;
-		end
-		endcase
-	end
-end
-
-//Switch selectable baud rate
-always @(negedge clk_sys or negedge RESET_N)
-begin
-	if(!RESET_N)
-	begin
-		COM1_CLK <= 3'b000;
-//		COM1_CLOCK <= 1'b0;
-	end
-	else
-	begin
-		if (COM1_CLOCK_X == 1'b0 && COM1_CLOCK_X_D == 1'b1)
-		begin
-			case (COM1_CLK)
-			3'b000:
-			begin
-//				COM1_CLOCK <= 1'b1;
-				COM1_CLK <= 3'b001;
-			end
-			3'b001:
-			begin
-//				COM1_CLOCK <= 1'b0;
-				if(SWITCH[8:7]==2'b10)				// divide by 2 460800 = 14.814814815 / 2 / 16 = 462962.963 = 0.469393%
-					COM1_CLK <= 3'b000;
-				else
-					COM1_CLK <= 3'b010;
-			end
-			3'b011:
-			begin
-//				COM1_CLOCK <= 1'b0;
-				if(SWITCH[8:7]==2'b01)				// divide by 4 230400
-					COM1_CLK <= 3'b000;
-				else
-					COM1_CLK <= 3'b100;
-			end
-			3'b111:										// divide by 8 115200
-			begin
-				COM1_CLK <= 3'b000;
-			end
-			default:
-			begin
-				COM1_CLK <= COM1_CLK + 1'b1;
-			end
-			endcase
-		end
-	end
-end
-
-
-
-// 14.814814815 MHz / 8 = 1.851851852 MHz / 16 = 115740.741 = 115200 + 0.469393%
-// CLK_57
-always @(negedge clk_sys or negedge RESET_N)
-begin
-	if(!RESET_N)
-	begin
-		COM2_STATE <= 3'b000;
-	end
-	else
-	begin
-		if (COM1_CLOCK_X == 1'b0 && COM1_CLOCK_X_D == 1'b1)
-			COM2_STATE <= COM2_STATE + 1'b1;
-	end
-end
 
 reg				end_hold;
 reg		[15:0]	hold_data, hold_data_L;
@@ -2437,7 +2218,6 @@ assign CPU_IRQ_N =  ( GIME_IRQ  | (HSYNC1_IRQ_N		&	VSYNC1_IRQ_N))
 assign CPU_FIRQ_N = ( GIME_FIRQ | (CART1_FIRQ_N))
 						& (!GIME_FIRQ | (TIMER3_FIRQ_N	&	HSYNC3_FIRQ_N	&	VSYNC3_FIRQ_N	&	KEY3_FIRQ_N	&	CART3_FIRQ_N));
 
-assign OPTTXD =		1'b0;
 
 // Timer
 //assign TMR_CLK = !TIMER_INS	?	(!H_SYNC_N | !H_FLAG):
@@ -2843,112 +2623,6 @@ begin
 					DDR2 <= DATA_OUT[2];
 					SEL[1] <= DATA_OUT[3];
 				end
-/*
-				16'hFF10:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF11:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF12:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF13:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-				16'hFF14:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF15:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF16:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF17:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-				16'hFF18:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF19:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF1A:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF1B:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-				16'hFF1C:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF1D:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF1E:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF1F:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-*/
 				16'hFF20:
 				begin
 					if(!DDR3)
@@ -3093,152 +2767,6 @@ begin
 					DDR4 <= DATA_OUT[2];
 					SOUND_EN <= DATA_OUT[3];
 				end
-/*
-				16'hFF30:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF31:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF32:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF33:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
-				16'hFF34:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF35:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF36:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF37:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
-				16'hFF38:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF39:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF3A:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF3B:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
-				16'hFF3C:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF3D:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF3E:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF3F:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
-*/
 				16'hFF7A:
 				begin
 					ORCH_LEFT <= DATA_OUT;
@@ -3777,13 +3305,6 @@ assign SOUND_LEFT = {ORCH_LEFT,  ORCH_LEFT_EXT}	+ {SOUND, 8'h00};
 assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT_EXT}	+ {SOUND, 8'h00};
 
 
-// The code for the paddles
-//`include "..\CoCo3FPGA_Common\paddles.v"
-
-/*
-  Joystick direction code
-  buttons are handled below in the keyboard routines 
-*/
 // the DAC isn't really a DAC but represents the DAC chip on the schematic. 
 // All the signals have been digitized before it gets here.
 
@@ -4190,7 +3711,7 @@ wire HBLANK_1;
 // Video timing and modes
 COCO3VIDEO MISTER_COCOVID(
 // Clocks / RESET
-	.MASTER_CLK(clk_sys),		// Should this be inverted?
+	.MASTER_CLK(clk_sys),
 	.PIX_CLK(PIX_CLK),			//14.32 MHz = 69.3 nS
 	.RESET_N(RESET_N),
 

@@ -484,8 +484,6 @@ coco3fpga coco3 (
   .SOUND_OUT(cocosound),
   .SOUND_LEFT(audio_left),
   .SOUND_RIGHT(AUDIO_R),
-//.OPTTXD(USER_OUT[5]),
-//.OPTRXD(USER_IN[6]),
 
   //	Removed offset addition
   .ioctl_addr(ioctl_addr),
