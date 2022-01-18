@@ -224,16 +224,7 @@ parameter BOARD_TYPE = 8'h01;	// No Riser - 2M
 
 ////////////////////////////////////////////////////////////////////////////////
 
-//	SRH	MISTer
-// Use 128KB Internal SRAM
-reg 	[19:0]	RAM0_ADDRESS;		// OUT 2MB SRAM.  Bit 19 unconnected on DE1, gives 1MB
-//reg	 [19:0]	RAM0_ADDRESS;
-reg				RAM0_RW_N;		// OUT
-//reg				RAM0_RW_N;
 
-// SRAM	paths to be delt with later in code  - convert to RAM0_DATA_I and RAM0_DATA_O
-//inout		[15:0]	RAM0_DATA;	//OUT
-//reg		[15:0]	RAM0_DATA;
 
 reg		[15:0]	RAM0_DATA_O;
 //reg			[15:0]	RAM0_DATA_O;
@@ -241,18 +232,11 @@ reg		[15:0]	RAM0_DATA_O;
 reg		[15:0]	RAM0_DATA_I;
 
 wire			RAM_CS;						// DATA_IN Mux select
-reg				RAM0_BE0_N;	// OUT
-//reg					RAM0_BE0_N;
-reg				RAM0_BE1_N;	// OUT
-//reg					RAM0_BE1_N;
 
-wire			RAM0_BE0;
-wire			RAM0_BE1;
 
  
 //Flash ROM
-// SRH
-wire	[22:0]	FLASH_ADDRESS;
+wire	[21:0]	FLASH_ADDRESS;
 
 //	SRH	MISTer
 wire	[7:0]	FLASH_DATA;
@@ -293,7 +277,7 @@ reg				MUGS;
 wire			RESET;
 wire			RESET_P;
 wire	[15:0]	ADDRESS;
-wire	[9:0]	BLOCK_ADDRESS;		// 5:0 for 512kb
+wire	[11:0]	BLOCK_ADDRESS;		// 5:0 for 512kb
 wire			RW_N;
 wire	[7:0]	DATA_IN;
 wire	[7:0]	DATA_OUT;
@@ -360,23 +344,23 @@ reg		[1:0]	MPI_SCS;				// IO select
 reg		[1:0]	MPI_CTS;				// ROM select
 reg		[1:0]	W_PROT;
 reg				SBS;
-reg		[9:0]	SAM00;	// 8MB    5:0 for 512kb   
-reg		[9:0]	SAM01;
-reg		[9:0]	SAM02;
-reg		[9:0]	SAM03;
-reg		[9:0]	SAM04;
-reg		[9:0]	SAM05;
-reg		[9:0]	SAM06;
-reg		[9:0]	SAM07;
-reg		[9:0]	SAM10;
-reg		[9:0]	SAM11;
-reg		[9:0]	SAM12;
-reg		[9:0]	SAM13;
-reg		[9:0]	SAM14;
-reg		[9:0]	SAM15;
-reg		[9:0]	SAM16;
-reg		[9:0]	SAM17;
-reg		[1:0]	SAM_EXT;
+reg		[11:0]	SAM00;	// 8MB    5:0 for 512kb   
+reg		[11:0]	SAM01;
+reg		[11:0]	SAM02;
+reg		[11:0]	SAM03;
+reg		[11:0]	SAM04;
+reg		[11:0]	SAM05;
+reg		[11:0]	SAM06;
+reg		[11:0]	SAM07;
+reg		[11:0]	SAM10;
+reg		[11:0]	SAM11;
+reg		[11:0]	SAM12;
+reg		[11:0]	SAM13;
+reg		[11:0]	SAM14;
+reg		[11:0]	SAM15;
+reg		[11:0]	SAM16;
+reg		[11:0]	SAM17;
+reg		[3:0]	SAM_EXT; // 2 bits for 8 MB, 4 bits for 32 MB + 21 bits (2 MB blocks)
 wire	[72:0]	KEY;
 wire			SHIFT_OVERRIDE;
 wire			SHIFT;
@@ -394,6 +378,7 @@ reg		[7:0]	DD_REG2;
 reg		[7:0]	DD_REG3;
 reg		[7:0]	DD_REG4;
 wire			ROM_SEL;
+wire			CART_SEL;
 reg		[5:0]	DTOA_CODE;
 reg		[5:0]	SOUND_DTOA;
 
@@ -589,7 +574,6 @@ wire			SPI_HALT;
 reg		[22:0]	GART_WRITE;		// 8MB   18:0 for 512kb
 reg		[22:0]	GART_READ;
 reg		[1:0]	GART_INC;
-reg		[16:0]	GART_CNT;
 reg		[7:0]	GART_BUF;
 reg		[7:0]	BI_TIMER;
 reg				DBUF_BI_TO;
@@ -742,7 +726,7 @@ assign BUTTON_N[3:0] = {COCO_RESET_N, 2'b1,EE_N};
 
 //assign LEDG = TRACE;														// Floppy Trace
 
-assign LEDG[0] =  RAM0_BE0 | RAM0_BE1;
+assign LEDG[0] =  1'b0;
 assign LEDG[1] =  1'b0;
 assign LEDG[2] =  1'b0;
 assign LEDG[3] =  FLASH_CE_S;
@@ -786,65 +770,45 @@ begin
 end
 
 
-//SRH DE2-115 extra digits - blank
-
 /*****************************************************************************
 * RAM signals
 ******************************************************************************/
 
-assign	RAM0_BE0 =			((ADDRESS == 16'hFF73)&&  RW_N && ({GART_READ[22:21], GART_READ[0]}  == 3'b000))		?	1'b1:
-							((ADDRESS == 16'hFF73)&& !RW_N && ({GART_WRITE[22:21],GART_WRITE[0]} == 3'b000))		?	1'b1:
-							( !VMA && !GART_CNT[0] 			 && ({GART_READ[22:21], GART_READ[0]}  == 3'b000))		?	1'b1:
-							( !VMA &&  GART_CNT[0]			 && ({GART_WRITE[22:21],GART_WRITE[0]} == 3'b000))		?	1'b1:
-							(  VMA &&  RAM_CS					 && ({BLOCK_ADDRESS[9:8],ADDRESS[0]}  ==  3'b000))	?	1'b1:
-																														1'b0;
 
-assign	RAM0_BE1 =			((ADDRESS == 16'hFF73)&&  RW_N && ({GART_READ[22:21], GART_READ[0]}  == 3'b001))		?	1'b1:
-							((ADDRESS == 16'hFF73)&& !RW_N && ({GART_WRITE[22:21],GART_WRITE[0]} == 3'b001))		?	1'b1:
-							( !VMA && !GART_CNT[0] 			 && ({GART_READ[22:21], GART_READ[0]}  == 3'b001))		?	1'b1:
-							( !VMA &&  GART_CNT[0]			 && ({GART_WRITE[22:21],GART_WRITE[0]} == 3'b001))		?	1'b1:
-							(  VMA &&  RAM_CS					 && ({BLOCK_ADDRESS[9:8],ADDRESS[0]}  ==  3'b001))	?	1'b1:
-																														1'b0;
+assign BLOCK_ADDRESS =  ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10000)       ?   SAM00:  //  10 000X XXXX 0000-1FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10001)       ?   SAM01:  //  10 001X XXXX 2000-3FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10010)       ?   SAM02:  //  10 010X XXXX 4000-5FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10011)       ?   SAM03:  //  10 011X XXXX 6000-7FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10100)       ?   SAM04:  //  10 100X XXXX 8000-9FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10101)       ?   SAM05:  //  10 101X XXXX A000-BFFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b10110)       ?   SAM06:  //  10 110X XXXX C000-DFFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:12]}               ==  6'b101110)      ?   SAM07:  //  10 1110      E000-EFFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:11]}               ==  7'b1011110)     ?   SAM07:  //  10 1111 0XXX F000-F7FF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:10]}               ==  8'b10111110)    ?   SAM07:  //  10 1111 10XX F800-FBFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:9]}                ==  9'b101111110)   ?   SAM07:  //  10 1111 110X FC00-FDFF
+           ({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]}                ==11'b01011111110)  ?   SAM07:  // 010 1111 1110 FE00-FEFF RAM Vector page
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11000)       ?   SAM10:  //  11 000X XXXX 0000-1FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11001)       ?   SAM11:  //  11 001X XXXX 2000-3FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11010)       ?   SAM12:  //  11 010X XXXX 4000-5FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11011)       ?   SAM13:  //  11 011X XXXX 6000-7FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11100)       ?   SAM14:  //  11 100X XXXX 8000-9FFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11101)       ?   SAM15:  //  11 101X XXXX A000-BFFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b11110)       ?   SAM16:  //  11 110X XXXX C000-DFFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:12]}               ==  6'b111110)      ?   SAM17:  //  11 1110 XXXX E000-EFFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:11]}               ==  7'b1111110)     ?   SAM17:  //  11 1111 0XXX F000-F7FF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:10]}               ==  8'b11111110)    ?   SAM17:  //  11 1111 10XX F800-FBFF
+                        ({MMU_EN, MMU_TR, ADDRESS[15:9]}                ==  9'b111111110)   ?   SAM17:  //  11 1111 110X FC00-FDFF
+           ({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]}                ==11'b01111111110)  ?   SAM17:  // 011 1111 1110 FE00-FEFF RAM Vector page
+                                                                                               {9'h007, ADDRESS[15:13]};
+
+assign RAM_CS = (ADDRESS[15:0]== 18'h2FFE8)         ?   1'b1:       // GART 1
+                (ADDRESS[15:0]== 18'h2FFE9)         ?   1'b1:       // GART 2
+				({ADDRESS[15:8]}== 8'hFF)           ?   1'b0:       // Hardware (FF00-FFFF) always Excluded
+                 ROM_SEL                            ?   1'b0:       // Internal ROM
+                 FLASH_CE_S                         ?   1'b0:       // Cart ROM
+                                                        1'b1;
 
 
-assign	BLOCK_ADDRESS =	({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b10000)					?	SAM00:		// 10 000X	0000-1FFF
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b10001)					?	SAM01:		// 10 001X	2000-3FFF
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b10010)					?	SAM02:		// 10 010X	4000-5FFF
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b10011)					?	SAM03:		// 10 011X	6000-7FFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:13]} == 6'b010100)		?	SAM04:		//010 100X	8000-9FFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:13]} == 6'b010101)		?	SAM05:		//010 101X	A000-BFFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:13]} == 6'b010110)		?	SAM06:		//010 110X	C000-DFFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:12]} == 7'b0101110)	?	SAM07:		//010 1110 X		E000-EFFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:11]} == 8'b01011110)	?	SAM07:		//010 1111 0X		F000-F7FF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:10]} == 9'b010111110)	?	SAM07:		//010 1111 10X		F800-FBFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:9]} == 10'b0101111110)?	SAM07:		//010 1111 110X	FC00-FDFF
-							({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]} == 11'b01011111110)	?	SAM07:		//010 1111 1110 X	FE00-FEFF Vector page as RAM
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b11000)					?	SAM10:		// 11 000X
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b11001)					?	SAM11:		// 11 001X
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b11010)					?	SAM12:		// 11 010X
-									({MMU_EN, MMU_TR, ADDRESS[15:13]} ==  5'b11011)					?	SAM13:		//011 011X
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:13]} == 6'b011100)		?	SAM14:		//011 100X
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:13]} == 6'b011101)		?	SAM15:		//011 101X
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:13]} == 6'b011110)		?	SAM16:		//011 110X
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:12]} == 7'b0111110)	?	SAM17:		//011 1110 X		E000-EFFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:11]} == 8'b01111110)	?	SAM17:		//011 1111 0X		F000-F7FF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:10]} == 9'b011111110)	?	SAM17:		//011 1111 10X		F800-FBFF
-									({ROM_SEL, MMU_EN, MMU_TR, ADDRESS[15:9]} == 10'b0111111110)?	SAM17:		//011 1111 110X	FC00-FDFF
-							({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]} == 11'b01111111110)	?	SAM17:		//011 1111 1110 X	FE00-FEFF Vector page as RAM
-																														{7'b0000111,ADDRESS[15:13]};
-
-assign RAM_CS =					(ROM_SEL)										?	1'b0:		// Any slot
-								({RAM, ADDRESS[15:14]} == 3'b010)				?	1'b0:		// ROM (8000-BFFF)
-								({RAM, ADDRESS[15:13]} == 4'b0110)				?	1'b0:		// ROM (C000-DFFF)
-								({RAM, ADDRESS[15:12]} == 5'b01110)				?	1'b0:		// ROM (E000-EFFF)
-								({RAM, ADDRESS[15:11]} == 6'b011110)			?	1'b0:		// ROM (F000-F8FF)
-								({RAM, ADDRESS[15:10]} == 7'b0111110)			?	1'b0:		// ROM (F800-FBFF)
-								({RAM, ADDRESS[15:9]}  == 8'b01111110)			?	1'b0:		// ROM (FC00-FDFF)
-//								({BLOCK_ADDRESS[9:8]} != 2'b10)					?	1'b0:		// 0 - 4M
-								(ADDRESS[15:0] == 18'h2FFE8)					?	1'b1:		// GART
-//								(!VMA & (GART_CNT != 17'h00000))				?	1'b1:		// Chip Select is not needed for the memcopy
-								({ADDRESS[15:8]}== 8'hFF)						?	1'b0:		// Hardware (FF00-FFFF)
-																					1'b1;
 
 /*****************************************************************************
 * ROM signals
@@ -855,13 +819,17 @@ assign RAM_CS =					(ROM_SEL)										?	1'b0:		// Any slot
 //		Slot 2	Alternate Disk Controller ROM
 //		Slot 3	Cart slot
 //		Slot 4	Disk Controller ROM
-assign	ROM_SEL =		( RAM								== 1'b1)	?	1'b0:	// All RAM Mode excluded
-						( ROM 								== 2'b10)	?	1'b0:	// All Internal excluded
-						({ROM[1], ADDRESS[15:14]}			== 3'b010)	?	1'b0:   // 16K 8000-BFFF excluded
-						(			 ADDRESS[15]			== 1'b0)	?	1'b0:	// Lower 32K RAM space excluded
-						(			 ADDRESS[15:8]			== 8'hFE)	?	1'b0:	// Vector space excluded
-						(			 ADDRESS[15:8]			== 8'hFF)	?	1'b0:	// Hardware space excluded
-																			1'b1;	// Everything else included
+
+assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   ?    1'b1:   // Enable for Vectors
+                     (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  ?    1'b1:   // Enabled Read, 16K Int, Page 7, x1
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  ?    1'b1:   // Enabled 32K int, Page 7, x
+                                                                                                    1'b0;
+
+assign  CART_SEL =   (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  ?    1'b1:   // Enabled Read, 16K Cart, Page 7, x1
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  ?    1'b1:   // Enabled 32K Cart, Page 7, x1
+                                                                                                    1'b0;
 
 //ROM
 //00		16 Internal + 16 External
@@ -870,33 +838,27 @@ assign	ROM_SEL =		( RAM								== 1'b1)	?	1'b0:	// All RAM Mode excluded
 //11		32 External
 
 
-assign	FLASH_ADDRESS =	ENA_DSK							?			{1'b0,9'b000000100, ADDRESS[12:0]}:	//8K Disk BASIC 8K Slot 4
-						ENA_DISK2						?			{1'b0,7'b1111111,   ADDRESS[14:0]}:	//ROM Anternative Disk Controller
-						ENA_ORCC						?			{1'b0,9'b000000101, ADDRESS[12:0]}:	//8K Orchestra 8K 90CC Slot 1
+assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
+							ENA_DISK2           			?   {7'b1111111,   ADDRESS[14:0]}:  //ROM Anternative Disk Controller
+							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
+							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
+							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
+// ROM_SEL
+																{7'b0000000,ADDRESS[14:0]};
 
-						({ENA_PAK, ROM[1]} == 2'b10)	?			{6'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
-						({ENA_PAK, ROM} == 3'b111)		?			{5'b00000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
-
-																	{1'b0,7'b0000000, ADDRESS[14:0]};
 
 //ROM
 //00		16 Internal + 16 External
 //01		16 Internal + 16 External
 //10		32 Internal
 //11		32 External
-assign FLASH_CE_S =	({RAM, ROM[1], ADDRESS[15:14]} ==  4'b0010)						?	1'b1:		// Internal 16K ROM 8000-BFFF
-							({RAM, ROM,    ADDRESS[15:14]} ==  5'b01010)			?	1'b1:		// Internal 32K ROM 8000-BFFF
-							({RAM, ROM,    ADDRESS[15:13]} ==  6'b010110)			?	1'b1:		// Internal 32K ROM C000-DFFF
-							({RAM, ROM,    ADDRESS[15:12]} ==  7'b0101110)			?	1'b1:		// Internal 32K ROM E000-EFFF
-							({RAM, ROM,    ADDRESS[15:11]} ==  8'b01011110)			?	1'b1:		// Internal 32K ROM F000-F7FF
-							({RAM, ROM,    ADDRESS[15:10]} ==  9'b010111110)		?	1'b1:		// Internal 32K ROM F800-FBFF
-							({RAM, ROM,    ADDRESS[15:9]}  == 10'b0101111110)		?	1'b1:		// Internal 32K ROM FC00-FDFF
-							ENA_DSK													?	1'b1:
-							ENA_PAK													?	1'b1:
-							ENA_DISK2												?	1'b1:
-							ENA_ORCC												?	1'b1:
-																						1'b0;
 
+assign FLASH_CE_S = ROM_SEL     ?   1'b1:
+                    ENA_ORCC    ?   1'b1:
+                    ENA_DISK2   ?   1'b1:
+                    ENA_PAK     ?   1'b1:
+                    ENA_DSK     ?   1'b1:
+                                    1'b0;
 
 wire	[7:0]	COCO3_ROM_DATA;
 wire	[7:0]	COCO3_DISK_ROM_DATA;
@@ -961,14 +923,13 @@ COCO_ROM_CART CC3_ROM_CART(
 );
 
 
-
-assign	ENA_ORCC =	({ROM_SEL, MPI_CTS} == 3'b100)						?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
+assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)						?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
 																								1'b0;
-assign	ENA_DISK2 =	({ROM_SEL, MPI_CTS} == 3'b101)						?	1'b1:		// Alternative Disk controller ROM up to 32K
+assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)						?	1'b1:		// Alternative Disk controller ROM up to 32K
 																								1'b0;
-assign	ENA_PAK =	({ROM_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
+assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
 																								1'b0;
-assign	ENA_DSK =	({ROM_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
+assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
 																								1'b0;
 assign	HDD_EN = ({MPI_SCS[0], ADDRESS[15:4]} == 13'b1111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 2 or 4
 																								1'b0;
@@ -1086,7 +1047,6 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFF74)		?	{1'b0, GART_READ[22:16]}:
 									(ADDRESS == 16'hFF75)		?	{       GART_READ[15:8]}:
 									(ADDRESS == 16'hFF76)		?	{       GART_READ[7:0]}:
-									(ADDRESS == 16'hFF77)		?	{(GART_CNT == 17'h00000),5'b00000, GART_INC[1:0]}:
 									(ADDRESS == 16'hFF7F)		?	{2'b11, MPI_CTS, W_PROT, MPI_SCS}:
 //									(ADDRESS == 16'hFF80)		?	{CK_DONE_BUF[1],
 //																						CK_FAIL,
@@ -1419,7 +1379,9 @@ begin
 	end
 end
 
-assign sdram_cpu_addr = {4'b0000, BLOCK_ADDRESS[7:0], ADDRESS[12:1], ADDRESS[0]};
+// Original SRH 1/16/22
+//assign sdram_cpu_addr = {4'b0000, BLOCK_ADDRESS[7:0], ADDRESS[12:1], ADDRESS[0]};
+assign sdram_cpu_addr = {BLOCK_ADDRESS[11:0], ADDRESS[12:1], ADDRESS[0]};
 assign sdram_cpu_din = DATA_OUT;
 reg		[24:0]	sdram_cpu_addr_L;
 reg				last_write;
@@ -1439,9 +1401,6 @@ begin
 		CLK <= 6'h00;
 		SWITCH_L <= 3'b000;
 		PH_2_RAW <= 1'b0;
-		RAM0_RW_N <= 1'b1;
-		RAM0_BE0_N <=  1'b1;
-		RAM0_BE1_N <= 1'b1;
 		hold <= 1'b0;
 		cpu_ena <= 1'b0;
 		end_hold <= 1'b0;
@@ -1492,8 +1451,6 @@ begin
 			SWITCH_L <= {turbo_speed, RATE};				// Normal speed
 			CLK <= 6'h01;
 			PH_2_RAW <= 1'b1;
-			RAM0_BE0_N <=  !RAM0_BE0;						// Delete?
-			RAM0_BE1_N <=  !RAM0_BE1;
 
 			if (~(hold | end_hold))	// Make sure we are not in a cycle before starting one....
 									// If we are still in one - we skip this cpu_enable cycle
@@ -2604,8 +2561,6 @@ begin
 		CART1_POL <= 1'b0;
 		DDR4 <= 1'b0;
 		SOUND_EN <= 1'b0;
-//	FF78-FF79
-		GART_CNT <= 17'h00000;
 // FF7A
 		ORCH_LEFT <= 8'b10000000;
 // FF7B
@@ -2663,7 +2618,7 @@ begin
 //		BDR_PAL <= 12'h000;
 // FF9B
 		SCRN_START_HSB <= 6'b000000;		// extra 4 bits for 2MB screen start
-		SAM_EXT <= 2'b00;				// extra 2 bits for 8MB SAMs
+		SAM_EXT <= 4'b0000;				// extra 4 bits for 32MB SAMs
 // FF9C
 		VERT_FIN_SCRL <= 4'h0;
 // FF9D
@@ -2674,37 +2629,37 @@ begin
 		HVEN <= 1'b0;
 		HOR_OFFSET <= 7'h00;
 // FFA0
-		SAM00 <= 10'h000;	// 2MB   6'00 for 512kb
+		SAM00 <= 12'h000;	
 // FFA1
-		SAM01 <= 10'h000;
+		SAM01 <= 12'h000;
 // FFA2
-		SAM02 <= 10'h000;
+		SAM02 <= 12'h000;
 // FFA3
-		SAM03 <= 10'h000;
+		SAM03 <= 12'h000;
 // FFA4
-		SAM04 <= 10'h000;
+		SAM04 <= 12'h000;
 // FFA5
-		SAM05 <= 10'h000;
+		SAM05 <= 12'h000;
 // FFA6
-		SAM06 <= 10'h000;
+		SAM06 <= 12'h000;
 // FFA7
-		SAM07 <= 10'h000;
+		SAM07 <= 12'h000;
 // FFA8
-		SAM10 <= 10'h000;
+		SAM10 <= 12'h000;
 // FFA9
-		SAM11 <= 10'h000;
+		SAM11 <= 12'h000;
 // FFAA
-		SAM12 <= 10'h000;
+		SAM12 <= 12'h000;
 // FFAB
-		SAM13 <= 10'h000;
+		SAM13 <= 12'h000;
 // FFAC
-		SAM14 <= 10'h000;
+		SAM14 <= 12'h000;
 // FFAD
-		SAM15 <= 10'h000;
+		SAM15 <= 12'h000;
 // FFAE
-		SAM16 <= 10'h000;
+		SAM16 <= 12'h000;
 // FFAF
-		SAM17 <= 10'h000;
+		SAM17 <= 12'h000;
 // FFB0
 		PALETTE[0] <= 12'h0000;
 // FFB1
@@ -3379,9 +3334,9 @@ begin
 //					GIME-X code
 					SCRN_START_HSB <= {1'b0,DATA_OUT[6],DATA_OUT[3:0]}; // extra 6 bits for 32MB screen start (Highest always 0, no way to set it
 //					To do - expand memory management for 32M.
-//					SAM_EXT <= {CPU_DATA[7],CPU_DATA[5:4]};
+					SAM_EXT <= {1'b0,DATA_OUT[7],DATA_OUT[5:4]};
 //					SCRN_START_HSB <= DATA_OUT[3:0];	// extra 4 bits for 8MB screen start [V5]
-					SAM_EXT <= DATA_OUT[5:4];	// [V5]
+//					SAM_EXT <= DATA_OUT[5:4];	// [V5]
 				end
 				16'hFF9C:
 				begin
