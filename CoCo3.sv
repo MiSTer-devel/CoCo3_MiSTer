@@ -193,7 +193,7 @@ localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
         //"OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
-        "OCD,Multi-Pak Slot,Disk,ECB / Cart,Orc 90;",
+        "OCD,Multi-Pak Slot,Orc 90,ECB / Cart,Disk;",
         "-;",
         "H2S0,DSK,Load Disk Drive 0;",
         "H2S1,DSK,Load Disk Drive 1;",
@@ -229,7 +229,9 @@ localparam  CONF_STR = {
         "O6,Swap Joysticks,Off,On;",
         "RA,Easter Egg;",
         "-;",
-        "OJK,Turbo Speed:,1.78 Mhz,3.58 Mhz,7.16 Mhz, NA;",
+        "OO,Force Turbo,No,Yes;",
+        "OJK,Turbo Speed,1.78 Mhz,3.58 Mhz,7.16 Mhz, NA;",
+        "OPR,Memory Size,512K,1M,2M,16M;",
         "-;",
         "RM,Cold Boot;",
         "R0,Reset;",
@@ -420,7 +422,7 @@ EE_Cold_Bt COCO3_EE_Cold_Bt (
 	.CLK(CLK_14),
 
 	.Display_EE(easter_egg),				// from MISTer subsystem
-	.Cold_Boot(coldboot | mpi_reset),		// from MISTer subsystem or mpi change
+	.Cold_Boot(AMW_ACK),					// from AMW system
 
 	.RESET_to_COCO_N(Programmed_RESET_N),	// RESET_N to the coco3 [logically AND'ed to top reset]
 	.EE_to_COCO(Programmed_EE)				// Easter Egg to the coco3
@@ -537,7 +539,13 @@ coco3fpga coco3 (
 
   .RTC(RTC),
 
+  .AMW_Trigger(coldboot | mpi_reset | mem_reset),
+  .AMW_ACK(AMW_ACK),
 
+  .F_Turbo(F_Turbo),
+
+  .Mem_Size(Mem_Size),
+  
   .UART_TXD(UART_TXD),
   .UART_RXD(UART_RXD),
   .UART_RTS(UART_RTS),
@@ -550,9 +558,11 @@ wire [5:0] cocosound;
 
 wire [1:0] turbo_speed = status[20:19];
 
+wire AMW_ACK;
+
 wire cpu_speed = status[11];
 
-wire [1:0] mpi = (status[13:12]==2'b10)  ? 2'b00  : status[13:12]==2'b01 ? 2'b10 : status[13:12]==2'b00 ? 2'b11 : 2'b00;		
+wire [1:0] mpi = (status[13:12]==2'b00)  ? 2'b00  : status[13:12]==2'b01 ? 2'b10 : status[13:12]==2'b10 ? 2'b11 : 2'b00;		
 wire video=status[14];
 wire cartint=status[16];
 wire sg4v6 = status[21];
@@ -560,6 +570,9 @@ wire sg4v6 = status[21];
 wire PHASE = status[18];
 
 wire coldboot = status[22];
+
+wire F_Turbo = status[24];
+wire [2:0]	Mem_Size = status[27:25];
 
 wire digitalJoy = status[23];
 reg	[2:0] mpi_d	= 2'b00;
@@ -576,6 +589,23 @@ begin
 			first_mpi_chg <= 1'b1;
 		else
 			mpi_reset <= 1'b1;
+	
+end
+
+reg	[2:0] Mem_Size_d	= 3'b000;
+reg first_mem_chg = 1'b0;
+reg mem_reset = 1'b0;
+
+always @ (negedge CLK_14)
+begin
+	Mem_Size_d <= Mem_Size;
+	mem_reset <= 1'b0;
+	
+	if (~(Mem_Size == Mem_Size_d))
+		if (~first_mem_chg)
+			first_mem_chg <= 1'b1;
+		else
+			mem_reset <= 1'b1;
 	
 end
 

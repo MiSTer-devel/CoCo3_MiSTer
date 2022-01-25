@@ -87,8 +87,11 @@ localparam	LONG_TIME	=	24'h418D40;	// .3 sec @ 14.32 Mhz
 
 localparam	EE_PROG =			{20'h00000, inst_EE_INACTIVE, inst_LONG_TIMER, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE,
 								inst_EE_ACTIVE, inst_START};
-localparam	Cold_Boot_PROG =	{1'h0, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE, inst_SHORT_TIMER, inst_EE_INACTIVE, 
-								inst_LONG_TIMER, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE, inst_EE_ACTIVE, inst_START};
+// Orignal Easter Egg Cold Boot
+//localparam	Cold_Boot_PROG =	{1'h0, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE, inst_SHORT_TIMER, inst_EE_INACTIVE, 
+//								inst_LONG_TIMER, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE, inst_EE_ACTIVE, inst_START};
+localparam	Cold_Boot_PROG =	{28'h0000000,  
+								inst_LONG_TIMER, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE, inst_START};
 
 localparam inst_NULL = 			4'd0;
 localparam inst_EE_ACTIVE = 	4'd1;

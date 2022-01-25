@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Project Name:	CoCo3FPGA Version 5.x.x
-// File Name:		coco3fpga.v
+// File Name:		coco3fpga.sv
 //
 // CoCo3 in an FPGA
 //
@@ -120,14 +120,14 @@ output [15:0] 		SOUND_RIGHT,
 // Needs removal.... ???
 input	[3:0]		PADDLE_CLK,
 input	[3:0]		P_SWITCH,
-  // joystick input
-  // digital for buttons
-  input [15:0]		joy1,  
-  input [15:0]		joy2,
-  // analog for position
-  input [15:0]		joya1,
-  input [15:0]		joya2,
-  input 			joy_use_dpad,
+// joystick input
+// digital for buttons
+input [15:0]		joy1,  
+input [15:0]		joy2,
+// analog for position
+input [15:0]		joya1,
+input [15:0]		joya2,
+input 			joy_use_dpad,
 
 //	Config Static switches
 input	[9:0]  		SWITCH,			
@@ -187,9 +187,14 @@ input				sdram_vid_ready,
 
 input				sdram_busy,
 
+input  				AMW_Trigger,
+output 				AMW_ACK,
+
 input	[64:0]		RTC,
 
-input	[1:0]		turbo_speed
+input				F_Turbo,
+input	[1:0]		turbo_speed,
+input	[2:0]		Mem_Size
  
 );
 
@@ -227,13 +232,6 @@ wire	[21:0]	FLASH_ADDRESS;
 
 wire	[7:0]	FLASH_DATA;
 
-// LEDs
-// SRH DE2-115 has one extra Green LED
-wire	[8:0]	LEDG;
-//output	[9:0]		LEDR;
-// SRH DE2-115 has 10 extra Red LED
-wire	[17:0]	LEDR;
-
 // Extra Buttons and Switches
 
 //	SRH	MISTer
@@ -246,7 +244,6 @@ wire			EF;
 wire			PH_2;
 reg 			PH_2_RAW;
 reg				RESET_N;
-reg		[13:0]	RESET_SM;
 reg		[6:0]	CPU_RESET_SM;
 reg				CPU_RESET;
 wire			RESET_INS;
@@ -519,8 +516,6 @@ wire			RDFIFO_WRFULL;
 wire			WRFIFO_RDEMPTY;
 wire			WRFIFO_WRFULL;
 reg				BI_IRQ_EN;
-reg 	[19:0]	MCLOCK;
-reg 	[19:0]	MCLOCK_DELAY;
 wire			I2C_SCL_EN;
 wire			I2C_DAT_EN;
 reg		[7:0]	I2C_DEVICE;
@@ -657,7 +652,7 @@ wire	[4:0]	HOUR;
 wire	[5:0]	MIN;
 wire	[5:0]	SEC;
 
-//	This is a Real Time Clock.  It is initialized by RTC which is provided by MISTER
+//	This is a Real Time Clock.  It is initialized by RTC which is provided by MISTER.
 //	RTC is provided only once after reset to initialize the clock.  RTC is in BCD
 //	format.  The output here is in BIN values.  Note while CENT will roll in the clock
 //	it is NOT initialized from MiSTer.  As such - it is a static value set to 5'd20.
@@ -682,60 +677,14 @@ rtc #(50000000) CC3_rtc(
 //assign PROBE[6:0] = {CART1_POL, CART1_BUF_RESET_N, CART1_FIRQ_STAT_N, CART1_CLK_N, CART1_FIRQ_N, RESET_N, PH_2};
 //assign PROBE[7:0] = {1'b0, CART1_POL, CART1_FIRQ_N, CART1_FIRQ_BUF[0], CART1_CLK_N_D, CART1_FIRQ_RESET_N, CART1_CLK_N, PH_2};
 assign PROBE[7:0] = {2'b00, cache_hit, COCO3_ROM_WRITE, ioctl_wr, ioctl_download, ioctl_index[7], ioctl_index[6]};
-assign PROBE[15:8] = LEDR[7:0];
-assign PROBE[23:16] = LEDG[7:0];
+assign PROBE[15:8] = 8'h00;
+assign PROBE[23:16] = 8'h00;
 //assign PROBE[31:24] = {3'b000, DATA_OUT[3], MOTOR, DRIVE_SEL_EXT[0], HDD_EN, ADDRESS[0]};
 assign PROBE[31:24] = {2'b00, fdc_probe[5:0]};
 
 assign clk_sys = CLK_57;
 
-
 assign BUTTON_N[3:0] = {COCO_RESET_N, 2'b1,EE_N};
-
-//assign LEDG = TRACE;														// Floppy Trace
-
-assign LEDG[0] =  1'b0;
-assign LEDG[1] =  1'b0;
-assign LEDG[2] =  1'b0;
-assign LEDG[3] =  FLASH_CE_S;
-assign LEDG[4] = (ADDRESS == 16'hFF84);								// SDRAM
-assign LEDG[5] =  1'b0;
-assign LEDG[6] = 1'b0;												// SD Card activity
-assign LEDG[7] = 1'b0;
-// SRH DE2-115 Extra Green LED is unused and off
-assign LEDG[8] = 1'b0;
-
-assign LEDR[0] =  1'b0;
-assign LEDR[1] =  1'b0;
-assign LEDR[2] =  1'b0;
-assign LEDR[3] =  1'b0;
-
-assign LEDR[4] = 1'b0; 
-assign LEDR[5] = SWITCH[6];					// SD Card inserted
-assign LEDR[6] =  RESET_N;
-assign LEDR[7] =  KEY[55];													// Shift Lock
-// SRH DE2-115 Extra Red LEDs are unused and off
-assign LEDR[17:8] = 10'b0000000000;
-
-//Master clock divider chain
-//	MCLOCK[0] = 50/2		= 25 MHz
-//	MCLOCK[1] = 50/4		= 12.5 MHz
-//	MCLOCK[2] = 50/8		= 6.25 MHz
-//	MCLOCK[3] = 50/16		= 3.125 MHz
-//	MCLOCK[4] = 50/32		= 1.5625 MHz
-//	MCLOCK[5] = 50/64		= 781.25 KHz
-//	MCLOCK[6] = 50/128		= 390.625 KHz
-//	MCLOCK[7] = 50/256		= 195.125 KHz
-//	MCLOCK[8] = 50/512		= 97.65625 KHz
-//	MCLOCK[9] = 50/1024		= 48.828125 KHz
-//	MCLOCK[10] = 50/2048	= 24.4140625 KHz
-//	MCLOCK[11] = 50/4096	= 12.20703125 KHz
-
-always @ (negedge clk_sys)				//50 MHz
-begin
-	MCLOCK <= MCLOCK + 1'b1;
-	MCLOCK_DELAY <= MCLOCK;
-end
 
 
 /*****************************************************************************
@@ -769,8 +718,8 @@ assign BLOCK_ADDRESS =  ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b1
            ({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]}                ==11'b01111111110)  ?   SAM17:  // 011 1111 1110 FE00-FEFF RAM Vector page
                                                                                                {9'h007, ADDRESS[15:13]};
 
-assign RAM_CS = (ADDRESS[15:0]== 18'h2FFE8)         ?   1'b1:       // GART 1
-                (ADDRESS[15:0]== 18'h2FFE9)         ?   1'b1:       // GART 2
+assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         	?   1'b1:       // GART 1
+                (ADDRESS[15:0]== 16'hFFE9)         	?   1'b1:       // GART 2
 				({ADDRESS[15:8]}== 8'hFF)           ?   1'b0:       // Hardware (FF00-FFFF) always Excluded
                  ROM_SEL                            ?   1'b0:       // Internal ROM
                  FLASH_CE_S                         ?   1'b0:       // Cart ROM
@@ -899,11 +848,11 @@ assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
 																								1'b0;
 assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
 																								1'b0;
-assign	HDD_EN = ({MPI_SCS[0], ADDRESS[15:4]} == 13'b1111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 2 or 4
+assign	HDD_EN = ({MPI_SCS[0], ADDRESS[15:4]} == 13'b1111111110100)		?	1'b1:		// FF40-FF4F with MPI switch = 2 or 4
 																								1'b0;
 assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)				?	1'b1:		//FF68-FF6B
 																								1'b0;
-assign	SLOT3_HW = ({MPI_SCS, ADDRESS[15:5]} == 13'b1011111111010)	?	1'b1:		// FF40-FF5F
+assign	SLOT3_HW = ({MPI_SCS, ADDRESS[15:5]} == 13'b1011111111010)		?	1'b1:		// FF40-FF5F
 																								1'b0;
 assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)					?	1'b1:		// FF7E
 																								1'b0;
@@ -917,12 +866,12 @@ begin
 	else
 	begin
 		if({PH_2, SLOT3_HW, RW_N} == 3'b110)
-//			case (ADDRESS[4:0])
-//			5'h00:
-//			begin
+			case (ADDRESS[4:0])
+			5'h00:
+			begin
 				ROM_BANK <= DATA_OUT[2:0];
-//			end
-//			endcase
+			end
+			endcase
 	end
 end
 
@@ -1022,7 +971,7 @@ assign	DATA_IN =
 //									(ADDRESS == 16'hFF88)		?	BUFF_DATA[7:0]:
 
 									(ADDRESS == 16'hFF8E)		?	GPIO_DIR:
-									(ADDRESS == 16'hFF8F)		?	GPIO:
+									(ADDRESS == 16'hFF8F)		?	{GPIO[7:0]}:
 
 									(ADDRESS == 16'hFF90)		?	{COCO1, MMU_EN, GIME_IRQ, GIME_FIRQ, VEC_PAG_RAM, ST_SCS, ROM}:
 									(ADDRESS == 16'hFF91)		?	{2'b00, TIMER_INS, 4'b0000, MMU_TR}:
@@ -1140,6 +1089,27 @@ assign	GPIO[6] = GPIO_DIR[6]	?	GPIO_OUT[6]:
 assign	GPIO[7] = GPIO_DIR[7]	?	GPIO_OUT[7]:
 												1'bZ;
 
+wire	[24:0]	AMW_Adrs;
+wire	[7:0]	AMW_Data;
+wire			AMW_EN;
+wire			AMW_Ready;
+wire			AMW_End;
+
+assign AMW_ACK = AMW_End;
+
+AMW coco_AMW (
+	.CLK(clk_sys),
+	.RESET_N(RESET_N),
+	.Trigger(AMW_Trigger),
+	.Restart(1'b0),
+	.Cycle_Run(AMW_WR),
+	.AMW_Adrs(AMW_Adrs),
+	.AMW_Data(AMW_Data),
+	.AMW_EN(AMW_EN),
+	.AMW_Ready(AMW_Ready),
+	.AMW_End(AMW_End)
+);
+
 
 reg				end_hold;
 reg		[15:0]	hold_data, hold_data_L;
@@ -1160,14 +1130,29 @@ begin
 	end
 end
 
-// Original SRH 1/16/22
-//assign sdram_cpu_addr = {4'b0000, BLOCK_ADDRESS[7:0], ADDRESS[12:1], ADDRESS[0]};
-assign sdram_cpu_addr = {BLOCK_ADDRESS[11:0], ADDRESS[12:1], ADDRESS[0]};
-assign sdram_cpu_din = DATA_OUT;
+localparam Sz_512K = 			3'b000;
+localparam Sz_1M = 				3'b001;
+localparam Sz_2M = 				3'b010;
+
+assign sdram_cpu_addr = 	(Mem_Size == Sz_512K)	?	{6'h00, sdram_cpu_addr_i[18:0]}:
+							(Mem_Size == Sz_1M)		?	{5'b00000, sdram_cpu_addr_i[19:0]}:
+							(Mem_Size == Sz_2M)		?	{4'h0, sdram_cpu_addr_i[20:0]}:
+														sdram_cpu_addr_i[24:0];				// 32MB space but we only have MMU addressing for 16MB
+
+assign sdram_cpu_addr_i = 	(AMW_WR)		?	AMW_Adrs:
+							(GART_RD)		?	{2'b00, GART_READ}:
+							(GART_WR)		?	{2'b00, GART_WRITE}:
+												{BLOCK_ADDRESS[11:0], ADDRESS[12:1], ADDRESS[0]};
+
+assign sdram_cpu_din = 		(AMW_WR)		?	AMW_Data:
+												DATA_OUT;
+
+reg		[24:0]	sdram_cpu_addr_i;
 reg		[24:0]	sdram_cpu_addr_L;
 reg				last_write;
 reg				sdram_BE_0, sdram_BE_1;
-
+reg				GART_RD, GART_WR;
+reg				AMW_WR;
 
 wire	cache_hit  /* synthesis preserve */;
 assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
@@ -1194,6 +1179,9 @@ begin
 		last_write <= 1'b1;
 		sdram_BE_0 <= 1'b0;
 		sdram_BE_1 <= 1'b0;
+		GART_WR <= 1'b0;
+		GART_RD <= 1'b0;
+		AMW_WR <= 1'b0;
 	end
 	else
 	begin
@@ -1224,12 +1212,17 @@ begin
 		end
 
 		if (sdram_cpu_ack)
+		begin
 			sdram_cpu_req <= 1'b0;
-
+			GART_WR <= 1'b0; // GART address has already been used in the sdram controller so - de-select it
+			GART_RD <= 1'b0;
+			AMW_WR <= 1'b0;
+		end
+			
 		case (CLK)
 		6'h00:
 		begin
-			SWITCH_L <= {turbo_speed, RATE};				// Normal speed
+			SWITCH_L <= {turbo_speed, (RATE | F_Turbo)};				// Normal speed
 			CLK <= 6'h01;
 			PH_2_RAW <= 1'b1;
 
@@ -1238,27 +1231,40 @@ begin
 			begin
 				cpu_ena <= 1'b1;
 
-				if (VMA & RAM_CS) // FFE8 is now in RAM_CS
+				if (AMW_EN)			// Automated Memory Write ?
+				begin
+					AMW_WR <= 1'b1;
+					cpu_ena <= 1'b0; // Kill cpu enable
+
+//					Start AMW cycle
+					RAM0_BE0_L <=  !AMW_Adrs[0];
+					RAM0_BE1_L <=  AMW_Adrs[0];
+					last_write <= 1'b1; // Kill cache hit
+					hold <= 1'b1;
+					sdram_cpu_req <= 1'b1;
+					sdram_cpu_rnw <= 1'b0;
+				end
+				else if (VMA & RAM_CS) // FFE8 / FFE9 is now in RAM_CS
 				begin
 //					sdram memory cycle
-					if (ADDRESS[15:0] == 18'h2FFE8) // GART
+					if ((ADDRESS[15:0] == 16'hFFE8) | (ADDRESS[15:0] == 16'hFFE9)) // GART
 					begin
 						if (~RW_N)
 						begin // Gart Write
 							RAM0_BE0_L <=  !GART_WRITE[0];
 							RAM0_BE1_L <=  GART_WRITE[0];
-							sdram_cpu_addr_L <= {2'b00, GART_WRITE};
+							GART_WR <= 1'b1;
 						end
 						else
 						begin // Gart Read
 							RAM0_BE0_L <=  !GART_READ[0];
 							RAM0_BE1_L <=  GART_READ[0];
-							sdram_cpu_addr_L <= {2'b00, GART_READ};
+							GART_RD <= 1'b1;
 						end
 						hold <= 1'b1;
 						sdram_cpu_req <= 1'b1;
 						sdram_cpu_rnw <= RW_N;
-						last_write <= ~RW_N;
+						last_write <= 1'b1; // Kill cache hit on any access after GART
 					end
 					else  // Normal CPU cycle
 //						get which byte
@@ -1332,34 +1338,34 @@ assign RESET_P =	!BUTTON_N[3]					// Button
 					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS
 
 // Make sure all resets are enabled for a long enough time to allow voltages to settle
-always @ (negedge clk_sys or posedge RESET_P)		// 50 MHz / 64
+always @ (negedge clk_sys or posedge RESET_P)
 begin
+	reg	[24:0]	RESET_SM;
+
 	if(RESET_P)
 	begin
-		RESET_SM <= 14'h0000;
+		RESET_SM <= 25'd0;
 		CPU_RESET <= 1'b1;
 		RESET_N <= 1'b0;
 		MUGS <= RESET_INS;	   //This is holding a <ctrl><alt><ins> across a reset to activate the Easter Egg
 	end
 	else
 	begin
-		if (MCLOCK[9] == 1'b0 && MCLOCK_DELAY[9] == 1'b1)
-			case (RESET_SM)
-			14'h1FFF:									// time = 1.28 uS * 14336 = 18350.08 uS
-			begin
-				RESET_N <= 1'b1;
-				CPU_RESET <= 1'b1;
-				RESET_SM <= 14'h3800;
-			end
-			14'h3FFF:									// time = 1.28 uS * 16383 = 20970.24 uS
-			begin
-				RESET_N <= 1'b1;
-				CPU_RESET <= 1'b0;
-				RESET_SM <= 14'h3FFF;
-			end
-			default:
-				RESET_SM <= RESET_SM + 1'b1;
-			endcase
+		case (RESET_SM)
+		25'h0800000:									// time = 143 mS
+		begin
+			RESET_N <= 1'b1;
+			CPU_RESET <= 1'b1;
+			RESET_SM <= RESET_SM + 1'b1;
+		end
+		25'h1000000:									// time = 286 mS
+		begin
+			RESET_N <= 1'b1;
+			CPU_RESET <= 1'b0;
+		end
+		default:
+			RESET_SM <= RESET_SM + 1'b1;
+		endcase
 	end
 end
 
@@ -2357,7 +2363,7 @@ begin
 		MPI_CTS <= SWITCH[2:1];
 // FF8E-FF8F
 		GPIO_DIR <= 8'h00;
-		GPIO_OUT <= 8'h55;
+		GPIO_OUT <= 8'h00;
 // FF90
 		ROM <= 2'b00;
 		ST_SCS <= 1'b0;
@@ -3311,10 +3317,11 @@ assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT_EXT}	+ {SOUND, 8'h00};
 reg [15:0] dac_joya1;
 reg [15:0] dac_joya2;
 
-always @(clk_sys) begin
+always @ (negedge clk_sys) 
+begin
 
 	if (joy_use_dpad)
-	  begin
+	begin
 		dac_joya1[15:8] <= 8'd128;
 		dac_joya1[7:0]  <= 8'd128;
 		
@@ -3344,40 +3351,40 @@ always @(clk_sys) begin
 
 		if (joy2[3])	// upimg_mounted
 			dac_joya2[7:0] <= 8'd16;
-	  end
+	end
 	else
-	  begin
+	begin
 		dac_joya1 <= joya1;
 		dac_joya2 <= joya2;
-	  end
+	end
 end
 
 
-always @(posedge clk_sys) begin
-  case (SEL)
-  2'b00:
+always @(negedge clk_sys)
+begin
+	case (SEL)
+	2'b00:
 		if (dac_joya2[15:10] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
-  2'b01:
+	2'b01:
   		if (dac_joya2[7:2] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
-2'b10:
+	2'b10:
 		if (dac_joya1[15:10] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
-  2'b11:
+	2'b11:
   		if (dac_joya1[7:2] > DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
 	endcase
 end
-
 
 
 /*****************************************************************************
