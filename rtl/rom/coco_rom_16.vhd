@@ -77,14 +77,14 @@ architecture RTL of COCO_ROM_16 is
 
 	type ROM_ARRAY is array(0 to 15) of std_logic_vector(7 downto 0);
 	signal ROM : ROM_ARRAY:= (
-//	Clear $71 [Warm Start Flag]
+--	Clear $71 [Warm Start Flag]
     x"80",x"07",x"00",x"71",x"00", 	-- valid, nc, nc, nc, nc, nc, nc, a24
 									-- a23, a22, a21, a20, a19, a18, a17, a16
 									-- a15, a14, a13, a12, a11, a10, a09, a08
 									-- a07, a06, a05, a04, a03, a02, a01, a00
 									-- d07, d06, d05, d04, d03, d02, d01, d00
 
-//	Set $C000 <- $55 [Clear D in DK identifier in rom]
+--	Set $C000 <- $55 [Clear D in DK identifier in rom]
     x"80",x"07",x"C0",x"00",x"55",	-- valid, nc, nc, nc, nc, nc, nc, a24
 									-- a23, a22, a21, a20, a19, a18, a17, a16
 									-- a15, a14, a13, a12, a11, a10, a09, a08

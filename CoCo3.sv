@@ -193,7 +193,7 @@ localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
         //"OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
-        "OCD,Multi-Pak Slot,Orc 90,ECB / Cart,Disk;",
+        "OCD,Multi-Pak Slot,(Slot3) ECB /Cart,(Slot 4) Disk;",
         "-;",
         "H2S0,DSK,Load Disk Drive 0;",
         "H2S1,DSK,Load Disk Drive 1;",
@@ -562,7 +562,7 @@ wire AMW_ACK;
 
 wire cpu_speed = status[11];
 
-wire [1:0] mpi = (status[13:12]==2'b00)  ? 2'b00  : status[13:12]==2'b01 ? 2'b10 : status[13:12]==2'b10 ? 2'b11 : 2'b00;		
+wire [1:0] mpi = (status[13:12]==2'b00)  ? 2'b10: 2'b11;
 wire video=status[14];
 wire cartint=status[16];
 wire sg4v6 = status[21];

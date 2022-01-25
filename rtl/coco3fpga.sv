@@ -779,7 +779,6 @@ assign FLASH_CE_S = ROM_SEL     ?   1'b1:
 
 wire	[7:0]	COCO3_ROM_DATA;
 wire	[7:0]	COCO3_DISK_ROM_DATA;
-wire	[7:0]	ORCH90_ROM_DATA;
 
 localparam 	[1:0]	BOOT0 = 2'd0;
 localparam 	[1:0]	BOOT1 = 2'd1;
@@ -790,8 +789,6 @@ localparam	[5:0]	BOOT  = 6'd0;
 
 wire			COCO3_ROM_WRITE = (ioctl_index[7:0] == {BOOT0, BOOT})  & ioctl_wr;
 wire			COCO3_DISKROM_WRITE = (ioctl_index[7:0] == {BOOT1, BOOT}) & ioctl_wr;
-wire			COCO3_ORCH90_ROM_WRITE = (ioctl_index[7:0] == {BOOT2, BOOT}) & ioctl_wr;
-
 
 
 COCO_ROM_32K CC3_ROM(
@@ -812,21 +809,10 @@ COCO_ROM_8K CC3_DISK_ROM(
 .WRITE(COCO3_DISKROM_WRITE)
 );
 
-COCO_ROM_8K CC3_ORCH90_ROM(
-.ADDR(FLASH_ADDRESS[12:0]),
-.DATA(ORCH90_ROM_DATA),
-.CLK(~clk_sys),
-.WR_ADDR(ioctl_addr[12:0]),
-.WR_DATA(ioctl_data[7:0]),
-.WRITE(COCO3_ORCH90_ROM_WRITE)
-);
-
- 
 
 assign FLASH_DATA =	ENA_PAK	?								CART_DATA:
 					(FLASH_ADDRESS[15] == 1'b0)			?	COCO3_ROM_DATA:
 					(FLASH_ADDRESS[15:13] == 3'b100)	?	COCO3_DISK_ROM_DATA:
-					(FLASH_ADDRESS[15:13] == 3'b101)	?	ORCH90_ROM_DATA:
 															8'b00000000;
 
 
