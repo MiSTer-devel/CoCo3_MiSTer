@@ -90,7 +90,6 @@ module fdc(
 	output		[7:0]	probe
 );
 
-
 wire	[7:0]	DRIVE_SEL_EXT;
 wire			MOTOR;
 wire			WRT_PREC;
@@ -118,13 +117,17 @@ begin
 		end
 end
 
+localparam SDC_MAGIC_CMD = 			4'd0;
+
+wire	[7:0]	FF40_READ_VALUE = {HALT_EN, DRIVE_SEL_EXT[3], DENSITY, WRT_PREC, MOTOR,	DRIVE_SEL_EXT[2:0]};
+wire			SDC_EN = (FF40_READ_VALUE == SDC_MAGIC_CMD);
+wire	[7:0]	SDC_READ_DATA;
+
+assign SDC_READ_DATA = 8'h00;  // To be deleted.
+
 //FDC read data path.  =$ff40 or wd1793(s)
-assign	DATA_HDD =		(FF40_RD)							?	{HALT_EN, 
-																DRIVE_SEL_EXT[3],
-																DENSITY, 
-																WRT_PREC, 
-																MOTOR, 
-																DRIVE_SEL_EXT[2:0]}:
+assign	DATA_HDD =		(SDC_EN)							?	SDC_READ_DATA:
+						(FF40_RD)							?	FF40_READ_VALUE:
 						(WD1793_RD)							?	DATA_1793: //(1793[s])
 																8'h00;
 
@@ -384,69 +387,42 @@ reg       [3:0] double_sided = 4'B0;
 // changing drives to the wd1793.
 // This can also get the disk size to properly handle DS drives - TBD
 
+// Reset of drive wp to a default of 1 removed because of persistance.
+
 // Drive 0
 
-always @(negedge img_mounted[0] or negedge RESET_N)
+always @(negedge img_mounted[0])
 begin
-	if (~RESET_N)
-	begin
-		drive_wp[0] <= 1'b1;
-	end
-	else
-		begin
-			drive_wp[0] <= img_readonly;
-			drive_ready[0] <= 1'b1;
-			double_sided[0]<= img_size > 20'd368600;//20'd368640;
-
-		end
+	drive_wp[0] <= img_readonly;
+	drive_ready[0] <= 1'b1;
+	double_sided[0]<= img_size > 20'd368600;//20'd368640;
 end
 
 // Drive 1
 
-always @(negedge img_mounted[1] or negedge RESET_N)
+always @(negedge img_mounted[1])
 begin
-	if (~RESET_N)
-	begin
-		drive_wp[1] <= 1'b1;
-	end
-	else
-		begin
-			drive_wp[1] <= img_readonly;
-			drive_ready[1] <= 1'b1;
-			double_sided[1]<= img_size > 20'd368600;//20'd368640;
-		end
+	drive_wp[1] <= img_readonly;
+	drive_ready[1] <= 1'b1;
+	double_sided[1]<= img_size > 20'd368600;//20'd368640;
 end
 
 // Drive 2
 
-always @(negedge img_mounted[2] or negedge RESET_N)
+always @(negedge img_mounted[2])
 begin
-	if (~RESET_N)
-	begin
-		drive_wp[2] <= 1'b1;
-	end
-	else
-		begin
-			drive_wp[2] <= img_readonly;
-			drive_ready[2] <= 1'b1;
-			double_sided[2]<= img_size > 20'd368600;//20'd368640;
-		end
+	drive_wp[2] <= img_readonly;
+	drive_ready[2] <= 1'b1;
+	double_sided[2]<= img_size > 20'd368600;//20'd368640;
 end
 
 // Drive 3
 
-always @(negedge img_mounted[3] or negedge RESET_N)
+always @(negedge img_mounted[3])
 begin
-	if (~RESET_N)
-	begin
-		drive_wp[3] <= 1'b1;
-	end
-	else
-		begin
-			drive_wp[3] <= img_readonly;
-			drive_ready[3] <= 1'b1;
-			//double_sided[3]<= img_size > 20'd368600;//20'd368640;
-		end
+	drive_wp[3] <= img_readonly;
+	drive_ready[3] <= 1'b1;
+	//double_sided[3]<= img_size > 20'd368600;//20'd368640;
 end
 
 
