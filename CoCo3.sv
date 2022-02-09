@@ -15,7 +15,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [45:0] HPS_BUS,
+	inout  [48:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
@@ -195,10 +195,11 @@ localparam  CONF_STR = {
         //"OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
         "OCD,Multi-Pak Slot,(Slot3) ECB /Cart,(Slot 4) Disk;",
         "-;",
-        "H2S0,DSK,Load Disk Drive 0;",
-        "H2S1,DSK,Load Disk Drive 1;",
+        "H2S0,DSKVHD,Load Disk Drive 0;",
+        "H2S1,DSKVHD,Load Disk Drive 1;",
         "H2S2,DSK,Load Disk Drive 2;",
         "H2S3,DSK,Load Disk Drive 3;",
+        "-;",
         "H1F1,CCC,Load Cartridge;",
         "-;",
 
@@ -313,7 +314,7 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(4), .BLKSZ(2)) hps_io
 
       .img_mounted(img_mounted), 		// signaling that new image has been mounted
       .img_readonly(img_readonly), 	// mounted as read only. valid only for active bit in img_mounted
-      .img_size(img_size),			// size of image in bytes. 1MB MAX!
+      .img_size(img_size),			// size of image in bytes. 
 
       .sd_lba(sd_lba),
       .sd_blk_cnt(sd_blk_cnt), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
@@ -344,10 +345,10 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(4), .BLKSZ(2)) hps_io
 // SD block level interface
 wire	[3:0]  		img_mounted;
 wire			    img_readonly;
-wire	[19:0] 		img_size;
+wire	[63:0] 		img_size;
 
 wire	[31:0] 		sd_lba[4];
-wire	[5:0] 		sd_blk_cnt[4];
+wire	[3:0] 		sd_blk_cnt[4];
 
 wire	[3:0]		sd_rd;
 wire	[3:0]		sd_wr;
@@ -498,7 +499,7 @@ coco3fpga coco3 (
 
   .img_mounted(img_mounted), 	// signaling that new image has been mounted
   .img_readonly(img_readonly), 	// mounted as read only. valid only for active bit in img_mounted
-  .img_size(img_size),			// size of image in bytes. 1MB MAX!
+  .img_size(img_size),			// size of image in bytes. 
 
   .sd_lba(sd_lba),
   .sd_blk_cnt(sd_blk_cnt), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!

@@ -142,7 +142,7 @@ input 	[15:0]		ioctl_index,
 // SD block level interface
 input   [3:0]  		img_mounted, // signaling that new image has been mounted
 input				img_readonly, // mounted as read only. valid only for active bit in img_mounted
-input 	[19:0] 		img_size,    // size of image in bytes. 1MB MAX!
+input 	[63:0] 		img_size,    // size of image in bytes. 1MB MAX!
 
 output	[31:0] 		sd_lba[4],
 output  [5:0] 		sd_blk_cnt[4], // number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
@@ -825,6 +825,7 @@ COCO_ROM_CART CC3_ROM_CART(
 .WRITE((ioctl_index[5:0] == 6'd1) & ioctl_wr)
 );
 
+wire	SDC_EN_CS;
 
 assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)						?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
 																								1'b0;
@@ -834,7 +835,9 @@ assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
 																								1'b0;
 assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
 																								1'b0;
-assign	HDD_EN = ({MPI_SCS[0], ADDRESS[15:4]} == 13'b1111111110100)		?	1'b1:		// FF40-FF4F with MPI switch = 2 or 4
+assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:4]} == 14'b11111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 4
+																								1'b0;
+assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:4]} == 14'b01111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 2
 																								1'b0;
 assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)				?	1'b1:		//FF68-FF6B
 																								1'b0;
@@ -903,7 +906,7 @@ assign	DATA_IN =
 														(sdram_BE_0)	?	hold_data_L[7:0]:
 														(sdram_BE_1)	?	hold_data_L[15:8]:
 														FLASH_CE_S		?	FLASH_DATA:
-														HDD_EN			?	DATA_HDD:
+												(HDD_EN | SDC_EN_CS)	?	DATA_HDD:
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
 // FF00, FF04, FF08, FF0C
@@ -1421,6 +1424,7 @@ wire	FF40_read;
 wire	wd1793_data_read;
 wire	wd1793_read;
 wire	wd1793_write;
+wire	SDC_REG_W_ENA, SDC_REG_READ;
 
 assign	FF40_ENA =			({PH_2, RW_N, HDD_EN, ADDRESS[3:0]} == 7'B1010000)	?	1'b1:
 																					1'b0;
@@ -1431,30 +1435,39 @@ assign	wd1793_data_read =	(HDD_EN && ADDRESS[3]);
 assign	wd1793_read =		(RW_N && HDD_EN && ADDRESS[3]);
 assign	wd1793_write =		(~RW_N && HDD_EN && ADDRESS[3]);
 
+assign	SDC_REG_W_ENA =		({PH_2, RW_N, HDD_EN} == 3'B101)					?	1'b1:	// This is for the FF40/4F SDC detect
+																					1'b0;
+
+assign	SDC_REG_READ =		HDD_EN;															// This is for the FF40/4F SDC detect
+
 fdc coco_fdc(
 	.CLK(clk_sys),     					// clock
 	.RESET_N(RESET_N),	   				// async reset
-	.ADDRESS(ADDRESS[1:0]),	       		// i/o port addr for wd1793 & FF48+
+	.ADDRESS(ADDRESS[3:0]),	       		// i/o port addr for wd1793 & FF48+
+	.CLK_EN(PH_2),
 	.DATA_IN(DATA_OUT),        			// data in
 	.DATA_HDD(DATA_HDD),      			// data out
 	.HALT(HALT),         				// DMA request
 	.NMI_09(NMI_09),
-	.DS_ENABLE(1'b0),					// Not Used
 
 //	FDC host r/w handling
 	.FF40_CLK(clk_sys),
 	.FF40_ENA(FF40_ENA),
 
-	.FF40_RD(FF40_read),
+	.HDD_EN(HDD_EN),
 	.WD1793_RD(wd1793_data_read),
 	
 	.WD1793_WR_CTRL(wd1793_write),
 	.WD1793_RD_CTRL(wd1793_read),
-	
+
+//	SDC I/O
+	.SDC_REG_W_ENA(SDC_REG_W_ENA),
+	.SDC_REG_READ(SDC_REG_READ),
+
 // 	SD block level interface
 	.img_mounted(img_mounted), 			// signaling that new image has been mounted
 	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
-	.img_size(img_size),    			// size of image in bytes. 1MB MAX!
+	.img_size(img_size),    			// size of image in bytes. 
 
 	.sd_lba(sd_lba),
 	.sd_blk_cnt(sd_blk_cnt), 			// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!

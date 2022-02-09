@@ -19,6 +19,7 @@ set_global_assignment -name VERILOG_FILE rtl/rtc.sv
 set_global_assignment -name VERILOG_FILE rtl/AMW.v
 set_global_assignment -name VERILOG_FILE rtl/square_gen.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fdc.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram/sdram2.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/wd1793.sv
 set_global_assignment -name SYSTEMVERILOG_FILE CoCo3.sv

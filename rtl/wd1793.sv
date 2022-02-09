@@ -48,7 +48,8 @@ module wd1793 #(parameter RWMODE=0, EDSK=1)
 
 	// SD access (RWMODE == 1)
 	input        img_mounted, // signaling that new image has been mounted
-	input [19:0] img_size,    // size of image in bytes. 1MB MAX!
+//	input [19:0] img_size,    // size of image in bytes. 1MB MAX!
+	input [63:0] img_size,    // size of image in bytes.
 	output       prepare,
 	output[31:0] sd_lba,
 	output reg   sd_rd,
@@ -349,7 +350,8 @@ always @(posedge clk_sys) begin
 		if(ack[5:4] == 'b10) sd_busy <= 0;
 
 		if(RWMODE & scan_active) begin
-			if(scan_addr >= img_size) scan_active <= 0;
+//			if(scan_addr >= img_size) scan_active <= 0;
+			if(scan_addr >= img_size[19:0]) scan_active <= 0;
 			else begin
 				case(scan_state)
 					0:	begin

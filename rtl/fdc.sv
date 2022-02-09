@@ -52,28 +52,33 @@
 module fdc(
 	input        		CLK,     		// clock
 	input        		RESET_N,	   	// async reset
-	input  		[1:0]	ADDRESS,       	// i/o port addr [extended for coco]
+	input  		[3:0]	ADDRESS,       	// i/o port addr [extended for coco]
+	input				CLK_EN,
 	input  		[7:0]	DATA_IN,        // data in
 	output 		[7:0] 	DATA_HDD,      	// data out
 	output       		HALT,         	// DMA request
 	output       		NMI_09,
 
-	input				DS_ENABLE,		// Turn on DS support
+//	FDC host r/w handling
 
 	input				FF40_CLK,		// FDC Write support
 	input				FF40_ENA,
 
-	input				FF40_RD,		// FDC Read Data support
+	input				HDD_EN,			// FDC Read Data support
 	input				WD1793_RD,
 
 	input				WD1793_WR_CTRL,	// 1793 RD & WR control signal generation
 	input				WD1793_RD_CTRL,
 
+//	SDC I/O
+	input				SDC_REG_W_ENA,
+	input				SDC_REG_READ,
+
 // 	SD block level interface
 
 	input 		[3:0]	img_mounted, 	// signaling that new image has been mounted
 	input				img_readonly, 	// mounted as read only. valid only for active bit in img_mounted
-	input 		[19:0] 	img_size,    	// size of image in bytes. 1MB MAX!
+	input 		[63:0] 	img_size,    	// size of image in bytes.
 
 	output		[31:0] 	sd_lba[4],
 	output		[5:0]	sd_blk_cnt[4],	// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
@@ -117,19 +122,77 @@ begin
 		end
 end
 
-localparam SDC_MAGIC_CMD = 			4'd0;
+localparam SDC_MAGIC_CMD = 			8'h43;
 
-wire	[7:0]	FF40_READ_VALUE = {HALT_EN, DRIVE_SEL_EXT[3], DENSITY, WRT_PREC, MOTOR,	DRIVE_SEL_EXT[2:0]};
-wire			SDC_EN = (FF40_READ_VALUE == SDC_MAGIC_CMD);
+wire	[7:0]	FF40_READ_VALUE = 	{HALT_EN, DRIVE_SEL_EXT[3], DENSITY, WRT_PREC, MOTOR,	DRIVE_SEL_EXT[2:0]};
+wire	  		SDC_EN = 			(FF40_READ_VALUE == SDC_MAGIC_CMD);
 wire	[7:0]	SDC_READ_DATA;
+wire			sdc_always;
+wire			FF40_RD =			({HDD_EN, ADDRESS[3:0]} == 5'h10);
 
-assign SDC_READ_DATA = 8'h00;  // To be deleted.
 
 //FDC read data path.  =$ff40 or wd1793(s)
-assign	DATA_HDD =		(SDC_EN)							?	SDC_READ_DATA:
+assign	DATA_HDD =		(SDC_EN | sdc_always)				?	SDC_READ_DATA:
+						(HDD_EN & (ADDRESS[3:1] == 3'b001))	?	SDC_READ_DATA:	// FF42 & FF43
 						(FF40_RD)							?	FF40_READ_VALUE:
 						(WD1793_RD)							?	DATA_1793: //(1793[s])
 																8'h00;
+
+wire		[31:0] 	sdc_sd_lba[2];
+wire		[31:0] 	fdc_sd_lba[2];
+wire 		[1:0]	sdc_sd_rd;
+wire 		[1:0]	fdc_sd_rd;
+wire 		[1:0]	sdc_sd_wr;
+wire 		[1:0]	fdc_sd_wr;
+wire 		[7:0] 	sdc_sd_buff_din[2];
+wire 		[7:0] 	fdc_sd_buff_din[2];
+
+assign		sd_lba[0:1]			=	(SDC_EN | sdc_always)	?	sdc_sd_lba[0:1]:
+																fdc_sd_lba[0:1];
+
+assign		sd_rd[1:0]			=	(SDC_EN | sdc_always)	?	sdc_sd_rd[1:0]:
+																fdc_sd_rd[1:0];
+											
+assign		sd_wr[1:0]			=	(SDC_EN | sdc_always)	?	sdc_sd_wr[1:0]:
+																fdc_sd_wr[1:0];
+
+assign		sd_buff_din[0:1]	=	(SDC_EN | sdc_always)	?	sdc_sd_buff_din[0:1]:
+																fdc_sd_buff_din[0:1];
+
+sdc coco_sdc(
+	.CLK(CLK),     			// clock
+	.RESET_N(RESET_N),	   	// async reset
+	.ADDRESS(ADDRESS),     	// i/o port addr [extended for coco]
+	.SDC_DATA_IN(DATA_IN),  // data in
+	.SDC_READ_DATA,  		// data out
+
+	.SDC_EN(SDC_EN),		// SDC is active  [input to sdc]
+	.CLK_EN(CLK_EN),
+	.SDC_WR(SDC_REG_W_ENA),
+	.SDC_RD(SDC_REG_READ),
+
+	.sdc_always(sdc_always), // SDC is active  [output from sdc (sdc is turning off fdc)]
+
+
+// 	SD block level interface
+
+	.img_mounted(img_mounted[1:0]), 	// signaling that new image has been mounted
+	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
+	.img_size(img_size),		    	// size of image in bytes. 
+
+	.sd_lba(sdc_sd_lba[0:1]),
+	.sd_rd(sdc_sd_rd[1:0]),
+	.sd_wr(sdc_sd_wr[1:0]),
+	.sd_ack(sd_ack[1:0]),
+
+// 	SD byte level access. Signals for 2-PORT altsyncram.
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din(sdc_sd_buff_din[0:1]),
+	.sd_buff_wr(sd_buff_wr)
+);
+
+
 
 // $ff40 control register [part 1]
 
@@ -270,10 +333,10 @@ begin
 	begin
 
 //		synchronizers
-		read1 <= WD1793_RD_CTRL;
+		read1 <= WD1793_RD_CTRL  & ~(SDC_EN | sdc_always);
 		read <= read1;
 		
-		write1 <= WD1793_WR_CTRL;
+		write1 <= WD1793_WR_CTRL & ~(SDC_EN | sdc_always);
 		write <= write1;
 
 //		delays for edge detection
@@ -395,7 +458,7 @@ always @(negedge img_mounted[0])
 begin
 	drive_wp[0] <= img_readonly;
 	drive_ready[0] <= 1'b1;
-	double_sided[0]<= img_size > 20'd368600;//20'd368640;
+	double_sided[0]<= (img_size > 64'd368600) & (img_size < 64'd740000);//20'd368640;
 end
 
 // Drive 1
@@ -404,7 +467,7 @@ always @(negedge img_mounted[1])
 begin
 	drive_wp[1] <= img_readonly;
 	drive_ready[1] <= 1'b1;
-	double_sided[1]<= img_size > 20'd368600;//20'd368640;
+	double_sided[1]<= (img_size > 64'd368600) & (img_size < 64'd740000);//20'd368640;
 end
 
 // Drive 2
@@ -413,7 +476,7 @@ always @(negedge img_mounted[2])
 begin
 	drive_wp[2] <= img_readonly;
 	drive_ready[2] <= 1'b1;
-	double_sided[2]<= img_size > 20'd368600;//20'd368640;
+	double_sided[2]<= (img_size > 64'd368600) & (img_size < 64'd740000);//20'd368640;
 end
 
 // Drive 3
@@ -443,14 +506,14 @@ wd1793 #(1,1) coco_wd1793_0
 	.img_mounted(img_mounted[0]),
 	.img_size(img_size),
 
-	.sd_lba(sd_lba[0]),
-	.sd_rd(sd_rd[0]),
-	.sd_wr(sd_wr[0]), 
+	.sd_lba(fdc_sd_lba[0]),
+	.sd_rd(fdc_sd_rd[0]),
+	.sd_wr(fdc_sd_wr[0]), 
 	.sd_ack(sd_ack[0]),
 
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din[0]), 
+	.sd_buff_din(fdc_sd_buff_din[0]), 
 	.sd_buff_wr(sd_buff_wr),
 
 	.wp(drive_wp[0]),
@@ -484,14 +547,14 @@ wd1793 #(1,0) coco_wd1793_1
 	.img_mounted(img_mounted[1]),
 	.img_size(img_size),
 
-	.sd_lba(sd_lba[1]),
-	.sd_rd(sd_rd[1]),
-	.sd_wr(sd_wr[1]), 
+	.sd_lba(fdc_sd_lba[1]),
+	.sd_rd(fdc_sd_rd[1]),
+	.sd_wr(fdc_sd_wr[1]), 
 	.sd_ack(sd_ack[1]),
 
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din[1]), 
+	.sd_buff_din(fdc_sd_buff_din[1]), 
 	.sd_buff_wr(sd_buff_wr),
 
 	.wp(drive_wp[1]),
