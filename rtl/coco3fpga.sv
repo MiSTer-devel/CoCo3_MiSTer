@@ -1438,7 +1438,7 @@ assign	wd1793_write =		(~RW_N && HDD_EN && ADDRESS[3]);
 assign	SDC_REG_W_ENA =		({PH_2, RW_N, HDD_EN} == 3'B101)					?	1'b1:	// This is for the FF40/4F SDC detect
 																					1'b0;
 
-assign	SDC_REG_READ =		HDD_EN;															// This is for the FF40/4F SDC detect
+assign	SDC_REG_READ =		HDD_EN & RW_N;													// This is for the FF40/4F SDC detect
 
 fdc coco_fdc(
 	.CLK(clk_sys),     					// clock

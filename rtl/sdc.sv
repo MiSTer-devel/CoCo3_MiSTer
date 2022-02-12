@@ -198,7 +198,8 @@ reg				wr_cmd;
 reg				ack_d;
 reg				ext_response;
 reg		[23:0]	response_reg;
-wire			end_ack = ~sd_ack[command[0]] & ack_d;
+wire			end_ack = ~sd_ack[l_drive] & ack_d;
+reg				queue, l_drive, buffer_upper;
 
 always @(negedge CLK or negedge RESET_N)
 begin
@@ -222,19 +223,25 @@ begin
 		ext_response <= 1'b0;
 		response_reg <= 24'h000000;
 		sdc_always <= 1'b0;
+		queue <= 1'b0;
+		l_drive <= 1'b0;
+		buffer_upper <= 1'b0;
 	end
 	else
 	begin
 		new_cmd_d <= new_cmd;
 		cmd_done <= 1'b0;
 
-		ack_d <= sd_ack[command[0]];
+		ack_d <= sd_ack[l_drive];
 
 		if (~(SDC_EN | sdc_always))
 		begin
 			sdc_busy <= 1'b1;
 			sdc_ready <= 1'b0;
 		end
+
+		if (end_ack & queue)	// wait for the last ack of the write cycle
+			queue <= 1'b0;
 
 		case(state)
 		state_idle:
@@ -245,49 +252,56 @@ begin
 			transfer_clear <= 1'b1;
 			if (new_cmd & ~new_cmd_d)
 				if (command[7:3] == CMD_READ)
+				begin
 					state <= state_read;
+				end
 				else if (command[7:3] == CMD_WRITE)
 				begin
 					state <= state_read;
-					wr_cmd <= 1'b1;
 				end
 				else if (command[7:3] == CMD_EXT)
+				begin
 					state <= state_ext;
+				end
 				else							// no valid command found
 					cmd_done <= 1'b1;
 		end
 		state_read:
 		begin
-			ext_response <= 1'b0;
-			transfer_clear <= 1'b0;
-			run <= 1'b1;
 			sdc_busy <= 1'b1;
-//			Issue sda read command...
-			if (~command[0])
-				sd_lba[0] <= {8'h00, 1'b0, LSN[23:1]};
-			else
-				sd_lba[1] <= {8'h00, 1'b0, LSN[23:1]};
-			state <= state_r1;
+			if (~queue)
+			begin
+				buffer_upper <= LSN[0];
+				l_drive <= command[0];
+				ext_response <= 1'b0;
+				transfer_clear <= 1'b0;
+				run <= 1'b1;
+
+				if (command[7:3] == CMD_WRITE)
+					wr_cmd <= 1'b1;
+				
+//				Issue sda read command...
+				if (~l_drive)
+					sd_lba[0] <= {8'h00, 1'b0, LSN[23:1]};
+				else
+					sd_lba[1] <= {8'h00, 1'b0, LSN[23:1]};
+				state <= state_r1;
+			end
 		end
 		state_r1:
 		begin
-			sd_rd[command[0]] <= 1'b1;
+			sd_rd[l_drive] <= 1'b1;
 			state <= state_r1a;
 		end
 		state_r1a:
-			if (sd_ack[command[0]])
+			if (sd_ack[l_drive])
 			begin
-				sd_rd[command[0]] <= 1'b0;
+				sd_rd[l_drive] <= 1'b0;
 				state <= state_r3;
 			end
-//		state_r2:
-//		begin
-//			sd_rd[command[0]] <= 1'b0;
-//			state <= state_r3;
-//		end
 		state_r3:
 		begin
-			if (sd_ack[command[0]] & sd_buff_wr & (sd_buff_addr == 9'b111111111))	// wait for the last ack
+			if (sd_ack[l_drive] & sd_buff_wr & (sd_buff_addr == 9'b111111111))	// wait for the last ack
 			begin
 				sdc_ready <= 1'b1;
 				if (wr_cmd)
@@ -318,31 +332,24 @@ begin
 		end
 		state_w1:
 		begin
-			sd_wr[command[0]] <= 1'b1;
+			sd_wr[l_drive] <= 1'b1;
 			state <= state_w1a;
 		end
 		state_w1a:
-			if (sd_ack[command[0]])
+			if (sd_ack[l_drive])
 			begin
-				sd_wr[command[0]] <= 1'b0;
+				sd_wr[l_drive] <= 1'b0;
 				state <= state_w3;
 			end
-//		state_w2:
-//		begin
-//			sd_wr[command[0]] <= 1'b0;
-//			state <= state_w3;
-//		end
 		state_w3:
 		begin
-			if (end_ack)	// wait for the last ack of the write cycle
-			begin
-				sdc_fail <= 1'b0;
-				wr_cmd <= 1'b0;
-				cmd_done <= 1'b1;
-				sdc_ready <= 1'b0;
-				sdc_busy <= 1'b0;
-				state <= state_idle;
-			end
+			queue <= 1'b1;
+			sdc_fail <= 1'b0;
+			wr_cmd <= 1'b0;
+			cmd_done <= 1'b1;
+			sdc_ready <= 1'b0;
+			sdc_busy <= 1'b0;
+			state <= state_idle;
 		end
 
 		state_ext:
@@ -369,7 +376,7 @@ begin
 		begin
 			sdc_busy <= 1'b0;
 			ext_response <= 1'b1;
-			response_reg <= {8'h00, drive_size[command[0]]};
+			response_reg <= {8'h00, drive_size[l_drive]};
 			state <= state_e2;
 		end
 		
@@ -387,10 +394,10 @@ wire	[7:0]		hd_buff_data;
 
 wire	[7:0]		sd_buf_out;
 
-assign	sd_buff_din[0] = (~command[0])	?	sd_buf_out:
+assign	sd_buff_din[0] = (~l_drive)	?	sd_buf_out:
 											8'h00;
 
-assign	sd_buff_din[1] = (command[0])	?	sd_buf_out:
+assign	sd_buff_din[1] = (l_drive)	?	sd_buf_out:
 											8'h00;
 
 
@@ -399,12 +406,12 @@ sdc_dpram hd_buff
 	.clock(CLK),
 	.address_a(sd_buff_addr),
 	.data_a(sd_buff_dout),
-	.wren_a(sd_buff_wr & sd_ack[command[0]]),
+	.wren_a(sd_buff_wr & sd_ack[l_drive]),
 	.q_a(sd_buf_out),
 	
-	.address_b({LSN[0], transfer_address}),
+	.address_b({buffer_upper, transfer_address}),
 	.data_b(SDC_DATA_IN),
-	.wren_b((SDC_EN | sdc_always) & SDC_WR & (ADDRESS[1] == 1'b1)),
+	.wren_b((SDC_EN | sdc_always) & SDC_WR & (ADDRESS[3:1] == 3'b101)),
 	.q_b(hd_buff_data)
 );
 
@@ -412,7 +419,7 @@ wire	[1:0]	drive_wp;
 reg		[1:0]	drive_ready = 2'b00;
 wire	[7:0]	sdc_status;
 
-assign	sdc_status = {sdc_fail, drive_wp[command[0]], 1'b0, drive_ready[command[0]], 2'b00, sdc_ready, sdc_busy};
+assign	sdc_status = {sdc_fail, drive_wp[l_drive], 1'b0, ~drive_ready[l_drive], 2'b00, sdc_ready, sdc_busy};
 
 assign	SDC_READ_DATA =	(ADDRESS == ADRS_FF42) 						?	{sdc_data_reg, 4'h0}:
 						(ADDRESS == ADRS_FF43) 						?	sdc_status_reg:
