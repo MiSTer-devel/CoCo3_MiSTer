@@ -288,7 +288,7 @@ begin
 					wr_cmd <= 1'b1;
 				
 //				Issue sda read command...
-				if (~l_drive)
+				if (~command[0]) 							//  This reference to the drive must be to the command register as l_drive has not yet updated
 					sd_lba[0] <= {8'h00, 1'b0, LSN[23:1]};
 				else
 					sd_lba[1] <= {8'h00, 1'b0, LSN[23:1]};
