@@ -146,6 +146,7 @@ wire 		[1:0]	sdc_sd_wr;
 wire 		[1:0]	fdc_sd_wr;
 wire 		[7:0] 	sdc_sd_buff_din[2];
 wire 		[7:0] 	fdc_sd_buff_din[2];
+wire				sdc_HALT;
 
 assign		sd_lba[0:1]			=	(SDC_EN | sdc_always)	?	sdc_sd_lba[0:1]:
 																fdc_sd_lba[0:1];
@@ -173,6 +174,7 @@ sdc coco_sdc(
 
 	.sdc_always(sdc_always), // SDC is active  [output from sdc (sdc is turning off fdc)]
 
+	.sdc_HALT(sdc_HALT),
 
 // 	SD block level interface
 
@@ -425,7 +427,7 @@ assign	selected_DRQ	=	(drive_index == 3'd0)	?	DRQ[0]:
 							(drive_index == 3'd3)	?	DRQ[3]:
 														1'b1;
 
-assign	HALT	=	HALT_EN & ~selected_DRQ;
+assign	HALT	=	(HALT_EN & ~selected_DRQ) | sdc_HALT;
 
 assign	HALT_EN_RST = RESET_N & ~selected_INTRQ; // From controller schematic
 

@@ -61,6 +61,8 @@ module sdc(
 
 	output				sdc_always,
 
+	output	reg			sdc_HALT,
+
 // 	SD block level interface
 
 	input 		[1:0]	img_mounted, 	// signaling that new image has been mounted
@@ -85,29 +87,36 @@ reg		[7:0]	transfer_address;
 
 reg				new_cmd, new_cmd_d, cmd_done;
 reg 			data_inc, run;
-reg		[3:0]	state;
 reg				transfer_clear;
 reg		[3:0]	sdc_data_reg;
 
 wire	[7:0]	sdc_status_reg = {sdc_data_reg, 4'h4};
 reg		[15:0]	drive_size[2];
 
-localparam state_idle  = 			4'd0;
-localparam state_read  = 			4'd1;
-localparam state_r1  = 				4'd2;
-localparam state_r1a  =				4'd3;
-localparam state_r2  = 				4'd4;
-localparam state_r3  = 				4'd5;
-localparam state_r4  = 				4'd6;
-localparam state_write = 			4'd7;
-localparam state_w1  = 				4'd8;
-localparam state_w1a  = 			4'd9;
-localparam state_w2  = 				4'd10;
-localparam state_w3  = 				4'd11;
-localparam state_ext  = 			4'd12;
-localparam state_e1  = 				4'd13;
-localparam state_e2  = 				4'd14;
+typedef enum 
+{
+	state_idle,
 
+	state_read,
+	state_r1,
+	state_r1a,
+	state_r2,
+	state_r3,
+	state_r4,
+
+	state_write,
+	state_w1,
+	state_w1a,
+	state_w2,
+	state_w3,
+
+	state_ext,
+	state_e1,
+	state_e2
+
+} state_t;
+
+state_t	state = state_idle;
 
 localparam ADRS_FF42 =				4'h2;
 localparam ADRS_FF43 =				4'h3;
@@ -199,7 +208,8 @@ reg				ack_d;
 reg				ext_response;
 reg		[23:0]	response_reg;
 wire			end_ack = ~sd_ack[l_drive] & ack_d;
-reg				queue, l_drive, buffer_upper;
+reg				l_drive, buffer_upper;
+
 
 always @(negedge CLK or negedge RESET_N)
 begin
@@ -223,7 +233,7 @@ begin
 		ext_response <= 1'b0;
 		response_reg <= 24'h000000;
 		sdc_always <= 1'b0;
-		queue <= 1'b0;
+		sdc_HALT <= 1'b0;
 		l_drive <= 1'b0;
 		buffer_upper <= 1'b0;
 	end
@@ -239,9 +249,6 @@ begin
 			sdc_busy <= 1'b1;
 			sdc_ready <= 1'b0;
 		end
-
-		if (end_ack & queue)	// wait for the last ack of the write cycle
-			queue <= 1'b0;
 
 		case(state)
 		state_idle:
@@ -269,7 +276,7 @@ begin
 		state_read:
 		begin
 			sdc_busy <= 1'b1;
-			if (~queue)
+			if (~sdc_HALT)
 			begin
 				buffer_upper <= LSN[0];
 				l_drive <= command[0];
@@ -292,6 +299,7 @@ begin
 		begin
 			sd_rd[l_drive] <= 1'b1;
 			state <= state_r1a;
+			sdc_HALT <= 1'b1;
 		end
 		state_r1a:
 			if (sd_ack[l_drive])
@@ -303,6 +311,7 @@ begin
 		begin
 			if (sd_ack[l_drive] & sd_buff_wr & (sd_buff_addr == 9'b111111111))	// wait for the last ack
 			begin
+				sdc_HALT <= 1'b0;
 				sdc_ready <= 1'b1;
 				if (wr_cmd)
 					state <= state_write;
@@ -332,6 +341,7 @@ begin
 		end
 		state_w1:
 		begin
+			sdc_HALT <= 1'b1;
 			sd_wr[l_drive] <= 1'b1;
 			state <= state_w1a;
 		end
@@ -343,13 +353,16 @@ begin
 			end
 		state_w3:
 		begin
-			queue <= 1'b1;
-			sdc_fail <= 1'b0;
-			wr_cmd <= 1'b0;
-			cmd_done <= 1'b1;
-			sdc_ready <= 1'b0;
-			sdc_busy <= 1'b0;
-			state <= state_idle;
+			if (end_ack & sdc_HALT)		// wait for the end of ack...
+			begin
+				sdc_HALT <= 1'b0;
+				sdc_fail <= 1'b0;
+				wr_cmd <= 1'b0;
+				cmd_done <= 1'b1;
+				sdc_ready <= 1'b0;
+				sdc_busy <= 1'b0;
+				state <= state_idle;
+			end
 		end
 
 		state_ext:
