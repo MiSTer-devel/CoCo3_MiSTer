@@ -193,14 +193,22 @@ localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
         //"OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
-        "OCD,Multi-Pak Slot,(Slot3) ECB /Cart,(Slot 4) Disk;",
+        "OCD,Multi-Pak,(Slot 2) CoCoSDC,(Slot3) ECB /Cart,(Slot 4) Disk;",
         "-;",
-        "H2S0,DSKVHD,Load Disk Drive 0;",
-        "H2S1,DSKVHD,Load Disk Drive 1;",
-        "H2S2,DSK,Load Disk Drive 2;",
-        "H2S3,DSK,Load Disk Drive 3;",
+        "H3S0,DSK,Load Disk Drive 0;",
+        "H3S1,DSK,Load Disk Drive 1;",
+        "H3S2,DSK,Load Disk Drive 2;",
+        "H3S3,DSK,Load Disk Drive 3;",
         "-;",
-        "H1F1,CCC,Load Cartridge;",
+        "H2F1,CCC,Load Cartridge;",
+        "-;",
+        "H1S4,DSKVHD,Load SDC Drive 0;",
+        "H1S5,DSKVHD,Load SDC Drive 1;",
+        "-;",
+        "H1S0,DSK,Load OS9 Floppy /d0;",
+        "H1S1,DSK,Load OS9 Floppy /d1;",
+        "H1S2,DSK,Load OS9 Floppy /d3;",
+        "H1S3,DSK,Load OS9 Floppy /d4;",
         "-;",
 
         "F2,CAS,Load Cassette;",
@@ -288,8 +296,8 @@ assign CLK_VIDEO = clk_sys;
 
 wire [64:0] RTC;
 
-// SD - 4 drives 512 size blocks [the wd1793 translates to a 256 byte sector size]	
-hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(4), .BLKSZ(2)) hps_io
+// SD - 6 drives [4 fdc and 2 sdc] 512 size blocks [the wd1793 translates to a 256 byte sector size]	
+hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(6), .BLKSZ(2)) hps_io
 (
       .clk_sys(clk_sys),
 //		.clk_sys(CLK_50M), (SRH)
@@ -298,7 +306,7 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(4), .BLKSZ(2)) hps_io
 
       .buttons(buttons),
       .status(status),
-      .status_menumask({ (mpi != 2'b11), (mpi != 2'b10),direct_video}),
+      .status_menumask({ ~(mpi == 2'b11), ~(mpi == 2'b10),~(mpi == 2'b01), 1'b1}),
       .forced_scandoubler(forced_scandoubler),
 	  .RTC(RTC),
       .gamma_bus(gamma_bus),
@@ -343,21 +351,21 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(4), .BLKSZ(2)) hps_io
 );
 
 // SD block level interface
-wire	[3:0]  		img_mounted;
+wire	[5:0]  		img_mounted;
 wire			    img_readonly;
 wire	[63:0] 		img_size;
 
-wire	[31:0] 		sd_lba[4];
-wire	[3:0] 		sd_blk_cnt[4];
+wire	[31:0] 		sd_lba[6];
+wire	[3:0] 		sd_blk_cnt[6];
 
-wire	[3:0]		sd_rd;
-wire	[3:0]		sd_wr;
-wire	[3:0]		sd_ack;
+wire	[5:0]		sd_rd;
+wire	[5:0]		sd_wr;
+wire	[5:0]		sd_ack;
 
 // SD byte level access. Signals for 2-PORT altsyncram.
 wire  	[8:0]       sd_buff_addr;
 wire  	[7:0]       sd_buff_dout;
-wire 	[7:0]       sd_buff_din[4];
+wire 	[7:0]       sd_buff_din[6];
 wire        		sd_buff_wr;
 
 
@@ -563,7 +571,7 @@ wire AMW_ACK;
 
 wire cpu_speed = status[11];
 
-wire [1:0] mpi = (status[13:12]==2'b00)  ? 2'b10: 2'b11;
+wire [1:0] mpi = status[13:12] + 1'b1;
 wire video=status[14];
 wire cartint=status[16];
 wire sg4v6 = status[21];

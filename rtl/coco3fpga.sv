@@ -133,28 +133,28 @@ input 			joy_use_dpad,
 input	[9:0]  		SWITCH,			
 
 // roms, cartridges, etc
-input	[7:0]		ioctl_data,
+input	[7:0] 		ioctl_data,
 input	[24:0]		ioctl_addr,
 input				ioctl_download,
 input				ioctl_wr,
 input 	[15:0]		ioctl_index,
 
 // SD block level interface
-input   [3:0]  		img_mounted, // signaling that new image has been mounted
+input   [5:0]  		img_mounted, // signaling that new image has been mounted
 input				img_readonly, // mounted as read only. valid only for active bit in img_mounted
 input 	[63:0] 		img_size,    // size of image in bytes. 1MB MAX!
 
-output	[31:0] 		sd_lba[4],
-output  [5:0] 		sd_blk_cnt[4], // number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+output	[31:0] 		sd_lba[6],
+output  [5:0] 		sd_blk_cnt[6], // number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
 
-output 	reg  [3:0]	sd_rd,
-output 	reg  [3:0]	sd_wr,
-input        [3:0]	sd_ack,
+output 	reg  [5:0]	sd_rd,
+output 	reg  [5:0]	sd_wr,
+input        [5:0]	sd_ack,
 
 // SD byte level access. Signals for 2-PORT altsyncram.
 input  	[8:0] 		sd_buff_addr,
 input  	[7:0] 		sd_buff_dout,
-output 	[7:0] 		sd_buff_din[4],
+output 	[7:0] 		sd_buff_din[6],
 input        		sd_buff_wr,
 
 //	GPIO
@@ -636,7 +636,6 @@ reg		[7:0]	GPIO_OUT;
 reg		[7:0]	GPIO_DIR;
 wire	[7:0]	ROM_DATA;
 wire	[7:0]	CART_DATA;
-wire	[7:0]	fdc_probe;
 wire			clk_sys;
 
 reg 			hold;
@@ -680,7 +679,7 @@ assign PROBE[7:0] = {2'b00, cache_hit, COCO3_ROM_WRITE, ioctl_wr, ioctl_download
 assign PROBE[15:8] = 8'h00;
 assign PROBE[23:16] = 8'h00;
 //assign PROBE[31:24] = {3'b000, DATA_OUT[3], MOTOR, DRIVE_SEL_EXT[0], HDD_EN, ADDRESS[0]};
-assign PROBE[31:24] = {2'b00, fdc_probe[5:0]};
+assign PROBE[31:24] = {8'h00};
 
 assign clk_sys = CLK_57;
 
@@ -755,8 +754,16 @@ assign  CART_SEL =   (ADDRESS[15:9]                                     ==  7'b1
 //11		32 External
 
 
+//assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
+//							ENA_DISK2           			?   {7'b1111111,   ADDRESS[14:0]}:  //ROM Anternative Disk Controller
+//							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
+//							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
+//							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
+// ROM_SEL
+//																{7'b0000000,ADDRESS[14:0]};
+
 assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
-							ENA_DISK2           			?   {7'b1111111,   ADDRESS[14:0]}:  //ROM Anternative Disk Controller
+							ENA_DISK2           			?   {9'b000000100, ADDRESS[12:0]}:  //[maps to same disk rom]
 							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
 							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
 							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
@@ -906,7 +913,8 @@ assign	DATA_IN =
 														(sdram_BE_0)	?	hold_data_L[7:0]:
 														(sdram_BE_1)	?	hold_data_L[15:8]:
 														FLASH_CE_S		?	FLASH_DATA:
-												(HDD_EN | SDC_EN_CS)	?	DATA_HDD:
+														HDD_EN			?	DATA_HDD:
+														SDC_EN_CS		?	DATA_SDC:
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
 // FF00, FF04, FF08, FF0C
@@ -1419,26 +1427,41 @@ COCO_VID_RAM_BUF VIDEO_BUFF (
 
 //		Disk I/O
 //=====================================================================================
-wire	FF40_ENA;
-wire	FF40_read;
-wire	wd1793_data_read;
-wire	wd1793_read;
-wire	wd1793_write;
+wire	FF40_ENA, sdc_FF40_ENA;
+wire	wd1793_data_read, sdc_wd1793_data_read;
+wire	wd1793_read, sdc_wd1793_read;
+wire	wd1793_write, sdc_wd1793_write;
+wire	[7:0]	DATA_SDC;
+
+wire	HALT_sdc, HALT_fdc;
+wire 	NMI_09_sdc, NMI_09_fdc;
+
 wire	SDC_REG_W_ENA, SDC_REG_READ;
 
-assign	FF40_ENA =			({PH_2, RW_N, HDD_EN, ADDRESS[3:0]} == 7'B1010000)	?	1'b1:
-																					1'b0;
+assign	FF40_ENA =				({PH_2, RW_N, HDD_EN, ADDRESS[3:0]} == 7'B1010000)		?	1'b1:
+																							1'b0;
 
-assign	FF40_read =			({HDD_EN, ADDRESS[3:0]} == 5'h10);
-assign	wd1793_data_read =	(HDD_EN && ADDRESS[3]);
+assign	wd1793_data_read =		(HDD_EN && ADDRESS[3]);
 
-assign	wd1793_read =		(RW_N && HDD_EN && ADDRESS[3]);
-assign	wd1793_write =		(~RW_N && HDD_EN && ADDRESS[3]);
+assign	wd1793_read =			(RW_N && HDD_EN && ADDRESS[3]);
+assign	wd1793_write =			(~RW_N && HDD_EN && ADDRESS[3]);
 
-assign	SDC_REG_W_ENA =		({PH_2, RW_N, HDD_EN} == 3'B101)					?	1'b1:	// This is for the FF40/4F SDC detect
-																					1'b0;
+assign	sdc_FF40_ENA =			({PH_2, RW_N, SDC_EN_CS, ADDRESS[3:0]} == 7'B1010000)	?	1'b1:
+																							1'b0;
 
-assign	SDC_REG_READ =		HDD_EN & RW_N;													// This is for the FF40/4F SDC detect
+assign	sdc_wd1793_data_read =	(SDC_EN_CS && ADDRESS[3]);
+
+assign	sdc_wd1793_read =		(RW_N && SDC_EN_CS && ADDRESS[3]);
+assign	sdc_wd1793_write =		(~RW_N && SDC_EN_CS && ADDRESS[3]);
+
+assign	SDC_REG_W_ENA =			({PH_2, RW_N, SDC_EN_CS} == 3'B101)						?	1'b1:	// This is for the FF40/4F SDC detect
+																							1'b0;
+assign	SDC_REG_READ =			SDC_EN_CS & RW_N;													// This is for the FF40/4F SDC detect
+
+assign	HALT = 					HALT_fdc | HALT_sdc;
+assign	NMI_09 =				NMI_09_fdc | NMI_09_sdc;
+
+// Slot 4 fdc
 
 fdc coco_fdc(
 	.CLK(clk_sys),     					// clock
@@ -1447,8 +1470,8 @@ fdc coco_fdc(
 	.CLK_EN(PH_2),
 	.DATA_IN(DATA_OUT),        			// data in
 	.DATA_HDD(DATA_HDD),      			// data out
-	.HALT(HALT),         				// DMA request
-	.NMI_09(NMI_09),
+	.HALT(HALT_fdc),       				// DMA request
+	.NMI_09(NMI_09_fdc),
 
 //	FDC host r/w handling
 	.FF40_CLK(clk_sys),
@@ -1460,29 +1483,69 @@ fdc coco_fdc(
 	.WD1793_WR_CTRL(wd1793_write),
 	.WD1793_RD_CTRL(wd1793_read),
 
+// 	SD block level interface
+	.img_mounted(img_mounted[3:0]), 			// signaling that new image has been mounted
+	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
+	.img_size(img_size),    			// size of image in bytes. 
+
+	.sd_lba(sd_lba[0:3]),
+	.sd_blk_cnt(sd_blk_cnt[0:3]), 			// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+	.sd_rd(sd_rd[3:0]),
+	.sd_wr(sd_wr[3:0]),
+	.sd_ack(sd_ack[3:0]),
+
+// 	SD byte level access. Signals for 2-PORT altsyncram.
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din(sd_buff_din[0:3]),
+	.sd_buff_wr(sd_buff_wr)
+
+);
+
+// Slot 2 sdc
+
+sdc_top coco_sdc_top(
+	.CLK(clk_sys),     					// clock
+	.RESET_N(RESET_N),	   				// async reset
+	.ADDRESS(ADDRESS[3:0]),	       		// i/o port addr for wd1793 & FF48+
+	.CLK_EN(PH_2),
+	.DATA_IN(DATA_OUT),        			// data in
+	.DATA_HDD(DATA_SDC),	 			// data out
+	.HALT(HALT_sdc),       				// DMA request
+	.NMI_09(NMI_09_sdc),
+
+//	FDC host r/w handling
+	.FF40_CLK(clk_sys),
+	.FF40_ENA(sdc_FF40_ENA),
+
+	.SDC_EN_CS(SDC_EN_CS),
+	.WD1793_RD(sdc_wd1793_data_read),
+	
+	.WD1793_WR_CTRL(sdc_wd1793_write),
+	.WD1793_RD_CTRL(sdc_wd1793_read),
+
 //	SDC I/O
 	.SDC_REG_W_ENA(SDC_REG_W_ENA),
 	.SDC_REG_READ(SDC_REG_READ),
 
 // 	SD block level interface
-	.img_mounted(img_mounted), 			// signaling that new image has been mounted
+	.img_mounted(img_mounted[5:4]), 	// signaling that new image has been mounted
 	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
-	.img_size(img_size),    			// size of image in bytes. 
+	.img_size(img_size),    		// size of image in bytes. 
 
-	.sd_lba(sd_lba),
-	.sd_blk_cnt(sd_blk_cnt), 			// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
-	.sd_rd(sd_rd),
-	.sd_wr(sd_wr),
-	.sd_ack(sd_ack),
+	.sd_lba(sd_lba[4:5]),
+	.sd_blk_cnt(sd_blk_cnt[4:5]), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+	.sd_rd(sd_rd[5:4]),
+	.sd_wr(sd_wr[5:4]),
+	.sd_ack(sd_ack[5:4]),
 
 // 	SD byte level access. Signals for 2-PORT altsyncram.
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din),
-	.sd_buff_wr(sd_buff_wr),
-
-	.probe(fdc_probe)
+	.sd_buff_din(sd_buff_din[4:5]),
+	.sd_buff_wr(sd_buff_wr)
 );
+
 
 reg cart_firq_enable;
 

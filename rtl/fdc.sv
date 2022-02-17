@@ -70,9 +70,6 @@ module fdc(
 	input				WD1793_WR_CTRL,	// 1793 RD & WR control signal generation
 	input				WD1793_RD_CTRL,
 
-//	SDC I/O
-	input				SDC_REG_W_ENA,
-	input				SDC_REG_READ,
 
 // 	SD block level interface
 
@@ -90,9 +87,8 @@ module fdc(
 	input  		[8:0]	sd_buff_addr,
 	input  		[7:0] 	sd_buff_dout,
 	output 		[7:0] 	sd_buff_din[4],
-	input        		sd_buff_wr,
+	input        		sd_buff_wr
 	
-	output		[7:0]	probe
 );
 
 wire	[7:0]	DRIVE_SEL_EXT;
@@ -102,7 +98,7 @@ wire			DENSITY;
 wire			HALT_EN;
 
 // Diagnostics only
-assign probe = {2'd0, HALT_EN_RST, sd_buff_wr, WR[0], RD[0], HALT_EN, HALT};
+//assign probe = {2'd0, HALT_EN_RST, sd_buff_wr, WR[0], RD[0], HALT_EN, HALT};
 
 // Generate a 8.333 Mhz enable for the fdc... and control writes
 wire ena_8Mhz;
@@ -122,77 +118,16 @@ begin
 		end
 end
 
-localparam SDC_MAGIC_CMD = 			8'h43;
 
 wire	[7:0]	FF40_READ_VALUE = 	{HALT_EN, DRIVE_SEL_EXT[3], DENSITY, WRT_PREC, MOTOR,	DRIVE_SEL_EXT[2:0]};
-wire	  		SDC_EN = 			(FF40_READ_VALUE == SDC_MAGIC_CMD);
-wire	[7:0]	SDC_READ_DATA;
-wire			sdc_always;
 wire			FF40_RD =			({HDD_EN, ADDRESS[3:0]} == 5'h10);
 
 
 //FDC read data path.  =$ff40 or wd1793(s)
-assign	DATA_HDD =		(SDC_EN | sdc_always)				?	SDC_READ_DATA:
-						(HDD_EN & (ADDRESS[3:1] == 3'b001))	?	SDC_READ_DATA:	// FF42 & FF43
-						(FF40_RD)							?	FF40_READ_VALUE:
+assign	DATA_HDD =		(FF40_RD)							?	FF40_READ_VALUE:
 						(WD1793_RD)							?	DATA_1793: //(1793[s])
 																8'h00;
 
-wire		[31:0] 	sdc_sd_lba[2];
-wire		[31:0] 	fdc_sd_lba[2];
-wire 		[1:0]	sdc_sd_rd;
-wire 		[1:0]	fdc_sd_rd;
-wire 		[1:0]	sdc_sd_wr;
-wire 		[1:0]	fdc_sd_wr;
-wire 		[7:0] 	sdc_sd_buff_din[2];
-wire 		[7:0] 	fdc_sd_buff_din[2];
-wire				sdc_HALT;
-
-assign		sd_lba[0:1]			=	(SDC_EN | sdc_always)	?	sdc_sd_lba[0:1]:
-																fdc_sd_lba[0:1];
-
-assign		sd_rd[1:0]			=	(SDC_EN | sdc_always)	?	sdc_sd_rd[1:0]:
-																fdc_sd_rd[1:0];
-											
-assign		sd_wr[1:0]			=	(SDC_EN | sdc_always)	?	sdc_sd_wr[1:0]:
-																fdc_sd_wr[1:0];
-
-assign		sd_buff_din[0:1]	=	(SDC_EN | sdc_always)	?	sdc_sd_buff_din[0:1]:
-																fdc_sd_buff_din[0:1];
-
-sdc coco_sdc(
-	.CLK(CLK),     			// clock
-	.RESET_N(RESET_N),	   	// async reset
-	.ADDRESS(ADDRESS),     	// i/o port addr [extended for coco]
-	.SDC_DATA_IN(DATA_IN),  // data in
-	.SDC_READ_DATA,  		// data out
-
-	.SDC_EN(SDC_EN),		// SDC is active  [input to sdc]
-	.CLK_EN(CLK_EN),
-	.SDC_WR(SDC_REG_W_ENA),
-	.SDC_RD(SDC_REG_READ),
-
-	.sdc_always(sdc_always), // SDC is active  [output from sdc (sdc is turning off fdc)]
-
-	.sdc_HALT(sdc_HALT),
-
-// 	SD block level interface
-
-	.img_mounted(img_mounted[1:0]), 	// signaling that new image has been mounted
-	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
-	.img_size(img_size),		    	// size of image in bytes. 
-
-	.sd_lba(sdc_sd_lba[0:1]),
-	.sd_rd(sdc_sd_rd[1:0]),
-	.sd_wr(sdc_sd_wr[1:0]),
-	.sd_ack(sd_ack[1:0]),
-
-// 	SD byte level access. Signals for 2-PORT altsyncram.
-	.sd_buff_addr(sd_buff_addr),
-	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sdc_sd_buff_din[0:1]),
-	.sd_buff_wr(sd_buff_wr)
-);
 
 
 
@@ -335,10 +270,10 @@ begin
 	begin
 
 //		synchronizers
-		read1 <= WD1793_RD_CTRL  & ~(SDC_EN | sdc_always);
+		read1 <= WD1793_RD_CTRL;
 		read <= read1;
 		
-		write1 <= WD1793_WR_CTRL & ~(SDC_EN | sdc_always);
+		write1 <= WD1793_WR_CTRL;
 		write <= write1;
 
 //		delays for edge detection
@@ -427,7 +362,7 @@ assign	selected_DRQ	=	(drive_index == 3'd0)	?	DRQ[0]:
 							(drive_index == 3'd3)	?	DRQ[3]:
 														1'b1;
 
-assign	HALT	=	(HALT_EN & ~selected_DRQ) | sdc_HALT;
+assign	HALT	=	(HALT_EN & ~selected_DRQ);
 
 assign	HALT_EN_RST = RESET_N & ~selected_INTRQ; // From controller schematic
 
@@ -508,14 +443,14 @@ wd1793 #(1,1) coco_wd1793_0
 	.img_mounted(img_mounted[0]),
 	.img_size(img_size),
 
-	.sd_lba(fdc_sd_lba[0]),
-	.sd_rd(fdc_sd_rd[0]),
-	.sd_wr(fdc_sd_wr[0]), 
+	.sd_lba(sd_lba[0]),
+	.sd_rd(sd_rd[0]),
+	.sd_wr(sd_wr[0]), 
 	.sd_ack(sd_ack[0]),
 
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(fdc_sd_buff_din[0]), 
+	.sd_buff_din(sd_buff_din[0]), 
 	.sd_buff_wr(sd_buff_wr),
 
 	.wp(drive_wp[0]),
@@ -549,14 +484,14 @@ wd1793 #(1,0) coco_wd1793_1
 	.img_mounted(img_mounted[1]),
 	.img_size(img_size),
 
-	.sd_lba(fdc_sd_lba[1]),
-	.sd_rd(fdc_sd_rd[1]),
-	.sd_wr(fdc_sd_wr[1]), 
+	.sd_lba(sd_lba[1]),
+	.sd_rd(sd_rd[1]),
+	.sd_wr(sd_wr[1]), 
 	.sd_ack(sd_ack[1]),
 
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(fdc_sd_buff_din[1]), 
+	.sd_buff_din(sd_buff_din[1]), 
 	.sd_buff_wr(sd_buff_wr),
 
 	.wp(drive_wp[1]),

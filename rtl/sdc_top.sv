@@ -67,7 +67,7 @@ module sdc_top(
 	input				FF40_CLK,		// FDC Write support
 	input				FF40_ENA,
 
-	input				HDD_EN,			// FDC Read Data support
+	input				SDC_EN_CS,			// FDC Read Data support
 	input				WD1793_RD,
 
 	input				WD1793_WR_CTRL,	// 1793 RD & WR control signal generation
@@ -93,9 +93,7 @@ module sdc_top(
 	input  		[8:0]	sd_buff_addr,
 	input  		[7:0] 	sd_buff_dout,
 	output 		[7:0] 	sd_buff_din[2],
-	input        		sd_buff_wr,
-	
-	output		[7:0]	probe
+	input        		sd_buff_wr
 );
 
 wire	[7:0]	DRIVE_SEL_EXT;
@@ -105,7 +103,7 @@ wire			DENSITY;
 wire			HALT_EN;
 
 // Diagnostics only
-assign probe = {2'd0, HALT_EN_RST, sd_buff_wr, WR[0], RD[0], HALT_EN, HALT};
+//assign probe = {2'd0, HALT_EN_RST, sd_buff_wr, WR[0], RD[0], HALT_EN, HALT};
 
 // Generate a 8.333 Mhz enable for the fdc... and control writes
 wire ena_8Mhz;
@@ -131,12 +129,12 @@ wire	[7:0]	FF40_READ_VALUE = 	{HALT_EN, DRIVE_SEL_EXT[3], DENSITY, WRT_PREC, MOT
 wire	  		SDC_EN = 			(FF40_READ_VALUE == SDC_MAGIC_CMD);
 wire	[7:0]	SDC_READ_DATA;
 wire			sdc_always;
-wire			FF40_RD =			({HDD_EN, ADDRESS[3:0]} == 5'h10);
+wire			FF40_RD =			({SDC_EN_CS, ADDRESS[3:0]} == 5'h10);
 
 
 //FDC read data path.  =$ff40 or wd1793(s)
 assign	DATA_HDD =		(SDC_EN | sdc_always)				?	SDC_READ_DATA:
-						(HDD_EN & (ADDRESS[3:1] == 3'b001))	?	SDC_READ_DATA:	// FF42 & FF43
+						(SDC_EN_CS & (ADDRESS[3:1] == 3'b001))	?	SDC_READ_DATA:	// FF42 & FF43
 						(FF40_RD)							?	FF40_READ_VALUE:
 						(WD1793_RD)							?	DATA_1793: //(1793[s])
 																8'h00;
@@ -414,8 +412,8 @@ assign sd_blk_cnt[1] = 6'd0;
 assign sd_blk_cnt[0] = 6'd0;
 
 reg       drive_wp[2];
-reg       [1:0] drive_ready  = 4'B0;
-reg       [1:0] double_sided = 4'B0;
+reg       [1:0] drive_ready  = 2'b00;
+reg       [1:0] double_sided = 2'b00;
 
 // As drives are mounted in MISTer this logic saves the write protect and generates ready for
 // changing drives to the wd1793.
