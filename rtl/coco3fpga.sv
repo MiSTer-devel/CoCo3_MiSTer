@@ -103,6 +103,10 @@ output				VBLANK,
 input				ps2_clk,
 input				ps2_data,
 
+//Mouse
+
+input		[24:0]	ps2_mouse,
+
 // RS-232
 output				UART_TXD,
 input 				UART_RXD,
@@ -127,7 +131,8 @@ input [15:0]		joy2,
 // analog for position
 input [15:0]		joya1,
 input [15:0]		joya2,
-input 			joy_use_dpad,
+input 				joy_use_dpad,
+input				SWAP_M_J,
 
 //	Config Static switches
 input	[9:0]  		SWITCH,			
@@ -754,14 +759,6 @@ assign  CART_SEL =   (ADDRESS[15:9]                                     ==  7'b1
 //11		32 External
 
 
-//assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
-//							ENA_DISK2           			?   {7'b1111111,   ADDRESS[14:0]}:  //ROM Anternative Disk Controller
-//							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
-//							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
-//							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
-// ROM_SEL
-//																{7'b0000000,ADDRESS[14:0]};
-
 assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
 							ENA_DISK2           			?   {9'b000000100, ADDRESS[12:0]}:  //[maps to same disk rom]
 							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
@@ -968,7 +965,8 @@ assign	DATA_IN =
 //									(ADDRESS == 16'hFF88)		?	BUFF_DATA[7:0]:
 
 									(ADDRESS == 16'hFF8E)		?	GPIO_DIR:
-									(ADDRESS == 16'hFF8F)		?	{GPIO[7:0]}:
+//									(ADDRESS == 16'hFF8F)		?	{GPIO[7:0]}:
+									(ADDRESS == 16'hFF8F)		?	{3'b000, ps2_button, ps2_x1, ps2_y1, ps2_x2, ps2_y2}:
 
 									(ADDRESS == 16'hFF90)		?	{COCO1, MMU_EN, GIME_IRQ, GIME_FIRQ, VEC_PAG_RAM, ST_SCS, ROM}:
 									(ADDRESS == 16'hFF91)		?	{2'b00, TIMER_INS, 4'b0000, MMU_TR}:
@@ -3416,8 +3414,11 @@ begin
 	end
 	else
 	begin
+		if (SWAP_M_J)
+			dac_joya2 <= mouse_xy_pos;
+		else
+			dac_joya2 <= joya2;
 		dac_joya1 <= joya1;
-		dac_joya2 <= joya2;
 	end
 end
 
@@ -3457,7 +3458,7 @@ end
 * 2 right 2
 * 3 right 1
 ******************************************************************************/
-assign KEYBOARD_IN[0] =  !((!KEY_COLUMN[0] & KEY[0])				// @
+assign KEYBOARD_IN[0] =  			!((!KEY_COLUMN[0] & KEY[0])				// @
 								 | (!KEY_COLUMN[1] & KEY[1])				// A
 								 | (!KEY_COLUMN[2] & KEY[2])				// B
 								 | (!KEY_COLUMN[3] & KEY[3])				// C
@@ -3465,9 +3466,9 @@ assign KEYBOARD_IN[0] =  !((!KEY_COLUMN[0] & KEY[0])				// @
 								 | (!KEY_COLUMN[5] & KEY[5])				// E
 								 | (!KEY_COLUMN[6] & KEY[6])				// F
 								 | (!KEY_COLUMN[7] & KEY[7])				// G
-								 | !P_SWITCH[3]);								// Right Joystick Switch 1
+								 | !(P_SWITCH[3] & (ps2_button | !SWAP_M_J)));			// Right Joystick Switch 1
 
-assign KEYBOARD_IN[1] =	 !((!KEY_COLUMN[0] & KEY[8])				// H
+assign KEYBOARD_IN[1] =	 			!((!KEY_COLUMN[0] & KEY[8])				// H
 								 | (!KEY_COLUMN[1] & KEY[9])				// I
 								 | (!KEY_COLUMN[2] & KEY[10])				// J
 								 | (!KEY_COLUMN[3] & KEY[11])				// K
@@ -3475,9 +3476,9 @@ assign KEYBOARD_IN[1] =	 !((!KEY_COLUMN[0] & KEY[8])				// H
 								 | (!KEY_COLUMN[5] & KEY[13])				// M
 								 | (!KEY_COLUMN[6] & KEY[14])				// N
 								 | (!KEY_COLUMN[7] & KEY[15])				// O
-								 | !P_SWITCH[0]);								// Left Joystick Switch 1
+								 | !P_SWITCH[0]);							// Left Joystick Switch 1
 
-assign KEYBOARD_IN[2] =	 !((!KEY_COLUMN[0] & KEY[16])				// P
+assign KEYBOARD_IN[2] =	 		!((!KEY_COLUMN[0] & KEY[16])				// P
 								 | (!KEY_COLUMN[1] & KEY[17])				// Q
 								 | (!KEY_COLUMN[2] & KEY[18])				// R
 								 | (!KEY_COLUMN[3] & KEY[19])				// S
@@ -3485,9 +3486,9 @@ assign KEYBOARD_IN[2] =	 !((!KEY_COLUMN[0] & KEY[16])				// P
 								 | (!KEY_COLUMN[5] & KEY[21])				// U
 								 | (!KEY_COLUMN[6] & KEY[22])				// V
 								 | (!KEY_COLUMN[7] & KEY[23])				// W
-								 | !P_SWITCH[2]);								// Left Joystick Switch 2
+								 | !P_SWITCH[2]);							// Left Joystick Switch 2
 
-assign KEYBOARD_IN[3] =	 !((!KEY_COLUMN[0] & KEY[24])				// X
+assign KEYBOARD_IN[3] =	 		!((!KEY_COLUMN[0] & KEY[24])				// X
 								 | (!KEY_COLUMN[1] & KEY[25])				// Y
 								 | (!KEY_COLUMN[2] & KEY[26])				// Z
 								 | (!KEY_COLUMN[3] & KEY[27])				// up
@@ -3495,33 +3496,33 @@ assign KEYBOARD_IN[3] =	 !((!KEY_COLUMN[0] & KEY[24])				// X
 								 | (!KEY_COLUMN[5] & KEY[29])				// Backspace & left
 								 | (!KEY_COLUMN[6] & KEY[30])				// right
 								 | (!KEY_COLUMN[7] & KEY[31])				// space
-								 | !P_SWITCH[1]);								// Right Joystick Switch 2
+								 | !P_SWITCH[1]);							// Right Joystick Switch 2
 
-assign KEYBOARD_IN[4] =	 !((!KEY_COLUMN[0] & KEY[32])				// 0
+assign KEYBOARD_IN[4] =	 		!((!KEY_COLUMN[0] & KEY[32])				// 0
 								 | (!KEY_COLUMN[1] & KEY[33])				// 1
 								 | (!KEY_COLUMN[2] & KEY[34])				// 2
 								 | (!KEY_COLUMN[3] & KEY[35])				// 3
 								 | (!KEY_COLUMN[4] & KEY[36])				// 4
 								 | (!KEY_COLUMN[5] & KEY[37])				// 5
 								 | (!KEY_COLUMN[6] & KEY[38])				// 6
-								 | (!KEY_COLUMN[7] & KEY[39]));			// 7
+								 | (!KEY_COLUMN[7] & KEY[39]));				// 7
 
-assign KEYBOARD_IN[5] =	 !((!KEY_COLUMN[0] & KEY[40])				// 8
+assign KEYBOARD_IN[5] =	 		!((!KEY_COLUMN[0] & KEY[40])				// 8
 								 | (!KEY_COLUMN[1] & KEY[41])				// 9
 								 | (!KEY_COLUMN[2] & KEY[42])				// :
 								 | (!KEY_COLUMN[3] & KEY[43])				// ;
 								 | (!KEY_COLUMN[4] & KEY[44])				// ,
 								 | (!KEY_COLUMN[5] & KEY[45])				// -
 								 | (!KEY_COLUMN[6] & KEY[46])				// .
-								 | (!KEY_COLUMN[7] & KEY[47]));			// /
+								 | (!KEY_COLUMN[7] & KEY[47]));				// /
 
-assign KEYBOARD_IN[6] =	 !((!KEY_COLUMN[0] & KEY[48])				// CR
+assign KEYBOARD_IN[6] =	 		!((!KEY_COLUMN[0] & KEY[48])				// CR
 								 | (!KEY_COLUMN[1] & KEY[49])				// TAB
 								 | (!KEY_COLUMN[2] & KEY[50])				// ESC
 								 | (!KEY_COLUMN[3] & KEY[51])				// ALT
-								 | (!KEY_COLUMN[3] & (!BUTTON_N[0] | MUGS))		// ALT (Easter Egg)
+								 | (!KEY_COLUMN[3] & (!BUTTON_N[0] | MUGS))	// ALT (Easter Egg)
 								 | (!KEY_COLUMN[4] & KEY[52])				// CTRL
-								 | (!KEY_COLUMN[4] & (!BUTTON_N[0] | MUGS))		// CTRL (Easter Egg)
+								 | (!KEY_COLUMN[4] & (!BUTTON_N[0] | MUGS))	// CTRL (Easter Egg)
 								 | (!KEY_COLUMN[5] & KEY[53])				// F1
 								 | (!KEY_COLUMN[6] & KEY[54])				// F2
 								 | (!KEY_COLUMN[7] & KEY[55] & !SHIFT_OVERRIDE)	// shift
@@ -3542,6 +3543,85 @@ COCOKEY coco_keyboard(
 		.RESET(RESET),
 		.RESET_INS(RESET_INS)
 );
+
+// PS2 Mouse [MiSTer]
+// Borrowed from MAC PLUS
+
+wire	ps2_x1, ps2_y1, ps2_x2, ps2_y2;
+wire	ps2_button;
+
+ps2_mouse coco_ps2_mouse(
+		.clk(clk_sys),
+		.ce(PH_2),
+		.reset(~RESET_N),
+
+		.ps2_mouse(ps2_mouse),
+		
+		.x1(ps2_x1),
+		.y1(ps2_y1),
+		.x2(ps2_x2),
+		.y2(ps2_y2),
+		.button(ps2_button)
+);
+
+//	This code creates a virtual joystick based on mouse movements.
+//	The result is mouse_xy_pos
+//	[note check of boundry before inc / dev]
+
+reg		[7:0]	mouse_x_pos, mouse_y_pos;
+wire	[15:0]	mouse_xy_pos = {mouse_x_pos, mouse_y_pos};
+reg		[1:0]	old_x, old_y;
+wire	[1:0]	x_mouse	= {ps2_x1, ps2_x2};
+wire	[1:0]	y_mouse	= {ps2_y1, ps2_y2};
+
+always @ (posedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		mouse_x_pos <= 8'h80;
+		mouse_y_pos <= 8'h80;
+		old_x <= 2'b00;
+		old_y <= 2'b00;
+	end
+	else
+	begin
+		if (PH_2)
+		begin
+			old_x <= x_mouse;
+			old_y <= y_mouse;
+			if ( !(old_x == x_mouse))				//if a x change
+			begin
+				if (^x_mouse)						// xor of x bits show + move ; else neg
+				begin
+					if (!(mouse_x_pos == 8'hff))
+						mouse_x_pos <= mouse_x_pos + 1'b1;
+				end
+				else
+				begin
+					if (!(mouse_x_pos == 8'h00))
+						mouse_x_pos <= mouse_x_pos - 1'b1;
+				end
+			end
+
+			if ( !(old_y == y_mouse))				//if a y change
+			begin
+				if (^y_mouse)						// xor of x bits show + move ; else neg
+				begin
+					if (!(mouse_y_pos == 8'h00))
+						mouse_y_pos <= mouse_y_pos - 1'b1;
+				end
+				else
+				begin
+					if (!(mouse_y_pos == 8'hff))
+						mouse_y_pos <= mouse_y_pos + 1'b1;
+				end
+			end
+		end
+	end
+end
+
+
+
 /*****************************************************************************
 * Video
 ******************************************************************************/

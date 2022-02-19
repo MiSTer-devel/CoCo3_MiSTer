@@ -236,6 +236,7 @@ localparam  CONF_STR = {
         "-;",
         "ON,D-Pad Joystick emu,No,Yes;",
         "O6,Swap Joysticks,Off,On;",
+        "OS,Swap Joystick / Mouse,Off,On;",
         "RA,Easter Egg;",
         "-;",
         "OO,Force Turbo,No,Yes;",
@@ -347,7 +348,8 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(6), .BLKSZ(2)) hps_io
 
 
       .ps2_kbd_clk_out    ( ps2_kbd_clk    ),
-      .ps2_kbd_data_out   ( ps2_kbd_data   )
+      .ps2_kbd_data_out   ( ps2_kbd_data   ),
+	  .ps2_mouse(ps2_mouse)
 );
 
 // SD block level interface
@@ -386,6 +388,7 @@ wire [15:0] coco_ajoy2 = status[6] ? {center_joystick_x1[7:0],center_joystick_y1
 wire ps2_kbd_clk;
 wire ps2_kbd_data;
 
+wire	[24:0]	ps2_mouse;
 
 wire hblank, vblank;
 wire hs, vs;
@@ -481,6 +484,8 @@ coco3fpga coco3 (
   .ps2_clk(ps2_kbd_clk),
   .ps2_data(ps2_kbd_data),
 
+  .ps2_mouse(ps2_mouse),
+
   .joy_use_dpad(digitalJoy),
 
   .joy1(coco_joy1),
@@ -488,6 +493,8 @@ coco3fpga coco3 (
 
   .joya1(coco_ajoy1),
   .joya2(coco_ajoy2),
+
+  .SWAP_M_J(SWAP_M_J),
 
   // R1, L2, R2, L1
   .P_SWITCH(~{coco_joy2[4],coco_joy1[5],coco_joy2[5],coco_joy1[4]}),
@@ -582,6 +589,7 @@ wire coldboot = status[22];
 
 wire F_Turbo = status[24];
 wire [2:0]	Mem_Size = status[27:25];
+wire SWAP_M_J = status[28];
 
 wire digitalJoy = status[23];
 reg	[2:0] mpi_d	= 2'b00;
