@@ -236,7 +236,7 @@ localparam  CONF_STR = {
         "-;",
         "ON,D-Pad Joystick emu,No,Yes;",
         "O6,Swap Joysticks,Off,On;",
-        "OS,Swap Joystick / Mouse,Off,On;",
+        "OS,Use Mouse for Rt Joystk,Off,On;",
         "RA,Easter Egg;",
         "-;",
         "OO,Force Turbo,No,Yes;",
