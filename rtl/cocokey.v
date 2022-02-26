@@ -193,7 +193,7 @@ wire	[7:0]	RESET_TIME;
 
 assign RESET_TIME = 8'h3f;
 
-always @ (negedge CLK50MHZ)
+always @ (posedge CLK50MHZ)
 begin
 
 	if(RESET)

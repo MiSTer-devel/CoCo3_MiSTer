@@ -372,12 +372,12 @@ begin
 				sdc_busy <= 1'b1;
 				state <= state_e1;
 			end
-			else if (LSN[23:16] == 8'H67)		//	This is g [Disable FDC emulation]
-			begin
-				cmd_done <= 1'b1;
-				sdc_always <= 1'b1;				// Disable floppy
-				state <= state_idle;
-			end
+//			else if (LSN[23:16] == 8'H67)		//	This is g [Disable FDC emulation]
+//			begin
+//				cmd_done <= 1'b1;
+//				sdc_always <= 1'b1;				// Disable floppy
+//				state <= state_idle;
+//			end
 			else
 			begin
 				cmd_done <= 1'b1;				//  All other ext commands...

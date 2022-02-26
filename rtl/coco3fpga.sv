@@ -94,7 +94,6 @@ output	reg	[7:0]	BLUE,
 output	reg			H_SYNC,
 output	reg			V_SYNC,
 output	reg			VGA_SYNC_N,
-output	reg			VGA_BLANK_N,
 output				PIX_CLK,
 output				HBLANK,
 output				VBLANK,
@@ -198,9 +197,10 @@ output 				AMW_ACK,
 input	[64:0]		RTC,
 
 input				F_Turbo,
-input	[1:0]		turbo_speed,
+input	[2:0]		turbo_speed,
+output	[2:0]		assigned_turbo_speed,
 input	[2:0]		Mem_Size
- 
+
 );
 
 
@@ -384,7 +384,7 @@ reg				DACLRCLK;
 reg		[5:0]	DAC_STATE;
 wire 			H_FLAG;
 
-reg		[2:0]	SWITCH_L;
+reg		[3:0]	SWITCH_L;
 
 wire			CPU_IRQ_N;
 wire			CPU_FIRQ_N;
@@ -725,8 +725,10 @@ assign BLOCK_ADDRESS =  ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b1
 assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         	?   1'b1:       // GART 1
                 (ADDRESS[15:0]== 16'hFFE9)         	?   1'b1:       // GART 2
 				({ADDRESS[15:8]}== 8'hFF)           ?   1'b0:       // Hardware (FF00-FFFF) always Excluded
+                (ADDRESS[15:8] ==  8'b11111110)     ?   1'b1:  		// Always enabled in FEXX Secondary Vectors
                  ROM_SEL                            ?   1'b0:       // Internal ROM
-                 FLASH_CE_S                         ?   1'b0:       // Cart ROM
+//                 FLASH_CE_S                         ?   1'b0:       // Cart ROM
+                 CART_SEL                        	?   1'b0:       // Cart ROM
                                                         1'b1;
 
 
@@ -1149,6 +1151,11 @@ reg				sdram_BE_0, sdram_BE_1;
 reg				GART_RD, GART_WR;
 reg				AMW_WR;
 
+reg		[2:0]	RATE_PGM;
+
+assign	assigned_turbo_speed = (!(turbo_speed == 3'b000))	?	turbo_speed:
+																RATE_PGM;
+
 wire	cache_hit  /* synthesis preserve */;
 assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
 //assign	cache_hit = 1'b0;
@@ -1217,7 +1224,7 @@ begin
 		case (CLK)
 		6'h00:
 		begin
-			SWITCH_L <= {turbo_speed, (RATE | F_Turbo)};				// Normal speed
+			SWITCH_L <= {assigned_turbo_speed, (RATE | F_Turbo)};				// Normal speed
 			CLK <= 6'h01;
 			PH_2_RAW <= 1'b1;
 
@@ -1293,23 +1300,37 @@ begin
 				cpu_ena <= 1'b0;
 			CLK <= 6'h02;
 		end
+		6'h05:								//	64/6 = 9.55
+		begin
+			if(SWITCH_L == 4'b1101)			//Rate = 9.55
+				CLK <= 6'h00;
+			else
+				CLK <= 6'h06;
+		end
 		6'h07:								//	64/8 = 7.16
 		begin
-			if(SWITCH_L == 3'b101)			//Rate = 7.16
+			if(SWITCH_L == 4'b1011)			//Rate = 7.16
 				CLK <= 6'h00;
 			else
 				CLK <= 6'h08;
 		end
 		6'h0F:								//	64/16 = 3.58
 		begin
-			if(SWITCH_L == 3'b011)			//Rate = 3.58
+			if(SWITCH_L == 4'b1001)			//Rate = 3.58
 				CLK <= 6'h00;
 			else
 				CLK <= 6'h10;
 		end
+		6'h13:								//	64/19 = 2.86
+		begin
+			if(SWITCH_L == 4'b0111)			//Rate = 2.86
+				CLK <= 6'h00;
+			else
+				CLK <= 6'h14;
+		end
 		6'h1F:								//	64/32 = 1.7857
 		begin
-			if(SWITCH_L == 3'b001)			//Rate = 1.78?
+			if(SWITCH_L == 4'b0101)			//Rate = 1.78?
 				CLK <= 6'h00;
 			else
 				CLK <= 6'h20;
@@ -1333,7 +1354,15 @@ assign RESET_P =	!BUTTON_N[3]					// Button
 					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS
 
 // Make sure all resets are enabled for a long enough time to allow voltages to settle
-always @ (negedge clk_sys or posedge RESET_P)
+
+
+always @ (posedge clk_sys)
+begin
+	if (RESET)
+		MUGS <= RESET_INS;	   	//This is holding a <ctrl><alt><ins> across a reset to activate the Easter Egg
+end
+
+always @ (posedge clk_sys or posedge RESET_P)
 begin
 	reg	[24:0]	RESET_SM;
 
@@ -1342,7 +1371,6 @@ begin
 		RESET_SM <= 25'd0;
 		CPU_RESET <= 1'b1;
 		RESET_N <= 1'b0;
-		MUGS <= RESET_INS;	   //This is holding a <ctrl><alt><ins> across a reset to activate the Easter Egg
 	end
 	else
 	begin
@@ -2367,11 +2395,15 @@ begin
 	end
 end
 
+reg	sync_rst1;
+
 // Most of the latches for settings
 always @ (negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
+		sync_rst1 <= 1'b1;		// Eliminating Latches
+
 // FF00
 		DD_REG1 <= 8'h00;
 // FF01
@@ -2419,8 +2451,8 @@ begin
 		ORCH_RIGHT_EXT_BUF <= 8'b10000000;
 // FF7F
 		W_PROT <= 2'b11;
-		MPI_SCS <= SWITCH[2:1];
-		MPI_CTS <= SWITCH[2:1];
+//		MPI_SCS <= SWITCH[2:1];
+//		MPI_CTS <= SWITCH[2:1];
 // FF8E-FF8F
 		GPIO_DIR <= 8'h00;
 		GPIO_OUT <= 8'h00;
@@ -2559,6 +2591,7 @@ begin
 // FFD2 / FFD3
 		VERT[6] <= 1'b0;
 // FFD8 / FFD9
+		RATE_PGM <= 3'b010;
 		RATE <= 1'b0;
 // FFDE / FFDF
 		RAM <= 1'b0;
@@ -2571,10 +2604,16 @@ begin
 	end
 	else
 	begin
+		if (sync_rst1)
+		begin
+			sync_rst1 <= 1'b0;		// Eliminating Latches
+			MPI_SCS <= SWITCH[2:1];
+			MPI_CTS <= SWITCH[2:1];
+		end
+
 // Sound Mux
 		if (PH_2)
 		begin
-
 			case ({SOUND_EN,SEL})
 			3'b100:
 				SOUND_DTOA <= DTOA_CODE;
@@ -3288,10 +3327,21 @@ begin
 				16'hFFD8:
 				begin
 					RATE <= 1'b0;
+					RATE_PGM <= 3'b010;
 				end
 				16'hFFD9:
 				begin
 					RATE <= 1'b1;
+					RATE_PGM <= 3'b010;	// Normal Turbo
+					if (RATE && (DATA_OUT==8'hA5))
+						RATE_PGM <= 3'b011; // 2.68 Mhz
+					else if (RATE && (DATA_OUT==8'h45))
+						RATE_PGM <= 3'b101; // 7.16 Mhz
+					else if (RATE && (DATA_OUT==8'h05))
+						RATE_PGM <= 3'b110; // 9.54 Mhz
+					else
+						RATE_PGM <= 3'b010;	// Normal Turbo
+						
 				end
 				16'hFFDE:
 				begin

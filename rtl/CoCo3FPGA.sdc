@@ -1,3 +1,5 @@
+create_clock -period 1000.000 -name img_mounted[5] [get_nodes emu:emu|hps_io:hps_io|img_mounted[5]]
+create_clock -period 1000.000 -name img_mounted[4] [get_nodes emu:emu|hps_io:hps_io|img_mounted[4]]
 create_clock -period 1000.000 -name img_mounted[3] [get_nodes emu:emu|hps_io:hps_io|img_mounted[3]]
 create_clock -period 1000.000 -name img_mounted[2] [get_nodes emu:emu|hps_io:hps_io|img_mounted[2]]
 create_clock -period 1000.000 -name img_mounted[1] [get_nodes emu:emu|hps_io:hps_io|img_mounted[1]]

@@ -91,7 +91,8 @@ architecture RTL of COCO_ROM_16 is
 									-- a07, a06, a05, a04, a03, a02, a01, a00
 									-- d07, d06, d05, d04, d03, d02, d01, d00
 
-    x"00",x"00",x"00",x"00",x"00",	-- valid, nc, nc, nc, nc, nc, nc, a24
+--	Clear $72 [Warm Start Jump]
+    x"80",x"07",x"00",x"72",x"00", 	-- valid, nc, nc, nc, nc, nc, nc, a24
 									-- a23, a22, a21, a20, a19, a18, a17, a16
 									-- a15, a14, a13, a12, a11, a10, a09, a08
 									-- a07, a06, a05, a04, a03, a02, a01, a00

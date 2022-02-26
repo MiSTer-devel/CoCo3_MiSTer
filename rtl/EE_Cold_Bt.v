@@ -85,7 +85,7 @@ reg		[23:0]	timer = 24'h000000;
 localparam	SHORT_TIME	=	24'h0aecdf;	//	.05 sec @ 14.32 Mhz
 localparam	LONG_TIME	=	24'h418D40;	// .3 sec @ 14.32 Mhz
 
-localparam	EE_PROG =			{20'h00000, inst_EE_INACTIVE, inst_LONG_TIMER, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE,
+localparam	EE_PROG =			{16'h0000, inst_EE_INACTIVE, inst_LONG_TIMER, inst_LONG_TIMER, inst_RESET_INACTIVE, inst_LONG_TIMER, inst_RESET_ACTIVE,
 								inst_EE_ACTIVE, inst_START};
 // Orignal Easter Egg Cold Boot
 //localparam	Cold_Boot_PROG =	{1'h0, inst_RESET_INACTIVE, inst_SHORT_TIMER, inst_RESET_ACTIVE, inst_SHORT_TIMER, inst_EE_INACTIVE, 

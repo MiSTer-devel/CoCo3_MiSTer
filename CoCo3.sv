@@ -192,7 +192,6 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
-        //"OCD,Multi-Pak Slot,Orch 90,ECB / Cart,Disk;",
         "OCD,Multi-Pak,(Slot 2) CoCoSDC,(Slot3) ECB /Cart,(Slot 4) Disk;",
         "H3-;",
         "H3S0,DSK,Load Disk Drive 0;",
@@ -240,7 +239,7 @@ localparam  CONF_STR = {
         "RA,Easter Egg;",
         "-;",
         "OO,Force Turbo,No,Yes;",
-        "OJK,Turbo Speed,1.78 Mhz,3.58 Mhz,7.16 Mhz, NA;",
+        "o02,Turbo Speed,CoCo Ctrl, 0.89 Mhz,1.78 Mhz,2.86 Mhz, 3.58 Mhz,7.16 Mhz,9.54 Mhz;",
         "OPR,Memory Size,512K,1M,2M,16M;",
         "-;",
         "RM,Cold Boot;",
@@ -249,6 +248,19 @@ localparam  CONF_STR = {
         "jn,A,B;",
         "V,v",`BUILD_DATE
 };
+
+// Status bits Directory
+
+//   Status Bit Map:
+//               Upper                             Lower              
+//   0         1         2         3          4         5         6   
+//   01234567890123456789012345678901 23456789012345678901234567890123
+//   0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
+// 
+
+//   R  OOOO OOR OO TOOOOOOROOOOOO    ooo                                
+//F    FF            
+//S  SSSSSS
 
 ////////////////////   CLOCKS   ///////////////////
 
@@ -274,7 +286,10 @@ pll pll
 
 ///////////////////////////////////////////////////
 
-wire [31:0] status;
+wire [63:0] status;
+wire [63:0] status_in;
+wire        status_set;
+
 wire  [1:0] buttons;
 wire        forced_scandoubler;
 wire        direct_video;
@@ -301,12 +316,14 @@ wire [64:0] RTC;
 hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(6), .BLKSZ(2)) hps_io
 (
       .clk_sys(clk_sys),
-//		.clk_sys(CLK_50M), (SRH)
       .HPS_BUS(HPS_BUS),
 
 
       .buttons(buttons),
       .status(status),
+      .status_in(status_in),
+      .status_set(status_set),
+
       .status_menumask({ ~(mpi == 2'b11), ~(mpi == 2'b10),~(mpi == 2'b01), 1'b1}),
       .forced_scandoubler(forced_scandoubler),
 	  .RTC(RTC),
@@ -552,6 +569,7 @@ coco3fpga coco3 (
   .sdram_busy(sdram_busy),
   
   .turbo_speed(turbo_speed),
+  .assigned_turbo_speed(assigned_turbo_speed),
 
   .RTC(RTC),
 
@@ -570,9 +588,12 @@ coco3fpga coco3 (
   .UART_DSR(UART_DSR)
 );
 
+assign status_set = 1'b0;
+
 wire [5:0] cocosound;
 
-wire [1:0] turbo_speed = status[20:19];
+wire [2:0] turbo_speed = status[34:32];
+wire [2:0] assigned_turbo_speed;
 
 wire AMW_ACK;
 
