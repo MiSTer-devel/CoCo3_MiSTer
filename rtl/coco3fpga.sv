@@ -1644,16 +1644,39 @@ assign KEY_INT_N = (KEYBOARD_IN == 8'hFF);
 //***********************************************************************
 // Interrupt Latch RESETs
 //***********************************************************************
+
+reg RST_FF93T_N;
+reg RST_FF93H_N;
+reg RST_FF93V_N;
+reg RST_FF93C_N;
+reg RST_FF93K_N;
+reg RST_FF92V_N;
+reg RST_FF92H_N;
+reg RST_FF92C_N;
+reg RST_FF92K_N;
+reg RST_FF92T_N;
+
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
 		RST_FF00_N <= 1'b1;
 		RST_FF02_N <= 1'b1;
-//		RST_FF20_N <= 1'b1;
 		RST_FF22_N <= 1'b1;
+
 		RST_FF92_N <= 1'b1;
+		RST_FF92H_N <= 1'b1;
+		RST_FF92V_N <= 1'b1;
+		RST_FF92C_N <= 1'b1;
+		RST_FF92K_N <= 1'b1;
+		RST_FF92T_N <= 1'b1;
+
 		RST_FF93_N <= 1'b1;
+		RST_FF93T_N <= 1'b1;
+		RST_FF93H_N <= 1'b1;
+		RST_FF93V_N <= 1'b1;
+		RST_FF93C_N <= 1'b1;
+		RST_FF93K_N <= 1'b1;
 		TMR_RST_N <= 1'b1;
 	end
 	else
@@ -1661,53 +1684,30 @@ begin
 		if (PH_2)
 			case({RW_N,ADDRESS})
 			17'h1FF00:
-				RST_FF00_N <= 1'b0;
+				if (!HSYNC1_CLK_N)
+					RST_FF00_N <= 1'b0;
 			17'h1FF04:
-				RST_FF00_N <= 1'b0;
+				if (!HSYNC1_CLK_N)
+					RST_FF00_N <= 1'b0;
 			17'h1FF08:
-				RST_FF00_N <= 1'b0;
+				if (!HSYNC1_CLK_N)
+					RST_FF00_N <= 1'b0;
 			17'h1FF0C:
-				RST_FF00_N <= 1'b0;
-			17'h1FF10:
-				RST_FF00_N <= 1'b0;
-			17'h1FF14:
-				RST_FF00_N <= 1'b0;
-			17'h1FF18:
-				RST_FF00_N <= 1'b0;
-			17'h1FF1C:
-				RST_FF00_N <= 1'b0;
+				if (!HSYNC1_CLK_N)
+					RST_FF00_N <= 1'b0;
 			17'h1FF02:
-				RST_FF02_N <= 1'b0;
+				if (!VSYNC1_IRQ_N)
+					RST_FF02_N <= 1'b0;
 			17'h1FF06:
-				RST_FF02_N <= 1'b0;
+				if (!VSYNC1_IRQ_N)
+					RST_FF02_N <= 1'b0;
 			17'h1FF0A:
-				RST_FF02_N <= 1'b0;
+				if (!VSYNC1_IRQ_N)
+					RST_FF02_N <= 1'b0;
 			17'h1FF0E:
-				RST_FF02_N <= 1'b0;
-			17'h1FF12:
-				RST_FF02_N <= 1'b0;
-			17'h1FF16:
-				RST_FF02_N <= 1'b0;
-			17'h1FF1A:
-				RST_FF02_N <= 1'b0;
-			17'h1FF1E:
-				RST_FF02_N <= 1'b0;
-/*			17'h1FF20:
-				RST_FF20_N <= 1'b0;
-			17'h1FF24:
-				RST_FF20_N <= 1'b0;
-			17'h1FF28:
-				RST_FF20_N <= 1'b0;
-			17'h1FF2C:
-				RST_FF20_N <= 1'b0;
-			17'h1FF30:
-				RST_FF20_N <= 1'b0;
-			17'h1FF34:
-				RST_FF20_N <= 1'b0;
-			17'h1FF38:
-				RST_FF20_N <= 1'b0;
-			17'h1FF3C:
-				RST_FF20_N <= 1'b0;	*/
+				if (!VSYNC1_IRQ_N)
+					RST_FF02_N <= 1'b0;
+
 			17'h1FF22:
 				RST_FF22_N <= 1'b0;
 			17'h1FF26:
@@ -1716,14 +1716,7 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h1FF2E:
 				RST_FF22_N <= 1'b0;
-			17'h1FF32:
-				RST_FF22_N <= 1'b0;
-			17'h1FF36:
-				RST_FF22_N <= 1'b0;
-			17'h1FF3A:
-				RST_FF22_N <= 1'b0;
-			17'h1FF3E:
-				RST_FF22_N <= 1'b0;
+
 			17'h0FF22:
 				RST_FF22_N <= 1'b0;
 			17'h0FF26:
@@ -1732,18 +1725,36 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h0FF2E:
 				RST_FF22_N <= 1'b0;
-			17'h0FF32:
-				RST_FF22_N <= 1'b0;
-			17'h0FF36:
-				RST_FF22_N <= 1'b0;
-			17'h0FF3A:
-				RST_FF22_N <= 1'b0;
-			17'h0FF3E:
-				RST_FF22_N <= 1'b0;
+
 			17'h1FF92:
+			begin
 				RST_FF92_N <= 1'b0;
+				if (!VSYNC_INT_N)
+					RST_FF92V_N <= 1'b0;
+				if (!HSYNC_INT_N)
+					RST_FF92H_N <= 1'b0;
+				if (!CART_INT_N)
+					RST_FF92C_N <= 1'b0;
+				if (!KEY_INT_N)
+					RST_FF92K_N <= 1'b0;
+				if (!TIMER_INT_N)
+					RST_FF92T_N <= 1'b0;
+			end
+			
 			17'h1FF93:
+			begin
 				RST_FF93_N <= 1'b0;
+				if (!TIMER3_FIRQ_N)
+					RST_FF93T_N <= 1'b0;
+				if (!HSYNC_INT_N)
+					RST_FF93H_N <= 1'b0;
+				if (!VSYNC_INT_N)
+					RST_FF93V_N <= 1'b0;
+				if (!CART_INT_N)
+					RST_FF93C_N <= 1'b0;
+				if (!KEY_INT_N)
+					RST_FF93K_N <= 1'b0;
+			end
 			17'h0FF94:
 				TMR_RST_N <= 1'b0;
 			17'h0FF95:
@@ -1752,10 +1763,19 @@ begin
 			begin
 				RST_FF00_N <= 1'b1;
 				RST_FF02_N <= 1'b1;
-//				RST_FF20_N <= 1'b1;
 				RST_FF22_N <= 1'b1;
 				RST_FF92_N <= 1'b1;
+				RST_FF92H_N <= 1'b1;
+				RST_FF92V_N <= 1'b1;
+				RST_FF92C_N <= 1'b1;
+				RST_FF92K_N <= 1'b1;
+				RST_FF92T_N <= 1'b1;
 				RST_FF93_N <= 1'b1;
+				RST_FF93T_N <= 1'b1;
+				RST_FF93H_N <= 1'b1;
+				RST_FF93V_N <= 1'b1;
+				RST_FF93C_N <= 1'b1;
+				RST_FF93K_N <= 1'b1;
 				TMR_RST_N <= 1'b1;
 			end
 			endcase
@@ -1941,9 +1961,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93_N)
+always @ (negedge clk_sys or negedge RST_FF93H_N)
 begin
-	if(!RST_FF93_N)
+	if(!RST_FF93H_N)
 	begin
 		HSYNC3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -1981,9 +2001,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93_N)
+always @ (negedge clk_sys or negedge RST_FF93V_N)
 begin
-	if(!RST_FF93_N)
+	if(!RST_FF93V_N)
 	begin
 		VSYNC3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2021,9 +2041,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93_N)
+always @ (negedge clk_sys or negedge RST_FF93C_N)
 begin
-	if(!RST_FF93_N)
+	if(!RST_FF93C_N)
 	begin
 		CART3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2061,9 +2081,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93_N)
+always @ (negedge clk_sys or negedge RST_FF93K_N)
 begin
-	if(!RST_FF93_N)
+	if(!RST_FF93K_N)
 	begin
 		KEY3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2101,9 +2121,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93_N)
+always @ (negedge clk_sys or negedge RST_FF93T_N)
 begin
-	if(!RST_FF93_N)
+	if(!RST_FF93T_N)
 	begin
 		TIMER3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2142,9 +2162,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92_N)
+always @ (negedge clk_sys or negedge RST_FF92H_N)
 begin
-	if(!RST_FF92_N)
+	if(!RST_FF92H_N)
 	begin
 		HSYNC3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2180,9 +2200,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92_N)
+always @ (negedge clk_sys or negedge RST_FF92V_N)
 begin
-	if(!RST_FF92_N)
+	if(!RST_FF92V_N)
 	begin
 		VSYNC3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2294,9 +2314,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92_N)
+always @ (negedge clk_sys or negedge RST_FF92T_N)
 begin
-	if(!RST_FF92_N)
+	if(!RST_FF92T_N)
 	begin
 		TIMER3_IRQ_STAT_N <= 1'b1;			// no int
 	end
