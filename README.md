@@ -3,7 +3,7 @@
 
 ## CoCo3FPGA port to MiSTer
 
-This is a port of Gary Becker's famous CoCo3 in an FPGA to the MiSTer platform by Stan Hodge.
+This is a port of Gary Becker's famous CoCo3 in an FPGA to the MiSTer platform by Stan Hodge, Gary Becker and Alan Steremberg.
 
 ## Roms Needed
 
