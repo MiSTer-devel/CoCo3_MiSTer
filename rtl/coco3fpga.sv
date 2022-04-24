@@ -71,6 +71,8 @@
 // 
 ////////////////////////////////////////////////////////////////////////////////
 
+//	Define Config features
+`include "..\RTL\config.v"
 
 
 module coco3fpga(
@@ -908,6 +910,11 @@ in any banks in any order, by simply writing the proper data into these latches.
 // If W_PROT[1] = 1 then ROM_RW is 0, else ROM_RW = !RW_N
 
 
+`ifdef	Config_Debug
+	wire	Config_FLAG = `Config_Debug_FLAG;
+	wire	Config_Debug_Value = `Config_Debug_Value;
+`endif
+
 assign	DATA_IN =
 														(sdram_BE_0)	?	hold_data_L[7:0]:
 														(sdram_BE_1)	?	hold_data_L[15:8]:
@@ -967,8 +974,7 @@ assign	DATA_IN =
 //									(ADDRESS == 16'hFF88)		?	BUFF_DATA[7:0]:
 
 									(ADDRESS == 16'hFF8E)		?	GPIO_DIR:
-//									(ADDRESS == 16'hFF8F)		?	{GPIO[7:0]}:
-									(ADDRESS == 16'hFF8F)		?	{3'b000, ps2_button, ps2_x1, ps2_y1, ps2_x2, ps2_y2}:
+									(ADDRESS == 16'hFF8F)		?	{GPIO[7:0]}:
 
 									(ADDRESS == 16'hFF90)		?	{COCO1, MMU_EN, GIME_IRQ, GIME_FIRQ, VEC_PAG_RAM, ST_SCS, ROM}:
 									(ADDRESS == 16'hFF91)		?	{2'b00, TIMER_INS, 4'b0000, MMU_TR}:
@@ -1034,8 +1040,13 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFFCF)		?	{V_SYNC,VBLANK,H_SYNC,HBLANK,
 																			 KEY[0],KEY[64],KEY[63],KEY[62]}:
 
+									`ifdef	Config_Debug
+									(ADDRESS == 16'hFFF0)		?	Config_FLAG:
+									(ADDRESS == 16'hFFF1)		?	Config_Debug_Value:
+									`else
 									(ADDRESS == 16'hFFF0)		?	Version_Hi:
 									(ADDRESS == 16'hFFF1)		?	(Version_Lo + BOARD_TYPE):
+									`endif
 									(ADDRESS == 16'hFFF2)		?	8'hFE:
 									(ADDRESS == 16'hFFF3)		?	8'hEE:
 									(ADDRESS == 16'hFFF4)		?	8'hFE:
@@ -1634,11 +1645,25 @@ begin
 	end
 end
 
-assign CART_INT_N = CART_INT_IN_N;
-assign VSYNC_INT_N = V_SYNC_N;
 //assign HSYNC_INT_N = (H_SYNC_N | !H_FLAG);
-assign HSYNC_INT_N = H_SYNC_N;
-//assign TIMER_INT_N = ;
+
+`ifdef CoCo3_Horz_INT_FIX
+	wire	HBORDER_INT;
+	assign 	HSYNC_INT_N = HBORDER_INT;
+`else
+	assign 	HSYNC_INT_N = H_SYNC_N;
+`endif
+
+`ifdef CoCo3_Vert_INT_FIX
+	wire	VBORDER_INT;
+	assign 	VSYNC_INT_N = VBORDER_INT;
+`else
+	assign 	VSYNC_INT_N = V_SYNC_N;
+`endif
+
+
+
+assign CART_INT_N = CART_INT_IN_N;
 assign KEY_INT_N = (KEYBOARD_IN == 8'hFF);
 
 //***********************************************************************
@@ -3975,6 +4000,15 @@ COCO3VIDEO MISTER_COCOVID(
 
 	.ROM_ADDRESS(font_adrs),
 	.ROM_DATA1(font_data),
+
+//	Interrupts
+`ifdef CoCo3_Horz_INT_FIX
+	.HBORDER_INT(HBORDER_INT),
+`endif
+
+`ifdef CoCo3_Vert_INT_FIX
+	.VBORDER_INT(VBORDER_INT),
+`endif
 
 	.HBORDER(HBORDER),
 	.VBORDER(VBORDER)

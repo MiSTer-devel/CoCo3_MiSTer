@@ -89,7 +89,8 @@ reg		[2:0]		BIT;
 reg		[3:0]		STATE;
 reg		[7:0]		SCAN;
 wire				PARITY;
-reg		[10:0]	TIMER;
+//reg		[10:0]		TIMER;
+reg		[15:0]		TIMER;
 reg					KILLER;
 wire				RESET_X;
 
@@ -121,7 +122,7 @@ begin
 	if(!RESET_N)
 	begin
 		KILLER <= 1'b1;
-		TIMER <= 11'h000;
+		TIMER <= 16'h000;
 	end
 	else
 	begin
@@ -129,20 +130,22 @@ begin
 		if (ENA == 1'b0 && ENA_D == 1'b1)
 		begin
 			case(TIMER)
-			11'h000:
+			16'h0000:
 			begin
 				KILLER <= 1'b1;
 				if(STATE != 4'h0)
-					TIMER <= 11'h001;
+					TIMER <= 16'h0001;
 			end
-			11'h7FD:
+//			11'h7FD:
+			16'hFFFD:
 			begin
 				KILLER <= 1'b0;
-				TIMER <= 11'h7FE;
+//				TIMER <= 11'h7FE;
+				TIMER <= 16'hFFFE;
 			end
 			default:
 				if(STATE == 4'h0)
-					TIMER <= 11'h000;
+					TIMER <= 16'h0000;
 				else
 					TIMER <= TIMER + 1'b1;
 			endcase
