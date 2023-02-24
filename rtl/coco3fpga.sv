@@ -72,7 +72,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 //	Define Config features
-`include "..\RTL\config.v"
+`include "../rtl/config.v"
 
 
 module coco3fpga(
