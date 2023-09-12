@@ -8,7 +8,7 @@ This is a port of Gary Becker's famous CoCo3 in an FPGA to the MiSTer platform b
 ## Roms Needed
 
 * boot0.rom - 32K coco3 rom
-* boot1.rom - 8K extended color basic rom
+* boot1.rom - 8K Disk extended color basic rom
 
 Note: This core requires the external sdram memory module to function.
 
