@@ -191,13 +191,13 @@ assign OFFSET =
 ({HVEN,COCO1,VID_CONT[3],V[0]}                   ==  4'b0111)        ?   ROW_ADD + 11'd16:   // WHEN V[0]=1 16 BYTES V[0]=0 32 BYTES
 
 // HR Text
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000001)     ?   ROW_ADD + 11'd40:   // HR TEXT with no Attributes
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000010)     ?   ROW_ADD + 11'd64:
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000011)     ?   ROW_ADD + 11'd80:
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000100)     ?   ROW_ADD + 11'd64:
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000101)     ?   ROW_ADD + 11'd80:
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000110)     ?   ROW_ADD + 11'd128:
-({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  6'b0000111)     ?   ROW_ADD + 11'd160:
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000001)     ?   ROW_ADD + 11'd40:   // HR TEXT with no Attributes
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000010)     ?   ROW_ADD + 11'd64:
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000011)     ?   ROW_ADD + 11'd80:
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000100)     ?   ROW_ADD + 11'd64:
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000101)     ?   ROW_ADD + 11'd80:
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000110)     ?   ROW_ADD + 11'd128:
+({HVEN,COCO1,BP,HRES[3:2],CRES[0],HRES[0]}       ==  7'b0000111)     ?   ROW_ADD + 11'd160:
 
 // HR Graphics
 ({HVEN,COCO1,BP,HRES}                            ==  7'b0010000)     ?   ROW_ADD + 11'd16:

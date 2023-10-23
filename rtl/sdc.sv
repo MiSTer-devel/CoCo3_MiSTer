@@ -47,6 +47,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+//	Define Config features
+`include "..\RTL\config.v"
+
 module sdc(
 	input        		CLK,     		// clock
 	input        		RESET_N,	   	// async reset
@@ -59,26 +62,31 @@ module sdc(
 	input				SDC_WR,
 	input				SDC_RD,
 
-	output				sdc_always,
-
 	output	reg			sdc_HALT,
 
+	output	reg			ext_response,
+	output	reg			sdc_always,
+	
 // 	SD block level interface
-
-	input 		[1:0]	img_mounted, 	// signaling that new image has been mounted
-	input				img_readonly, 	// mounted as read only. valid only for active bit in img_mounted
-	input 		[19:0] 	img_size,    	// size of image in bytes. 1MB MAX!
 
 	output		[31:0] 	sd_lba[2],
 	output reg	[1:0]	sd_rd,
 	output reg  [1:0]	sd_wr,
 	input       [1:0]	sd_ack,
 
+//	Drive descripters
+
+	input				drive_wp[2],
+	input		[1:0]	drive_ready,
+	input		[31:0]	drive_size[2],
+
+
 // 	SD byte level access. Signals for 2-PORT altsyncram.
 	input  		[8:0]	sd_buff_addr,
 	input  		[7:0] 	sd_buff_dout,
 	output 		[7:0] 	sd_buff_din[2],
 	input        		sd_buff_wr
+
 );
 
 reg		[23:0]	LSN;
@@ -87,36 +95,35 @@ reg		[7:0]	transfer_address;
 
 reg				new_cmd, new_cmd_d, cmd_done;
 reg 			data_inc, run;
+reg				rxt_res_end;
 reg				transfer_clear;
 reg		[3:0]	sdc_data_reg;
 
 wire	[7:0]	sdc_status_reg = {sdc_data_reg, 4'h4};
-reg		[15:0]	drive_size[2];
 
-typedef enum 
+enum int unsigned
 {
-	state_idle,
+	state_idle = 0,
 
-	state_read,
-	state_r1,
-	state_r1a,
-	state_r2,
-	state_r3,
-	state_r4,
+	state_read = 1,
+	state_r1 = 2,
+	state_r1a = 3,
+	state_r2 = 4,
+	state_r3 = 5,
+	state_r4 = 6,
 
-	state_write,
-	state_w1,
-	state_w1a,
-	state_w2,
-	state_w3,
+	state_write = 7,
+	state_w1 = 8,
+	state_w1a = 9,
+	state_w2 = 10,
+	state_w3 = 11,
+	state_w4 = 12,
 
-	state_ext,
-	state_e1,
-	state_e2
+	state_ext = 13,
+	state_e1 = 14,
+	state_e2 = 15
 
-} state_t;
-
-state_t	state = state_idle;
+} state;
 
 localparam ADRS_FF42 =				4'h2;
 localparam ADRS_FF43 =				4'h3;
@@ -124,6 +131,7 @@ localparam ADRS_FF48 =				4'h8;
 localparam ADRS_FF49 =				4'h9;
 localparam ADRS_FF4A =				4'hA;
 localparam ADRS_FF4B =				4'hB;
+
 
 always @(negedge CLK or negedge RESET_N)
 begin
@@ -133,17 +141,18 @@ begin
 		command <= 8'h00;
 		new_cmd <= 1'b0;
 		data_inc <=	1'b0;
+		rxt_res_end <= 1'b0;
 		transfer_address <= 8'h00;
 		sdc_data_reg <=	4'h0;
 	end
 	else
 	begin
 		data_inc <=	1'b0;
-
+		rxt_res_end <= 1'b0;
 		if (cmd_done)
 			new_cmd <= 1'b0;
 
-		if (SDC_WR)													//Write
+		if (CLK_EN & SDC_WR)													//Write
 		begin
 			case(ADDRESS)
 			ADRS_FF42:						// $ff42
@@ -152,7 +161,7 @@ begin
 			endcase
 		end
 
-		if ((SDC_EN | sdc_always) & SDC_WR)													//Write
+		if (SDC_EN & CLK_EN & SDC_WR)													//Write
 		begin
 			case(ADDRESS)
 
@@ -180,13 +189,18 @@ begin
 					if (~run)
 						LSN[7:0] <=   	SDC_DATA_IN;
 					else
+					begin
 						data_inc <=		1'b1;
+					end
 				end
 			endcase
 		end
 
-		if (CLK_EN & SDC_RD & (ADDRESS[3:1] == 3'b101) & (run))	// Read @ $ff4A / $ff4B
+		if (CLK_EN & SDC_RD & (ADDRESS[3:1] == 3'b101) & (run))		// Read @ $ff4A / $ff4B
 			data_inc <=	1'b1;
+
+		if (CLK_EN & SDC_RD & (ADDRESS[3:0] == 4'b1001) & (~run))	// Read @ $ff49 [last of size data]
+			rxt_res_end <= 	1'b1;
 
 		if (data_inc)
 			transfer_address <= transfer_address + 1'b1;
@@ -205,11 +219,11 @@ localparam 		CMD_EXT = 				5'b11000;
 
 reg				wr_cmd;
 reg				ack_d;
-reg				ext_response;
 reg		[23:0]	response_reg;
 wire			end_ack = ~sd_ack[l_drive] & ack_d;
 reg				l_drive, buffer_upper;
-
+reg				time_clr;
+reg		[13:0]	delay_time;
 
 always @(negedge CLK or negedge RESET_N)
 begin
@@ -236,6 +250,8 @@ begin
 		sdc_HALT <= 1'b0;
 		l_drive <= 1'b0;
 		buffer_upper <= 1'b0;
+		time_clr <= 1'b1;
+		delay_time <= 14'b00000000000000;
 	end
 	else
 	begin
@@ -244,18 +260,21 @@ begin
 
 		ack_d <= sd_ack[l_drive];
 
-		if (~(SDC_EN | sdc_always))
-		begin
-			sdc_busy <= 1'b1;
-			sdc_ready <= 1'b0;
-		end
+		delay_time <= delay_time + 1'b1;
+		if (time_clr)
+			delay_time <= 14'b00000000000000;
+
+		if (rxt_res_end)						// If we read ff4b then we've read the ext_response
+			ext_response <= 1'b0;
 
 		case(state)
 		state_idle:
 		begin
 			sdc_busy <= 1'b0;
+			sdc_ready <= 1'b0;
 			run <= 1'b0;
 			wr_cmd <= 1'b0;
+			time_clr <= 1'b1;
 			transfer_clear <= 1'b1;
 			if (new_cmd & ~new_cmd_d)
 				if (command[7:3] == CMD_READ)
@@ -271,35 +290,34 @@ begin
 					state <= state_ext;
 				end
 				else							// no valid command found
+				begin
 					cmd_done <= 1'b1;
+					sdc_fail <= 1'b1;
+				end
 		end
 		state_read:
 		begin
 			sdc_busy <= 1'b1;
-			if (~sdc_HALT)
-			begin
-				buffer_upper <= LSN[0];
-				l_drive <= command[0];
-				ext_response <= 1'b0;
-				transfer_clear <= 1'b0;
-				run <= 1'b1;
+			buffer_upper <= LSN[0];
+			l_drive <= command[0];
+			ext_response <= 1'b0;			// If we have not read the ext_response by now we are not going too
+			transfer_clear <= 1'b0;
+			run <= 1'b1;
 
-				if (command[7:3] == CMD_WRITE)
-					wr_cmd <= 1'b1;
+			if (command[7:3] == CMD_WRITE)
+				wr_cmd <= 1'b1;
 				
 //				Issue sda read command...
-				if (~command[0]) 							//  This reference to the drive must be to the command register as l_drive has not yet updated
-					sd_lba[0] <= {8'h00, 1'b0, LSN[23:1]};
-				else
-					sd_lba[1] <= {8'h00, 1'b0, LSN[23:1]};
-				state <= state_r1;
-			end
+			if (~command[0]) 							//  This reference to the drive must be to the command register as l_drive has not yet updated
+				sd_lba[0] <= {8'h00, 1'b0, LSN[23:1]};
+			else
+				sd_lba[1] <= {8'h00, 1'b0, LSN[23:1]};
+			state <= state_r1;
 		end
 		state_r1:
 		begin
 			sd_rd[l_drive] <= 1'b1;
 			state <= state_r1a;
-			sdc_HALT <= 1'b1;
 		end
 		state_r1a:
 			if (sd_ack[l_drive])
@@ -311,7 +329,6 @@ begin
 		begin
 			if (sd_ack[l_drive] & sd_buff_wr & (sd_buff_addr == 9'b111111111))	// wait for the last ack
 			begin
-				sdc_HALT <= 1'b0;
 				sdc_ready <= 1'b1;
 				if (wr_cmd)
 					state <= state_write;
@@ -323,7 +340,6 @@ begin
 		begin
 			if ((transfer_address == 8'hff) & CLK_EN & SDC_RD & (ADDRESS[3:1] == 3'b101))	// wait for the last read
 			begin
-				sdc_fail <= 1'b0;
 				cmd_done <= 1'b1;
 				sdc_ready <= 1'b0;
 				sdc_busy <= 1'b0;
@@ -334,7 +350,7 @@ begin
 
 		state_write:
 		begin
-			if ((transfer_address == 8'hff) & SDC_WR & (ADDRESS[3:1] == 3'b101))	// wait for the last write
+			if ((transfer_address == 8'hff) & CLK_EN & SDC_WR & (ADDRESS[3:1] == 3'b101))	// wait for the last write
 			begin
 				state <= state_w1;
 			end
@@ -353,11 +369,20 @@ begin
 			end
 		state_w3:
 		begin
-			if (end_ack & sdc_HALT)		// wait for the end of ack...
+			time_clr <= 1'b1;
+			if (end_ack)		// wait for the end of ack...
+			begin
+				state <= state_w4;
+			end
+		end
+		state_w4:
+		begin
+			time_clr <= 1'b0;
+			if (delay_time[13])		// wait for .1ms...
 			begin
 				sdc_HALT <= 1'b0;
-				sdc_fail <= 1'b0;
 				wr_cmd <= 1'b0;
+
 				cmd_done <= 1'b1;
 				sdc_ready <= 1'b0;
 				sdc_busy <= 1'b0;
@@ -372,34 +397,41 @@ begin
 				sdc_busy <= 1'b1;
 				state <= state_e1;
 			end
-//			else if (LSN[23:16] == 8'H67)		//	This is g [Disable FDC emulation]
-//			begin
-//				cmd_done <= 1'b1;
-//				sdc_always <= 1'b1;				// Disable floppy
-//				state <= state_idle;
-//			end
+			else if (LSN[23:16] == 8'H67)		//	This is g [Disable FDC emulation] [Used by OS9]
+			begin
+				cmd_done <= 1'b1;
+				sdc_always <= 1'b1;				// Disable floppy
+				state <= state_idle;
+			end
 			else
 			begin
 				cmd_done <= 1'b1;				//  All other ext commands...
+				sdc_fail <= 1'b1;
 				state <= state_idle;
 			end
 		end
 
 		state_e1:
 		begin
-			sdc_busy <= 1'b0;
 			ext_response <= 1'b1;
-			response_reg <= {8'h00, drive_size[l_drive]};
+
+			`ifdef CoCo3_sdc_override_size
+				response_reg <= 24'h555555;						// This fixes a redirect error in OS9EOU  - Value=no hardware
+			`else
+				response_reg <= drive_size[l_drive][31:8];		// This returns the correct size of the mounted drive in sectors
+			`endif
 			state <= state_e2;
 		end
 		
 		state_e2:
 		begin
+			sdc_busy <= 1'b0;
 			cmd_done <= 1'b1;
 			state <= state_idle;
 		end
 
 		endcase
+
 	end
 end
 
@@ -407,12 +439,12 @@ wire	[7:0]		hd_buff_data;
 
 wire	[7:0]		sd_buf_out;
 
-assign	sd_buff_din[0] = (~l_drive)	?	sd_buf_out:
-											8'h00;
 
-assign	sd_buff_din[1] = (l_drive)	?	sd_buf_out:
-											8'h00;
+// Both drives cannot be executing a read or write at the same time. Both use the same sd sector buffer
 
+assign	sd_buff_din[0] =	sd_buf_out;
+
+assign	sd_buff_din[1] =	sd_buf_out;
 
 sdc_dpram hd_buff
 (
@@ -424,43 +456,23 @@ sdc_dpram hd_buff
 	
 	.address_b({buffer_upper, transfer_address}),
 	.data_b(SDC_DATA_IN),
-	.wren_b((SDC_EN | sdc_always) & SDC_WR & (ADDRESS[3:1] == 3'b101)),
+	.wren_b(SDC_EN & CLK_EN & SDC_WR & (ADDRESS[3:1] == 3'b101)),
 	.q_b(hd_buff_data)
 );
 
-wire	[1:0]	drive_wp;
-reg		[1:0]	drive_ready = 2'b00;
 wire	[7:0]	sdc_status;
 
 assign	sdc_status = {sdc_fail, drive_wp[l_drive], 1'b0, ~drive_ready[l_drive], 2'b00, sdc_ready, sdc_busy};
 
 assign	SDC_READ_DATA =	(ADDRESS == ADRS_FF42) 						?	{sdc_data_reg, 4'h0}:
 						(ADDRESS == ADRS_FF43) 						?	sdc_status_reg:
-						((ADDRESS == ADRS_FF48) & ~ext_response) 	?	sdc_status:
-						((ADDRESS == ADRS_FF48) & ext_response) 	?	response_reg[23:16]:
+						(ADDRESS == ADRS_FF48)					 	?	sdc_status:
+						(ADDRESS == ADRS_FF49) 						?	response_reg[23:16]:
 						((ADDRESS == ADRS_FF4A) &  ~ext_response)	?	hd_buff_data:
 						((ADDRESS == ADRS_FF4A) &  ext_response)	?	response_reg[15:8]:
 						((ADDRESS == ADRS_FF4B) &  ~ext_response)	?	hd_buff_data:
 						((ADDRESS == ADRS_FF4B) &  ext_response)	?	response_reg[7:0]:
 																		8'h00;
-
-// SD Drive 0
-
-always @(negedge img_mounted[0])
-begin
-	drive_wp[0] <= img_readonly;
-	drive_ready[0] <= 1'b1;
-	drive_size[0] <= {4'h0, img_size[19:8]};  //Size / 256
-end
-
-// SD Drive 1
-
-always @(negedge img_mounted[1])
-begin
-	drive_wp[1] <= img_readonly;
-	drive_ready[1] <= 1'b1;
-	drive_size[1] <= {4'h0, img_size[19:8]};  //Size / 256
-end
 
 endmodule
 

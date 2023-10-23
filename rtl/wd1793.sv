@@ -4,6 +4,7 @@
 //
 //  Copyright (C) 2007,2008 Viacheslav Slavinsky
 //  Copyright (C) 2016 Sorgelig
+//  Copyright (C) 2021,2023 Stan Hodge
 //
 //	Modifications for track size of 18 x 256 by Stan Hodge (SRH) 9/6/21
 //	Modifications not to reset the track and sector registers by SRH 12/18/21
@@ -47,7 +48,8 @@ module wd1793 #(parameter RWMODE=0, EDSK=1)
 	input        ready,
 
 	// SD access (RWMODE == 1)
-	input        img_mounted, // signaling that new image has been mounted
+	input        img_mounted, 			// signaling that new image has been mounted
+	input        img_mounted_overide,   // SRH - used to always load img_size (& layout) per clock [img_mounted occurs at higher level]
 //	input [19:0] img_size,    // size of image in bytes. 1MB MAX!
 	input [63:0] img_size,    // size of image in bytes.
 	output       prepare,
@@ -299,6 +301,13 @@ always @(posedge clk_sys) begin
 
 	if(RWMODE) begin
 		old_mounted <= img_mounted;
+
+//		SRH img_mounted_overide added to allow img_mounted to be processed at higher level
+		if (img_mounted_overide)
+		begin
+			disk_size <= img_size[19:0];
+			layout_r  <= layout;
+		end
 		if(old_mounted && ~img_mounted) begin
 			if(EDSK) begin
 				scan_active<= 1;

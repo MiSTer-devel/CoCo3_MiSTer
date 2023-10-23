@@ -6,7 +6,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// CPU section copyrighted by John Kent
+// CPU section copyrighted by John Kent or Greg Miller dependant on selection
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -212,7 +212,7 @@ assign cas_relay = CAS_MTR;
 
 
 //Version 5 bits Major and 4 bits Minor
-parameter Version_Hi = 8'h50;
+parameter Version_Hi = 8'h51;
 
 
 parameter Version_Lo = 8'h20;	// MiSTer
@@ -254,7 +254,7 @@ reg				RESET_N;
 reg		[6:0]	CPU_RESET_SM;
 reg				CPU_RESET;
 wire			RESET_INS;
-reg				MUGS;
+reg				MUGS = 0;
 wire			RESET;
 wire			RESET_P;
 wire	[15:0]	ADDRESS;
@@ -724,37 +724,37 @@ assign BLOCK_ADDRESS =  ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b1
            ({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]}                ==11'b01111111110)  ?   SAM17:  // 011 1111 1110 FE00-FEFF RAM Vector page
                                                                                                {9'h007, ADDRESS[15:13]};
 
-assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         	?   1'b1:       // GART 1
-                (ADDRESS[15:0]== 16'hFFE9)         	?   1'b1:       // GART 2
-				({ADDRESS[15:8]}== 8'hFF)           ?   1'b0:       // Hardware (FF00-FFFF) always Excluded
-                (ADDRESS[15:8] ==  8'b11111110)     ?   1'b1:  		// Always enabled in FEXX Secondary Vectors
-                 ROM_SEL                            ?   1'b0:       // Internal ROM
-//                 FLASH_CE_S                         ?   1'b0:       // Cart ROM
-                 CART_SEL                        	?   1'b0:       // Cart ROM
-                                                        1'b1;
+assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         					?   1'b1:       // GART 1
+                (ADDRESS[15:0]== 16'hFFE9)         					?   1'b1:       // GART 2
+				({ADDRESS[15:8]}== 8'hFF)           				?   1'b0:       // Hardware (FF00-FFFF) always Excluded
+                ({VEC_PAG_RAM, ADDRESS[15:8]} ==  9'b111111110)     ?   1'b1:  		// If VEC_PAG_RAM then include FEXX Secondary Vectors
+                 ROM_SEL                            				?   1'b0:       // Internal ROM
+                 CART_SEL                        					?   1'b0:       // Cart ROM
+																		1'b1;
 
 
 
 /*****************************************************************************
 * ROM signals
 ******************************************************************************/
-// ROM_SEL is 1 when the system is accessing any cartridge "ROM" meaning the
+// ROM_SEL is 1 when the system is accessing the internal "ROM"
+// CART_SEL is 1 when the system is accessing any cartridge "ROM" meaning the
 // 4 slots of the MPI, this is:
-//		Slot 1 	Orchestra-90C
-//		Slot 2	Alternate Disk Controller ROM
+//		Slot 1 	Not Used 
+//		Slot 2	Disk Controller ROM
 //		Slot 3	Cart slot
 //		Slot 4	Disk Controller ROM
 
-assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   ?    1'b1:   // Enable for Vectors
-                     (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  ?    1'b1:   // Enabled Read, 16K Int, Page 7, x1
-                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  ?    1'b1:   // Enabled 32K int, Page 7, x
+assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   	?   1'b1:   // Enable for Vectors
+                     (ADDRESS[15:9]                                     ==  7'b1111111)      	?   1'b0:   // Disabled for FE00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  	?   1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  	?   1'b1:   // Enabled 32K int, Page 7, x           $78000-$7FFFF
                                                                                                     1'b0;
 
-assign  CART_SEL =   (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  ?    1'b1:   // Enabled Read, 16K Cart, Page 7, x1
-                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  ?    1'b1:   // Enabled 32K Cart, Page 7, x1
-                                                                                                    1'b0;
+assign  CART_SEL =   (ADDRESS[15:8]                                     ==  8'b11111111)        ?   1'b0:   // Disabled for FF00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  	?   1'b1:   // Enabled Read, 16K Cart, Page 7, x1 $7C000-$7FEFF
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  	?   1'b1:   // Enabled 32K Cart, Page 7, x1       $78000-$7FEFF
+																									1'b0;
 
 //ROM
 //00		16 Internal + 16 External
@@ -765,11 +765,9 @@ assign  CART_SEL =   (ADDRESS[15:9]                                     ==  7'b1
 
 assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
 							ENA_DISK2           			?   {9'b000000100, ADDRESS[12:0]}:  //[maps to same disk rom]
-							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
 							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
 							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
-// ROM_SEL
-																{7'b0000000,ADDRESS[14:0]};
+																{7'b0000000,ADDRESS[14:0]};							//32K Internal COCO3 ROM
 
 
 //ROM
@@ -835,24 +833,44 @@ COCO_ROM_CART CC3_ROM_CART(
 
 wire	SDC_EN_CS;
 
-assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)						?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
-																								1'b0;
-assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)						?	1'b1:		// Alternative Disk controller ROM up to 32K
-																								1'b0;
-assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
-																								1'b0;
-assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
-																								1'b0;
-assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:4]} == 14'b11111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 4
-																								1'b0;
-assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:4]} == 14'b01111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 2
-																								1'b0;
-assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)				?	1'b1:		//FF68-FF6B
-																								1'b0;
-assign	SLOT3_HW = ({MPI_SCS, ADDRESS[15:5]} == 13'b1011111111010)		?	1'b1:		// FF40-FF5F
-																								1'b0;
-assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)					?	1'b1:		// FF7E
-																								1'b0;
+assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)									?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
+																						1'b0;
+
+assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)									?	1'b1:		// Alternative Disk controller ROM up to 32K
+																						1'b0;
+
+assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)									?	1'b1:		// ROM SLOT 3
+																						1'b0;
+
+assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)									?	1'b1:		// Disk C000-DFFF Slot 4
+																						1'b0;
+`ifdef CoCo3_sdc_fix_os9_driver
+assign	HDD_EN = 	({ext_response, MPI_SCS, ADDRESS[15:5]} == 15'b01111111111010)	?	1'b1:		// FF40-FF5F with MPI switch = 4
+																						1'b0;
+
+assign	SDC_EN_CS = (({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010) | 
+					((ADDRESS[15:5] == 11'b11111111010) & ext_response))			?	1'b1:		// FF40-FF5F with MPI switch = 2
+																						1'b0;
+`else
+assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:5]} == 13'b1111111111010)					?	1'b1:		// FF40-FF5F with MPI switch = 4
+																						1'b0;
+assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)					?	1'b1:		// FF40-FF5F with MPI switch = 2
+																						1'b0;
+`endif
+
+assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 1
+																						1'b0;
+
+assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)				?	1'b1:		// FF40-FF5F  Ensure this only appears in slot 3 PHYSICALLY
+																						1'b0;
+
+assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)								?	1'b1:		// FF7E
+																						1'b0;
+
+/*
+$FF40 - This is the bank latch. The same latch that is used by the Super Program Paks to bank 16K of the Pak ROM
+at a time. This latch is set to $00 on reset or power up (same as the super program paks).
+*/
 
 always @(negedge clk_sys or negedge RESET_N)
 begin
@@ -872,55 +890,19 @@ begin
 	end
 end
 
-/*
-$FF40 - This is the bank latch. The same latch that is used by the Super Program Paks to bank 16K of the Pak ROM
-at a time. The initial design simply used 32K banks - this would allow the Super Program Paks to function, but
-wastes 16K per Bank. This was done so the banks could house any of the 32K CoCo 3 Program PAKs as well. This latch
-is set to $00 on reset or power up (same as the super program paks).
-
-$FF41 - the CTS* WRITE data latch. This was incorporated because the CTS* line is read only. I could have just
-derived a new CTS* that is active on both reads and writes, however, some PAKs utilize a copy protection scheme
-whereas they write to the PAK area. As long as the PAK was in ROM, nothing happened, but if trying to run from a
-R/W* RAMPAK, or from disk (wheras the CoCo is placed in the allram mode and the PAK transferred there and executed),
-then the PAK code would be corrupted and a crash would occur. This behavior could be patched out of the PAK but I
-wanted to be able to execute the PAK code verbatim. Thus this latch at $FF41. A byte of data is written to $FF41.
-It is latched and a flip-flop is triggered (this flip-flop starts up un-triggered - either at power on or reset).
-Once the flip-flop is triggered, it indicates a valid byte has been stored at $FF41 and then any READ of the CTS*
-area will WRITE the byte from $FF41 into the SRAM at the memory location that was READ, the flip-flop is also
-reset by this action. This allows writing to the CTS* area while still providing the Read Only protection offered
-by the CTS* signal.
-$FF42 - BANK 0 latch - this was incorporated because Aaron wanted to be able to start up with his operating code in
-bank $00, however, the super program PAKs must start at bank $00. So, whatever is written into this latch will
-be the bank that is accessed as BANK 0. This is reset to $00 only at power on (Not reset). So, whatever is written
-here will be the bank accessed as bank 00 from that point forward, until it is changed again. Reset will not change it.
-$FF43 - Bank Size latch. Only two bits used.:
-             Bit 0 = 0 = 32K BANK SIZE, =1=16K Banks Size
-             Bit 1 = 0 = Use lower 16K of each 32K bank
-             Bit 1 = 1 = Use upper 16K of each 32K bank
-Bit 1 is only effective if bank size is set to 16K by bit 0. This register is set to $00 at power on or reset,
-and was added to reduce wasted memory. Under proper program control this allows two 16K or less program paks to
-exist in each 32K bank.
-
-$FF44-$FF4A = bank 1 through bank 7 latches. The largest super program pak that I am aware of was RoboCop,
-consuming 8 banks of 16K for 128K total. These work just like the latch at $FF42 EXCEPT they affect banks 1-7.
-They are also set to $01-$07 (respectively) on power up (but not reset). This allows a Super Program Pak to reside
-in any banks in any order, by simply writing the proper data into these latches.
-*/
-
-// If W_PROT[1] = 1 then ROM_RW is 0, else ROM_RW = !RW_N
-
 
 `ifdef	Config_Debug
-	wire	Config_FLAG = `Config_Debug_FLAG;
-	wire	Config_Debug_Value = `Config_Debug_Value;
+	wire [7:0]	Config_FLAG = `Config_Debug_FLAG;
+	wire [7:0]	Config_Debug_Value = `Config_Debug_Value;
 `endif
+
 
 assign	DATA_IN =
 														(sdram_BE_0)	?	hold_data_L[7:0]:
 														(sdram_BE_1)	?	hold_data_L[15:8]:
 														FLASH_CE_S		?	FLASH_DATA:
+														SDC_EN_CS		?	DATA_SDC:	// needs priority due to nitros9 llcocosdc ddriver bug
 														HDD_EN			?	DATA_HDD:
-														SDC_EN_CS		?	DATA_SDC:
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
 // FF00, FF04, FF08, FF0C
@@ -974,7 +956,7 @@ assign	DATA_IN =
 //									(ADDRESS == 16'hFF88)		?	BUFF_DATA[7:0]:
 
 									(ADDRESS == 16'hFF8E)		?	GPIO_DIR:
-									(ADDRESS == 16'hFF8F)		?	{GPIO[7:0]}:
+									(ADDRESS == 16'hFF8F)		?	GPIO:
 
 									(ADDRESS == 16'hFF90)		?	{COCO1, MMU_EN, GIME_IRQ, GIME_FIRQ, VEC_PAG_RAM, ST_SCS, ROM}:
 									(ADDRESS == 16'hFF91)		?	{2'b00, TIMER_INS, 4'b0000, MMU_TR}:
@@ -1074,8 +1056,8 @@ assign	DATA_REG3	= !DDR3	?	DD_REG3:
 
 // A 0 in the DDR makes that pin an input
 assign	BIT3 			= !DD_REG4[3]	?	1'b0:
-													CSS;
-assign	DATA_REG4	= !DDR4	?	DD_REG4:
+											CSS;
+assign	DATA_REG4		= !DDR4	?			DD_REG4:
 											{VDG_CONTROL, BIT3, KEY_COLUMN[6], SBS, 1'b1};
 /********************************************************************************
 *	GPIO
@@ -1169,10 +1151,13 @@ assign	assigned_turbo_speed = (!(turbo_speed == 3'b000))	?	turbo_speed:
 
 wire	cache_hit  /* synthesis preserve */;
 assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
-//assign	cache_hit = 1'b0;
 
-//BANKS
-// CPU clock / SRAM Signals for old SRAM
+
+//	Master timing loop
+
+// This sig is only used for the cycle accurate 09
+reg cpu_cycle_ena;
+
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
@@ -1195,12 +1180,14 @@ begin
 		GART_WR <= 1'b0;
 		GART_RD <= 1'b0;
 		AMW_WR <= 1'b0;
+		cpu_cycle_ena <= 1'b0;
 	end
 	else
 	begin
 		clear_data_ready <= 1'b0;
 		sdram_BE_0 <= 1'b0;
 		sdram_BE_1 <= 1'b0;
+		cpu_cycle_ena <= 1'b0;  // This is only a single clock per cpu cycle
 
 //		If we are in hold were done @ data_ready.
 		if (hold)
@@ -1210,6 +1197,7 @@ begin
 //				Hold states are done - kill hold and set end hold to drive data
 				hold <= 1'b0;
 				end_hold <= 1'b1;
+				cpu_cycle_ena <= 1'b1; // Cycle at the end of a memory transaction
 				clear_data_ready <= 1'b1;
 				hold_data_L <= hold_data;
 				sdram_BE_0 <= RAM0_BE0_L;
@@ -1244,10 +1232,14 @@ begin
 			begin
 				cpu_ena <= 1'b1;
 
+				cpu_cycle_ena <= 1'b1;  // Default cycle
+
 				if (AMW_EN)			// Automated Memory Write ?
 				begin
 					AMW_WR <= 1'b1;
 					cpu_ena <= 1'b0; // Kill cpu enable
+					cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
+
 
 //					Start AMW cycle
 					RAM0_BE0_L <=  !AMW_Adrs[0];
@@ -1260,6 +1252,9 @@ begin
 				else if (VMA & RAM_CS) // FFE8 / FFE9 is now in RAM_CS
 				begin
 //					sdram memory cycle
+					`ifdef CoCo3_disable_GART_in_GIMEX
+					if (0);
+					`else
 					if ((ADDRESS[15:0] == 16'hFFE8) | (ADDRESS[15:0] == 16'hFFE9)) // GART
 					begin
 						if (~RW_N)
@@ -1275,11 +1270,14 @@ begin
 							GART_RD <= 1'b1;
 						end
 						hold <= 1'b1;
+						cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
 						sdram_cpu_req <= 1'b1;
 						sdram_cpu_rnw <= RW_N;
 						last_write <= 1'b1; // Kill cache hit on any access after GART
 					end
+					`endif
 					else  // Normal CPU cycle
+					begin
 //						get which byte
 						RAM0_BE0_L <=  !ADDRESS[0];
 						RAM0_BE1_L <=  ADDRESS[0];
@@ -1289,11 +1287,13 @@ begin
 							end_hold <= 1'b1;					// If so then end the cpu_ena cycle with the updated byte enable
 							sdram_BE_0 <= !ADDRESS[0];
 							sdram_BE_1 <= ADDRESS[0];
+																// Allow cpu_cycke_ena previously set based upon cache tansaction
 						end
 						else
 						begin
 							sdram_cpu_addr_L <= sdram_cpu_addr;	// Else set hold and start a sdram cycle
 							hold <= 1'b1;
+							cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
 							sdram_cpu_req <= 1'b1;
 							sdram_cpu_rnw <= RW_N;
 							last_write <= ~RW_N;
@@ -1301,7 +1301,7 @@ begin
 					end
 				end
 			end
-			
+		end
 		6'h01:
 		begin
 			PH_2_RAW <= 1'b0;
@@ -1365,8 +1365,6 @@ assign RESET_P =	!BUTTON_N[3]					// Button
 					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS
 
 // Make sure all resets are enabled for a long enough time to allow voltages to settle
-
-
 always @ (posedge clk_sys)
 begin
 	if (RESET)
@@ -1403,6 +1401,53 @@ begin
 	end
 end
 
+////////////////////////////////////////////////////////////////////
+//
+//		CPU Selection
+//
+////////////////////////////////////////////////////////////////////
+
+`ifdef CoCo3_CYC_ACC_6809
+
+//	Create VMA out of AVMA
+wire AVMA;
+
+always @(negedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		VMA <= 1'b0;
+	end
+	else
+	begin
+		if (cpu_cycle_ena)
+		begin
+			VMA <= AVMA;
+		end
+	end
+end
+
+// Cycle Accurate CPU section copyrighted by Greg Miller
+
+mc6809x GLBCPU09(
+	.D(DATA_IN),
+	.DOut(DATA_OUT),
+	.ADDR(ADDRESS),
+	.RnW(RW_N),
+	.MASTER(clk_sys),
+	.E(cpu_cycle_ena),
+	.Q(cpu_cycle_ena),
+	.nIRQ(CPU_IRQ_N),
+	.nFIRQ(CPU_FIRQ_N),
+	.nNMI(!NMI_09),
+	.AVMA(AVMA),
+	.nHALT(~HALT),
+	.nRESET(~CPU_RESET),
+	.nDMABREQ(1'b1)
+);
+
+`else
+
 // CPU section copyrighted by John Kent
 cpu09 GLBCPU09(
 	.clk(clk_sys),
@@ -1419,6 +1464,8 @@ cpu09 GLBCPU09(
 	.firq(!CPU_FIRQ_N),
 	.nmi(NMI_09)
 );
+
+`endif
 
 wire	[8:0]		BUFF_ADD_W;		
 wire	[8:0]		BUFF_ADD;
@@ -1474,26 +1521,28 @@ wire	HALT_sdc, HALT_fdc;
 wire 	NMI_09_sdc, NMI_09_fdc;
 
 wire	SDC_REG_W_ENA, SDC_REG_READ;
+wire	ext_response;
 
-assign	FF40_ENA =				({PH_2, RW_N, HDD_EN, ADDRESS[3:0]} == 7'B1010000)		?	1'b1:
-																							1'b0;
+assign	FF40_ENA =				({cpu_cycle_ena, RW_N, HDD_EN, ADDRESS[3:0]} == 7'B1010000)		?	1'b1:
+																									1'b0;
 
-assign	wd1793_data_read =		(HDD_EN && ADDRESS[3]);
+assign	wd1793_data_read =		(RW_N && HDD_EN && ADDRESS[3]);
 
 assign	wd1793_read =			(RW_N && HDD_EN && ADDRESS[3]);
-assign	wd1793_write =			(~RW_N && HDD_EN && ADDRESS[3]);
+assign	wd1793_write =			(cpu_cycle_ena && ~RW_N && HDD_EN && ADDRESS[3]);
 
-assign	sdc_FF40_ENA =			({PH_2, RW_N, SDC_EN_CS, ADDRESS[3:0]} == 7'B1010000)	?	1'b1:
-																							1'b0;
+assign	sdc_FF40_ENA =			({cpu_cycle_ena, RW_N, SDC_EN_CS, ADDRESS[3:0]} == 7'B1010000)	?	1'b1:
+																									1'b0;
 
-assign	sdc_wd1793_data_read =	(SDC_EN_CS && ADDRESS[3]);
+
+assign	sdc_wd1793_data_read =	(RW_N && SDC_EN_CS && ADDRESS[3]);
 
 assign	sdc_wd1793_read =		(RW_N && SDC_EN_CS && ADDRESS[3]);
 assign	sdc_wd1793_write =		(~RW_N && SDC_EN_CS && ADDRESS[3]);
 
-assign	SDC_REG_W_ENA =			({PH_2, RW_N, SDC_EN_CS} == 3'B101)						?	1'b1:	// This is for the FF40/4F SDC detect
-																							1'b0;
-assign	SDC_REG_READ =			SDC_EN_CS & RW_N;													// This is for the FF40/4F SDC detect
+assign	SDC_REG_W_ENA =			({RW_N, SDC_EN_CS} == 2'B01)									?	1'b1:	// This is for the FF40/5F SDC detect
+																									1'b0;
+assign	SDC_REG_READ =			SDC_EN_CS & RW_N;															// This is for the FF40/5F SDC detect
 
 assign	HALT = 					HALT_fdc | HALT_sdc;
 assign	NMI_09 =				NMI_09_fdc | NMI_09_sdc;
@@ -1502,7 +1551,7 @@ assign	NMI_09 =				NMI_09_fdc | NMI_09_sdc;
 
 fdc coco_fdc(
 	.CLK(clk_sys),     					// clock
-	.RESET_N(RESET_N),	   				// async reset
+	.RESET_N(RESET_N),		  			// async reset
 	.ADDRESS(ADDRESS[3:0]),	       		// i/o port addr for wd1793 & FF48+
 	.CLK_EN(PH_2),
 	.DATA_IN(DATA_OUT),        			// data in
@@ -1536,7 +1585,6 @@ fdc coco_fdc(
 	.sd_buff_dout(sd_buff_dout),
 	.sd_buff_din(sd_buff_din[0:3]),
 	.sd_buff_wr(sd_buff_wr)
-
 );
 
 // Slot 2 sdc
@@ -1545,7 +1593,11 @@ sdc_top coco_sdc_top(
 	.CLK(clk_sys),     					// clock
 	.RESET_N(RESET_N),	   				// async reset
 	.ADDRESS(ADDRESS[3:0]),	       		// i/o port addr for wd1793 & FF48+
+`ifdef CoCo3_CYC_ACC_6809
+	.CLK_EN(cpu_cycle_ena),
+`else
 	.CLK_EN(PH_2),
+`endif
 	.DATA_IN(DATA_OUT),        			// data in
 	.DATA_HDD(DATA_SDC),	 			// data out
 	.HALT(HALT_sdc),       				// DMA request
@@ -1564,6 +1616,8 @@ sdc_top coco_sdc_top(
 //	SDC I/O
 	.SDC_REG_W_ENA(SDC_REG_W_ENA),
 	.SDC_REG_READ(SDC_REG_READ),
+
+	.ext_response(ext_response),
 
 // 	SD block level interface
 	.img_mounted(img_mounted[5:4]), 	// signaling that new image has been mounted
@@ -1616,7 +1670,7 @@ end
 //***********************************************************************
 // Interrupt Sources
 //***********************************************************************
-// Interrupt source for CART signal
+// Org FPGA code
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
@@ -1630,26 +1684,21 @@ begin
 			2'b00:
 				CART_INT_IN_N <=  (!CART_INT_IN_N )
 										&(SER_IRQ);
-//				CART_INT_IN_N <=  (!CART_INT_IN_N | SWITCH[4])
-//										&(SER_IRQ);
 			2'b01:
 				CART_INT_IN_N <= (SER_IRQ);
 			2'b10:
 				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable)
 										&(SER_IRQ);
-//				CART_INT_IN_N <=  (!CART_INT_IN_N | SWITCH[4])
-//										&(SER_IRQ);
 			2'b11:
 				CART_INT_IN_N <= (SER_IRQ);
 			endcase
 	end
 end
 
-//assign HSYNC_INT_N = (H_SYNC_N | !H_FLAG);
-
+assign CART_INT_N = CART_INT_IN_N;
 `ifdef CoCo3_Horz_INT_FIX
 	wire	HBORDER_INT;
-	assign 	HSYNC_INT_N = HBORDER_INT;
+	assign 	HSYNC_INT_N = !HBORDER_INT;
 `else
 	assign 	HSYNC_INT_N = H_SYNC_N;
 `endif
@@ -1661,47 +1710,21 @@ end
 	assign 	VSYNC_INT_N = V_SYNC_N;
 `endif
 
-
-
-assign CART_INT_N = CART_INT_IN_N;
 assign KEY_INT_N = (KEYBOARD_IN == 8'hFF);
 
 //***********************************************************************
 // Interrupt Latch RESETs
 //***********************************************************************
-
-reg RST_FF93T_N;
-reg RST_FF93H_N;
-reg RST_FF93V_N;
-reg RST_FF93C_N;
-reg RST_FF93K_N;
-reg RST_FF92V_N;
-reg RST_FF92H_N;
-reg RST_FF92C_N;
-reg RST_FF92K_N;
-reg RST_FF92T_N;
-
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
 		RST_FF00_N <= 1'b1;
 		RST_FF02_N <= 1'b1;
+//		RST_FF20_N <= 1'b1;
 		RST_FF22_N <= 1'b1;
-
 		RST_FF92_N <= 1'b1;
-		RST_FF92H_N <= 1'b1;
-		RST_FF92V_N <= 1'b1;
-		RST_FF92C_N <= 1'b1;
-		RST_FF92K_N <= 1'b1;
-		RST_FF92T_N <= 1'b1;
-
 		RST_FF93_N <= 1'b1;
-		RST_FF93T_N <= 1'b1;
-		RST_FF93H_N <= 1'b1;
-		RST_FF93V_N <= 1'b1;
-		RST_FF93C_N <= 1'b1;
-		RST_FF93K_N <= 1'b1;
 		TMR_RST_N <= 1'b1;
 	end
 	else
@@ -1709,30 +1732,53 @@ begin
 		if (PH_2)
 			case({RW_N,ADDRESS})
 			17'h1FF00:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
 			17'h1FF04:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
 			17'h1FF08:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
 			17'h1FF0C:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
+			17'h1FF10:
+				RST_FF00_N <= 1'b0;
+			17'h1FF14:
+				RST_FF00_N <= 1'b0;
+			17'h1FF18:
+				RST_FF00_N <= 1'b0;
+			17'h1FF1C:
+				RST_FF00_N <= 1'b0;
 			17'h1FF02:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
+				RST_FF02_N <= 1'b0;
 			17'h1FF06:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
+				RST_FF02_N <= 1'b0;
 			17'h1FF0A:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
+				RST_FF02_N <= 1'b0;
 			17'h1FF0E:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
-
+				RST_FF02_N <= 1'b0;
+			17'h1FF12:
+				RST_FF02_N <= 1'b0;
+			17'h1FF16:
+				RST_FF02_N <= 1'b0;
+			17'h1FF1A:
+				RST_FF02_N <= 1'b0;
+			17'h1FF1E:
+				RST_FF02_N <= 1'b0;
+/*			17'h1FF20:
+				RST_FF20_N <= 1'b0;
+			17'h1FF24:
+				RST_FF20_N <= 1'b0;
+			17'h1FF28:
+				RST_FF20_N <= 1'b0;
+			17'h1FF2C:
+				RST_FF20_N <= 1'b0;
+			17'h1FF30:
+				RST_FF20_N <= 1'b0;
+			17'h1FF34:
+				RST_FF20_N <= 1'b0;
+			17'h1FF38:
+				RST_FF20_N <= 1'b0;
+			17'h1FF3C:
+				RST_FF20_N <= 1'b0;	*/
 			17'h1FF22:
 				RST_FF22_N <= 1'b0;
 			17'h1FF26:
@@ -1741,7 +1787,14 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h1FF2E:
 				RST_FF22_N <= 1'b0;
-
+			17'h1FF32:
+				RST_FF22_N <= 1'b0;
+			17'h1FF36:
+				RST_FF22_N <= 1'b0;
+			17'h1FF3A:
+				RST_FF22_N <= 1'b0;
+			17'h1FF3E:
+				RST_FF22_N <= 1'b0;
 			17'h0FF22:
 				RST_FF22_N <= 1'b0;
 			17'h0FF26:
@@ -1750,36 +1803,18 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h0FF2E:
 				RST_FF22_N <= 1'b0;
-
+			17'h0FF32:
+				RST_FF22_N <= 1'b0;
+			17'h0FF36:
+				RST_FF22_N <= 1'b0;
+			17'h0FF3A:
+				RST_FF22_N <= 1'b0;
+			17'h0FF3E:
+				RST_FF22_N <= 1'b0;
 			17'h1FF92:
-			begin
 				RST_FF92_N <= 1'b0;
-				if (!VSYNC_INT_N)
-					RST_FF92V_N <= 1'b0;
-				if (!HSYNC_INT_N)
-					RST_FF92H_N <= 1'b0;
-				if (!CART_INT_N)
-					RST_FF92C_N <= 1'b0;
-				if (!KEY_INT_N)
-					RST_FF92K_N <= 1'b0;
-				if (!TIMER_INT_N)
-					RST_FF92T_N <= 1'b0;
-			end
-			
 			17'h1FF93:
-			begin
 				RST_FF93_N <= 1'b0;
-				if (!TIMER3_FIRQ_N)
-					RST_FF93T_N <= 1'b0;
-				if (!HSYNC_INT_N)
-					RST_FF93H_N <= 1'b0;
-				if (!VSYNC_INT_N)
-					RST_FF93V_N <= 1'b0;
-				if (!CART_INT_N)
-					RST_FF93C_N <= 1'b0;
-				if (!KEY_INT_N)
-					RST_FF93K_N <= 1'b0;
-			end
 			17'h0FF94:
 				TMR_RST_N <= 1'b0;
 			17'h0FF95:
@@ -1788,19 +1823,10 @@ begin
 			begin
 				RST_FF00_N <= 1'b1;
 				RST_FF02_N <= 1'b1;
+//				RST_FF20_N <= 1'b1;
 				RST_FF22_N <= 1'b1;
 				RST_FF92_N <= 1'b1;
-				RST_FF92H_N <= 1'b1;
-				RST_FF92V_N <= 1'b1;
-				RST_FF92C_N <= 1'b1;
-				RST_FF92K_N <= 1'b1;
-				RST_FF92T_N <= 1'b1;
 				RST_FF93_N <= 1'b1;
-				RST_FF93T_N <= 1'b1;
-				RST_FF93H_N <= 1'b1;
-				RST_FF93V_N <= 1'b1;
-				RST_FF93C_N <= 1'b1;
-				RST_FF93K_N <= 1'b1;
 				TMR_RST_N <= 1'b1;
 			end
 			endcase
@@ -1986,9 +2012,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93H_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93H_N)
+	if(!RST_FF93_N)
 	begin
 		HSYNC3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2026,9 +2052,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93V_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93V_N)
+	if(!RST_FF93_N)
 	begin
 		VSYNC3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2066,9 +2092,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93C_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93C_N)
+	if(!RST_FF93_N)
 	begin
 		CART3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2106,9 +2132,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93K_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93K_N)
+	if(!RST_FF93_N)
 	begin
 		KEY3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2146,9 +2172,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93T_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93T_N)
+	if(!RST_FF93_N)
 	begin
 		TIMER3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2187,9 +2213,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92H_N)
+always @ (negedge clk_sys or negedge RST_FF92_N)
 begin
-	if(!RST_FF92H_N)
+	if(!RST_FF92_N)
 	begin
 		HSYNC3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2225,9 +2251,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92V_N)
+always @ (negedge clk_sys or negedge RST_FF92_N)
 begin
-	if(!RST_FF92V_N)
+	if(!RST_FF92_N)
 	begin
 		VSYNC3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2339,9 +2365,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92T_N)
+always @ (negedge clk_sys or negedge RST_FF92_N)
 begin
-	if(!RST_FF92T_N)
+	if(!RST_FF92_N)
 	begin
 		TIMER3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2351,6 +2377,7 @@ begin
 			TIMER3_IRQ_STAT_N <= 1'b0;				// Interrupt
 	end
 end
+
 
 assign CPU_IRQ_N =  ( GIME_IRQ  | (HSYNC1_IRQ_N		&	VSYNC1_IRQ_N))
 						& (!GIME_IRQ  | (TIMER3_IRQ_N		&	HSYNC3_IRQ_N	&	VSYNC3_IRQ_N	&	KEY3_IRQ_N	&	CART3_IRQ_N));
@@ -2941,7 +2968,9 @@ begin
 				16'hFF8E:
 					GPIO_DIR <= DATA_OUT;
 				16'hFF8F:
+				begin
 					GPIO_OUT <= DATA_OUT;
+				end
 				16'hFF90:
 				begin
 					ROM <= DATA_OUT[1:0];
@@ -3484,28 +3513,28 @@ begin
 		dac_joya2[7:0]  <= 8'd128;
 		
 		if (joy1[0])	// right
-			dac_joya1[15:8] <= 8'd240;
+			dac_joya1[15:8] <= 8'd255;
 
 		if (joy1[1])	// left
-			dac_joya1[15:8] <= 8'd16;
+			dac_joya1[15:8] <= 8'd0;
 		
 		if (joy1[2])	// down
-			dac_joya1[7:0] <= 8'd240;
+			dac_joya1[7:0] <= 8'd255;
 
 		if (joy1[3])	// up
-			dac_joya1[7:0] <= 8'd16;
+			dac_joya1[7:0] <= 8'd0;
 		
 		if (joy2[0])	// right
-			dac_joya2[15:8] <= 8'd240;
+			dac_joya2[15:8] <= 8'd255;
 
 		if (joy2[1])	// left
-			dac_joya2[15:8] <= 8'd16;
+			dac_joya2[15:8] <= 8'd0;
 		
 		if (joy2[2])	// down
-			dac_joya2[7:0] <= 8'd240;
+			dac_joya2[7:0] <= 8'd255;
 
 		if (joy2[3])	// upimg_mounted
-			dac_joya2[7:0] <= 8'd16;
+			dac_joya2[7:0] <= 8'd0;
 	end
 	else
 	begin
@@ -3721,7 +3750,6 @@ end
 * Video
 ******************************************************************************/
 
-// SRH DE2-115 DAC lower video bits = '0000' amd transfomation RGB[7:4] ,= RGB[3:0]
 assign PIX_CLK = CLK_14;
 
 wire PIX_CLK_D;
@@ -4012,10 +4040,6 @@ COCO3VIDEO MISTER_COCOVID(
 
 	.HBORDER(HBORDER),
 	.VBORDER(VBORDER)
-
-//HBORDER_INT,
-//VBORDER_INT
-
 );
 
 
@@ -4137,8 +4161,6 @@ coco3_Char_ROM coco3_Char_ROM(
 
 
 reg     [4:0]           CLK_6551;
-// 14.31818
-// 50 MHz / 27 = 1.852 MHz
 // Targeting 1.8432 Mhz.
 // 57.272727 Mhz / 31 = 1.8475 Mhz
 reg						CLK_6551_EN;

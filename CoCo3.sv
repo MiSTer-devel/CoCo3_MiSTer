@@ -201,6 +201,8 @@ localparam  CONF_STR = {
         "H2-;",
         "H2F1,CCC,Load Cartridge;",
         "H1-;",
+//        "H1S4,DSKVHD,Load SDC Drive 0;",
+//        "H1S5,DSKVHD,Load SDC Drive 1;",
         "H1S4,DSKVHD,Load SDC Drive 0;",
         "H1S5,DSKVHD,Load SDC Drive 1;",
         "H1-;",
@@ -219,7 +221,7 @@ localparam  CONF_STR = {
         "P1-;",
         "P1-, -= Video Settings =-;",
         "P1-;",
-        "P1O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+        "P1O89,Aspect ratio,Original,Full Screen,Wide,[ARC1];",
         "P1O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;", 
         "P1OL,Artifact Color,Off - SG4,On - SG6;",
         "P1OI,Artifact Color Set,0,1;",
@@ -246,6 +248,7 @@ localparam  CONF_STR = {
         "R0,Reset;",
         "J,Button1,Button2;",
         "jn,A,B;",
+		"v,51;",
         "V,v",`BUILD_DATE
 };
 
@@ -287,7 +290,7 @@ pll pll
 ///////////////////////////////////////////////////
 
 wire [63:0] status;
-wire [63:0] status_in;
+wire [63:0] status_in = 63'd0;
 wire        status_set;
 
 wire  [1:0] buttons;
@@ -375,7 +378,7 @@ wire			    img_readonly;
 wire	[63:0] 		img_size;
 
 wire	[31:0] 		sd_lba[6];
-wire	[3:0] 		sd_blk_cnt[6];
+wire	[5:0] 		sd_blk_cnt[6];
 
 wire	[5:0]		sd_rd;
 wire	[5:0]		sd_wr;
