@@ -1358,7 +1358,6 @@ begin
 	end
 end
 
-assign PH_2 = PH_2_RAW;
 
 
 assign RESET_P =	!BUTTON_N[3]					// Button
@@ -1446,6 +1445,8 @@ mc6809x GLBCPU09(
 	.nDMABREQ(1'b1)
 );
 
+assign PH_2 = cpu_cycle_ena;
+
 `else
 
 // CPU section copyrighted by John Kent
@@ -1464,6 +1465,8 @@ cpu09 GLBCPU09(
 	.firq(!CPU_FIRQ_N),
 	.nmi(NMI_09)
 );
+
+assign PH_2 = PH_2_RAW;
 
 `endif
 
