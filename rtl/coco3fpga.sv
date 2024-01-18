@@ -906,21 +906,37 @@ assign	DATA_IN =
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
 // FF00, FF04, FF08, FF0C
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000000)	?	DATA_REG1:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000000)	?	DATA_REG1:
 // FF01, FF05, FF09, FF0D
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000001)	?	{!HSYNC1_IRQ_BUF[1], 3'b011, SEL[0], DDR1, HSYNC1_POL, HSYNC1_IRQ_INT}:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000001)	?	{!HSYNC1_IRQ_BUF[1], 3'b011, SEL[0], DDR1, HSYNC1_POL, HSYNC1_IRQ_INT}:
 // FF02, FF06, FF0A, FF0E
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000010)	?	DATA_REG2:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000010)	?	DATA_REG2:
 // FF03, FF07, FF0B, FF0F
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000011)	?	{!VSYNC1_IRQ_BUF[1], 3'b011, SEL[1], DDR2, VSYNC1_POL, VSYNC1_IRQ_INT}:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111000011)	?	{!VSYNC1_IRQ_BUF[1], 3'b011, SEL[1], DDR2, VSYNC1_POL, VSYNC1_IRQ_INT}:
 // FF20, FF24, FF28, FF2C
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001000)	?	DATA_REG3:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001000)	?	DATA_REG3:
 // FF21, FF25, FF29, FF2D
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001001)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001001)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
 // FF22, FF26, FF2A, FF2E
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001010)	?	DATA_REG4:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001010)	?	DATA_REG4:
 // FF23, FF27, FF2B, FF2F
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001011)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
+//({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001011)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
+// FF00, FF04, FF08, FF0C
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100000)	?	DATA_REG1:
+// FF01, FF05, FF09, FF0D
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100001)	?	{!HSYNC1_IRQ_BUF[1], 3'b011, SEL[0], DDR1, HSYNC1_POL, HSYNC1_IRQ_INT}:
+// FF02, FF06, FF0A, FF0E
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100010)	?	DATA_REG2:
+// FF03, FF07, FF0B, FF0F
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100011)	?	{!VSYNC1_IRQ_BUF[1], 3'b011, SEL[1], DDR2, VSYNC1_POL, VSYNC1_IRQ_INT}:
+// FF20, FF24, FF28, FF2C
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100100)	?	DATA_REG3:
+// FF21, FF25, FF29, FF2D
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100101)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
+// FF22, FF26, FF2A, FF2E
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100110)	?	DATA_REG4:
+// FF23, FF27, FF2B, FF2F
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100111)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
 // HiRes Joystick
 //								({PDL,ADDRESS} == 17'h0FF60)	?	PADDLE_LATCH_0[11:4]:
 //								({PDL,ADDRESS} == 17'h0FF61)	?	{PADDLE_LATCH_0[3:0],4'b0000}:
@@ -2699,111 +2715,74 @@ begin
 			if(!RW_N)
 			begin
 				case (ADDRESS)
-				16'hFF00:
+
+				16'hFF00,
+				16'hFF04,
+				16'hFF08,
+				16'hFF0C,
+				16'hFF10,
+				16'hFF14,
+				16'hFF18,
+				16'hFF1C:
 				begin
 					if(!DDR1)
 						DD_REG1 <= DATA_OUT;
 				end
-				16'hFF01:
+
+				16'hFF01,
+				16'hFF05,
+				16'hFF09,
+				16'hFF0D,
+				16'hFF11,
+				16'hFF15,
+				16'hFF19,
+				16'hFF1D:
 				begin
 					HSYNC1_IRQ_INT <= DATA_OUT[0];
 					HSYNC1_POL <= DATA_OUT[1];
 					DDR1 <= DATA_OUT[2];
 					SEL[0] <= DATA_OUT[3];
 				end
-				16'hFF02:
+
+				16'hFF02,
+				16'hFF06,
+				16'hFF0A,
+				16'hFF0E,
+				16'hFF12,
+				16'hFF16,
+				16'hFF1A,
+				16'hFF1E:
 				begin
 					if(!DDR2)
 						DD_REG2 <= DATA_OUT;
 					else
 						KEY_COLUMN <= DATA_OUT;
 				end
-				16'hFF03:
+
+				16'hFF03,
+				16'hFF07,
+				16'hFF0B,
+				16'hFF0F,
+				16'hFF13,
+				16'hFF17,
+				16'hFF1B,
+				16'hFF1F:
 				begin
 					VSYNC1_IRQ_INT <= DATA_OUT[0];
 					VSYNC1_POL <= DATA_OUT[1];
 					DDR2 <= DATA_OUT[2];
 					SEL[1] <= DATA_OUT[3];
 				end
-				16'hFF04:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF05:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF06:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF07:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-				16'hFF08:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF09:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF0A:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF0B:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-				16'hFF0C:
-				begin
-					if(!DDR1)
-						DD_REG1 <= DATA_OUT;
-				end
-				16'hFF0D:
-				begin
-					HSYNC1_IRQ_INT <= DATA_OUT[0];
-					HSYNC1_POL <= DATA_OUT[1];
-					DDR1 <= DATA_OUT[2];
-					SEL[0] <= DATA_OUT[3];
-				end
-				16'hFF0E:
-				begin
-					if(!DDR2)
-						DD_REG2 <= DATA_OUT;
-					else
-						KEY_COLUMN <= DATA_OUT;
-				end
-				16'hFF0F:
-				begin
-					VSYNC1_IRQ_INT <= DATA_OUT[0];
-					VSYNC1_POL <= DATA_OUT[1];
-					DDR2 <= DATA_OUT[2];
-					SEL[1] <= DATA_OUT[3];
-				end
-				16'hFF20:
+
+
+				16'hFF20,
+				16'hFF24,
+				16'hFF28,
+				16'hFF2C,
+				16'hFF30,
+				16'hFF34,
+				16'hFF38,
+				16'hFF3C:
 				begin
 					if(!DDR3)
 						DD_REG3 <= DATA_OUT;
@@ -2814,14 +2793,30 @@ begin
 //							SOUND_DTOA <= DATA_OUT[7:2];
 					end
 				end
-				16'hFF21:
+
+				16'hFF21,
+				16'hFF25,
+				16'hFF29,
+				16'hFF2D,
+				16'hFF31,
+				16'hFF35,
+				16'hFF39,
+				16'hFF3D:
 				begin
 //					CD_INT <= DATA_OUT[0];
 //					CD_POL <= DATA_OUT[1];
 					DDR3 <= DATA_OUT[2];
 					CAS_MTR <= DATA_OUT[3];
 				end
-				16'hFF22:
+
+				16'hFF22,
+				16'hFF26,
+				16'hFF2A,
+				16'hFF2E,
+				16'hFF32,
+				16'hFF36,
+				16'hFF3A,
+				16'hFF3E:
 				begin
 					if(!DDR4)
 						DD_REG4 <= DATA_OUT;
@@ -2832,121 +2827,23 @@ begin
 						VDG_CONTROL <= DATA_OUT[7:4];
 					end
 				end
-				16'hFF23:
+
+				16'hFF23,
+				16'hFF27,
+				16'hFF2B,
+				16'hFF2F,
+				16'hFF33,
+				16'hFF37,
+				16'hFF3B,
+				16'hFF3F:
 				begin
 					CART1_FIRQ_INT <= DATA_OUT[0];
 					CART1_POL <= DATA_OUT[1];
 					DDR4 <= DATA_OUT[2];
 					SOUND_EN <= DATA_OUT[3];
 				end
-				16'hFF24:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF25:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF26:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF27:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
-				16'hFF28:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF29:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF2A:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF2B:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
-				16'hFF2C:
-				begin
-					if(!DDR3)
-						DD_REG3 <= DATA_OUT;
-					else
-					begin
-						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
-					end
-				end
-				16'hFF2D:
-				begin
-//					CD_INT <= DATA_OUT[0];
-//					CD_POL <= DATA_OUT[1];
-					DDR3 <= DATA_OUT[2];
-					CAS_MTR <= DATA_OUT[3];
-				end
-				16'hFF2E:
-				begin
-					if(!DDR4)
-						DD_REG4 <= DATA_OUT;
-					else
-					begin
-						SBS <= DATA_OUT[1];
-						CSS <= DATA_OUT[3];
-						VDG_CONTROL <= DATA_OUT[7:4];
-					end
-				end
-				16'hFF2F:
-				begin
-					CART1_FIRQ_INT <= DATA_OUT[0];
-					CART1_POL <= DATA_OUT[1];
-					DDR4 <= DATA_OUT[2];
-					SOUND_EN <= DATA_OUT[3];
-				end
+
+
 				16'hFF7A:
 				begin
 					ORCH_LEFT <= DATA_OUT;

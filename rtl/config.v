@@ -64,7 +64,7 @@
 `include "..\RTL\config_inc.v"
 
 //	If defined the Config_Debug sets the FEATURE MASKS all OR'd together which appears on COCO space at FFF1 & (FFF0 = 0x55 as a debug flag)
-//`define	Config_Debug
+`define	Config_Debug
 
 // Feature list - note only FEATURE_1 - FEATURE_8 are supported
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,9 +74,9 @@
 
 `set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
 
-`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
+//`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
 
-`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
+//`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
 
 `set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
 

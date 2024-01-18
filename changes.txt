@@ -1,0 +1,28 @@
+CTF = Compile Time Feature...
+
+1.	For cycle accurate 6809, changed PH2 to cpu_cycle_ena. (Improve timing of control register writes)
+2.	Changed PIA(s) addressing to alow complete mirror through FF00-FF3F 
+
+
+To Do...
+1.	Fix assign	SDC_EN_CS
+2.	Add new color dithering...
+
+
+
+CTF = Compile Time Feature...
+
+1.	Interrupt system restored to previous code - improved compadibility.
+2.	Changed to cycle accurate 6809 (Greg Miller) at speeds up to 9.56Mhz. [CTF]
+3.	Recoded sdc and fdc to only have one instance of the wd1773.
+4.	Re-added software disable in sdc [Ext 'g'].
+5.	Recoded Cartridge bank switching to only exist when MiSTer slot 3 is selected. [removed soft multipak select]
+6.	Moved CoCo Hardware RS-232 from always existing to only existing in multipak slot 1.
+7.	Changed ADRS (SDS sig) decoding to = FF40-FF5f per hardware.
+8.	Fixed coding problem in os9 driver llcocosdc to work with MPI properly. [CTF]
+9.	Set default disk size to constant $555555 to fix os9 redirect problem. [CTF]
+10	Disabled GART [GIMEX hardware DMA] to prevent OS9 from detecting GIMEX. [CTF]
+11	Corrected missing begin statement in master timing loop.
+12.	Fixed Donkey King DAPD issue in Tom Mix program [DPAD now moved joysticks to limits under dpad
+13. Fixed incorrect addressing of FE00-FEFF for CARTs which gets PITFALL and RAMPAGE working
+14.	Updated MiSTer framework
