@@ -724,14 +724,13 @@ assign BLOCK_ADDRESS =  ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b1
            ({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]}                ==11'b01111111110)  ?   SAM17:  // 011 1111 1110 FE00-FEFF RAM Vector page
                                                                                                {9'h007, ADDRESS[15:13]};
 
-assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         	?   1'b1:       // GART 1
-                (ADDRESS[15:0]== 16'hFFE9)         	?   1'b1:       // GART 2
-				({ADDRESS[15:8]}== 8'hFF)           ?   1'b0:       // Hardware (FF00-FFFF) always Excluded
-                (ADDRESS[15:8] ==  8'b11111110)     ?   1'b1:  		// Always enabled in FEXX Secondary Vectors
-                 ROM_SEL                            ?   1'b0:       // Internal ROM
-//                 FLASH_CE_S                         ?   1'b0:       // Cart ROM
-                 CART_SEL                        	?   1'b0:       // Cart ROM
-                                                        1'b1;
+assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         				?   1'b1:       // GART 1
+                (ADDRESS[15:0]== 16'hFFE9)         				?   1'b1:       // GART 2
+				({ADDRESS[15:8]}== 8'hFF)           			?   1'b0:       // Hardware (FF00-FFFF) always Excluded
+                ({VEC_PAG_RAM, ADDRESS[15:8]} ==  9'b111111110)	?   1'b1:  		// If VEC_PAG_RAM then include FEXX Secondary Vectors
+                 ROM_SEL                            			?   1'b0:       // Internal ROM
+                 CART_SEL                        				?   1'b0:       // Cart ROM
+																	1'b1;
 
 
 
@@ -747,13 +746,13 @@ assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         	?   1'b1:       // GART 1
 
 assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   ?    1'b1:   // Enable for Vectors
                      (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  ?    1'b1:   // Enabled Read, 16K Int, Page 7, x1
-                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  ?    1'b1:   // Enabled 32K int, Page 7, x
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  ?    1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  ?    1'b1:   // Enabled 32K int, Page 7, x           $78000-$7FFFF
                                                                                                     1'b0;
 
-assign  CART_SEL =   (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  ?    1'b1:   // Enabled Read, 16K Cart, Page 7, x1
-                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  ?    1'b1:   // Enabled 32K Cart, Page 7, x1
+assign  CART_SEL =   (ADDRESS[15:8]                                     ==  8'b11111111)       ?    1'b0:   // Disabled for FF00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  ?    1'b1:   // Enabled Read, 16K Cart, Page 7, x1	$7C000-$7FEFF
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  ?    1'b1:   // Enabled 32K Cart, Page 7, x1       	$78000-$7FEFF
                                                                                                     1'b0;
 
 //ROM
@@ -768,7 +767,6 @@ assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]
 							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
 							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
 							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
-// ROM_SEL
 																{7'b0000000,ADDRESS[14:0]};
 
 
@@ -849,10 +847,15 @@ assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:4]} == 14'b01111111110100)	?	1'b1:		// 
 																								1'b0;
 assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)				?	1'b1:		//FF68-FF6B
 																								1'b0;
-assign	SLOT3_HW = ({MPI_SCS, ADDRESS[15:5]} == 13'b1011111111010)		?	1'b1:		// FF40-FF5F
-																								1'b0;
+assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)	?	1'b1:		// FF40-FF5F Ensure this only appears in slot 3 PHYSICALLY
+																			1'b0;
+
 assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)					?	1'b1:		// FF7E
 																								1'b0;
+/*
+$FF40 - This is the bank latch. The same latch that is used by the Super Program Paks to bank 16K of the Pak ROM
+at a time. This latch is set to $00 on reset or power up (same as the super program paks).
+*/
 
 always @(negedge clk_sys or negedge RESET_N)
 begin
@@ -871,43 +874,6 @@ begin
 			endcase
 	end
 end
-
-/*
-$FF40 - This is the bank latch. The same latch that is used by the Super Program Paks to bank 16K of the Pak ROM
-at a time. The initial design simply used 32K banks - this would allow the Super Program Paks to function, but
-wastes 16K per Bank. This was done so the banks could house any of the 32K CoCo 3 Program PAKs as well. This latch
-is set to $00 on reset or power up (same as the super program paks).
-
-$FF41 - the CTS* WRITE data latch. This was incorporated because the CTS* line is read only. I could have just
-derived a new CTS* that is active on both reads and writes, however, some PAKs utilize a copy protection scheme
-whereas they write to the PAK area. As long as the PAK was in ROM, nothing happened, but if trying to run from a
-R/W* RAMPAK, or from disk (wheras the CoCo is placed in the allram mode and the PAK transferred there and executed),
-then the PAK code would be corrupted and a crash would occur. This behavior could be patched out of the PAK but I
-wanted to be able to execute the PAK code verbatim. Thus this latch at $FF41. A byte of data is written to $FF41.
-It is latched and a flip-flop is triggered (this flip-flop starts up un-triggered - either at power on or reset).
-Once the flip-flop is triggered, it indicates a valid byte has been stored at $FF41 and then any READ of the CTS*
-area will WRITE the byte from $FF41 into the SRAM at the memory location that was READ, the flip-flop is also
-reset by this action. This allows writing to the CTS* area while still providing the Read Only protection offered
-by the CTS* signal.
-$FF42 - BANK 0 latch - this was incorporated because Aaron wanted to be able to start up with his operating code in
-bank $00, however, the super program PAKs must start at bank $00. So, whatever is written into this latch will
-be the bank that is accessed as BANK 0. This is reset to $00 only at power on (Not reset). So, whatever is written
-here will be the bank accessed as bank 00 from that point forward, until it is changed again. Reset will not change it.
-$FF43 - Bank Size latch. Only two bits used.:
-             Bit 0 = 0 = 32K BANK SIZE, =1=16K Banks Size
-             Bit 1 = 0 = Use lower 16K of each 32K bank
-             Bit 1 = 1 = Use upper 16K of each 32K bank
-Bit 1 is only effective if bank size is set to 16K by bit 0. This register is set to $00 at power on or reset,
-and was added to reduce wasted memory. Under proper program control this allows two 16K or less program paks to
-exist in each 32K bank.
-
-$FF44-$FF4A = bank 1 through bank 7 latches. The largest super program pak that I am aware of was RoboCop,
-consuming 8 banks of 16K for 128K total. These work just like the latch at $FF42 EXCEPT they affect banks 1-7.
-They are also set to $01-$07 (respectively) on power up (but not reset). This allows a Super Program Pak to reside
-in any banks in any order, by simply writing the proper data into these latches.
-*/
-
-// If W_PROT[1] = 1 then ROM_RW is 0, else ROM_RW = !RW_N
 
 
 `ifdef	Config_Debug
