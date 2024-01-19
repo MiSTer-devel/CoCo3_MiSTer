@@ -212,7 +212,7 @@ assign cas_relay = CAS_MTR;
 
 
 //Version 5 bits Major and 4 bits Minor
-parameter Version_Hi = 8'h50;
+parameter Version_Hi = 8'h51;
 
 
 parameter Version_Lo = 8'h20;	// MiSTer
@@ -1616,7 +1616,7 @@ end
 //***********************************************************************
 // Interrupt Sources
 //***********************************************************************
-// Interrupt source for CART signal
+// Org FPGA code
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
@@ -1630,26 +1630,21 @@ begin
 			2'b00:
 				CART_INT_IN_N <=  (!CART_INT_IN_N )
 										&(SER_IRQ);
-//				CART_INT_IN_N <=  (!CART_INT_IN_N | SWITCH[4])
-//										&(SER_IRQ);
 			2'b01:
 				CART_INT_IN_N <= (SER_IRQ);
 			2'b10:
 				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable)
 										&(SER_IRQ);
-//				CART_INT_IN_N <=  (!CART_INT_IN_N | SWITCH[4])
-//										&(SER_IRQ);
 			2'b11:
 				CART_INT_IN_N <= (SER_IRQ);
 			endcase
 	end
 end
 
-//assign HSYNC_INT_N = (H_SYNC_N | !H_FLAG);
-
+assign CART_INT_N = CART_INT_IN_N;
 `ifdef CoCo3_Horz_INT_FIX
 	wire	HBORDER_INT;
-	assign 	HSYNC_INT_N = HBORDER_INT;
+	assign 	HSYNC_INT_N = !HBORDER_INT;
 `else
 	assign 	HSYNC_INT_N = H_SYNC_N;
 `endif
@@ -1661,47 +1656,22 @@ end
 	assign 	VSYNC_INT_N = V_SYNC_N;
 `endif
 
-
-
-assign CART_INT_N = CART_INT_IN_N;
 assign KEY_INT_N = (KEYBOARD_IN == 8'hFF);
+
 
 //***********************************************************************
 // Interrupt Latch RESETs
 //***********************************************************************
-
-reg RST_FF93T_N;
-reg RST_FF93H_N;
-reg RST_FF93V_N;
-reg RST_FF93C_N;
-reg RST_FF93K_N;
-reg RST_FF92V_N;
-reg RST_FF92H_N;
-reg RST_FF92C_N;
-reg RST_FF92K_N;
-reg RST_FF92T_N;
-
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
 		RST_FF00_N <= 1'b1;
 		RST_FF02_N <= 1'b1;
+//		RST_FF20_N <= 1'b1;
 		RST_FF22_N <= 1'b1;
-
 		RST_FF92_N <= 1'b1;
-		RST_FF92H_N <= 1'b1;
-		RST_FF92V_N <= 1'b1;
-		RST_FF92C_N <= 1'b1;
-		RST_FF92K_N <= 1'b1;
-		RST_FF92T_N <= 1'b1;
-
 		RST_FF93_N <= 1'b1;
-		RST_FF93T_N <= 1'b1;
-		RST_FF93H_N <= 1'b1;
-		RST_FF93V_N <= 1'b1;
-		RST_FF93C_N <= 1'b1;
-		RST_FF93K_N <= 1'b1;
 		TMR_RST_N <= 1'b1;
 	end
 	else
@@ -1709,30 +1679,53 @@ begin
 		if (PH_2)
 			case({RW_N,ADDRESS})
 			17'h1FF00:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
 			17'h1FF04:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
 			17'h1FF08:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
 			17'h1FF0C:
-				if (!HSYNC1_CLK_N)
-					RST_FF00_N <= 1'b0;
+				RST_FF00_N <= 1'b0;
+			17'h1FF10:
+				RST_FF00_N <= 1'b0;
+			17'h1FF14:
+				RST_FF00_N <= 1'b0;
+			17'h1FF18:
+				RST_FF00_N <= 1'b0;
+			17'h1FF1C:
+				RST_FF00_N <= 1'b0;
 			17'h1FF02:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
+				RST_FF02_N <= 1'b0;
 			17'h1FF06:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
+				RST_FF02_N <= 1'b0;
 			17'h1FF0A:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
+				RST_FF02_N <= 1'b0;
 			17'h1FF0E:
-				if (!VSYNC1_IRQ_N)
-					RST_FF02_N <= 1'b0;
-
+				RST_FF02_N <= 1'b0;
+			17'h1FF12:
+				RST_FF02_N <= 1'b0;
+			17'h1FF16:
+				RST_FF02_N <= 1'b0;
+			17'h1FF1A:
+				RST_FF02_N <= 1'b0;
+			17'h1FF1E:
+				RST_FF02_N <= 1'b0;
+/*			17'h1FF20:
+				RST_FF20_N <= 1'b0;
+			17'h1FF24:
+				RST_FF20_N <= 1'b0;
+			17'h1FF28:
+				RST_FF20_N <= 1'b0;
+			17'h1FF2C:
+				RST_FF20_N <= 1'b0;
+			17'h1FF30:
+				RST_FF20_N <= 1'b0;
+			17'h1FF34:
+				RST_FF20_N <= 1'b0;
+			17'h1FF38:
+				RST_FF20_N <= 1'b0;
+			17'h1FF3C:
+				RST_FF20_N <= 1'b0;	*/
 			17'h1FF22:
 				RST_FF22_N <= 1'b0;
 			17'h1FF26:
@@ -1741,7 +1734,14 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h1FF2E:
 				RST_FF22_N <= 1'b0;
-
+			17'h1FF32:
+				RST_FF22_N <= 1'b0;
+			17'h1FF36:
+				RST_FF22_N <= 1'b0;
+			17'h1FF3A:
+				RST_FF22_N <= 1'b0;
+			17'h1FF3E:
+				RST_FF22_N <= 1'b0;
 			17'h0FF22:
 				RST_FF22_N <= 1'b0;
 			17'h0FF26:
@@ -1750,36 +1750,18 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h0FF2E:
 				RST_FF22_N <= 1'b0;
-
+			17'h0FF32:
+				RST_FF22_N <= 1'b0;
+			17'h0FF36:
+				RST_FF22_N <= 1'b0;
+			17'h0FF3A:
+				RST_FF22_N <= 1'b0;
+			17'h0FF3E:
+				RST_FF22_N <= 1'b0;
 			17'h1FF92:
-			begin
 				RST_FF92_N <= 1'b0;
-				if (!VSYNC_INT_N)
-					RST_FF92V_N <= 1'b0;
-				if (!HSYNC_INT_N)
-					RST_FF92H_N <= 1'b0;
-				if (!CART_INT_N)
-					RST_FF92C_N <= 1'b0;
-				if (!KEY_INT_N)
-					RST_FF92K_N <= 1'b0;
-				if (!TIMER_INT_N)
-					RST_FF92T_N <= 1'b0;
-			end
-			
 			17'h1FF93:
-			begin
 				RST_FF93_N <= 1'b0;
-				if (!TIMER3_FIRQ_N)
-					RST_FF93T_N <= 1'b0;
-				if (!HSYNC_INT_N)
-					RST_FF93H_N <= 1'b0;
-				if (!VSYNC_INT_N)
-					RST_FF93V_N <= 1'b0;
-				if (!CART_INT_N)
-					RST_FF93C_N <= 1'b0;
-				if (!KEY_INT_N)
-					RST_FF93K_N <= 1'b0;
-			end
 			17'h0FF94:
 				TMR_RST_N <= 1'b0;
 			17'h0FF95:
@@ -1788,19 +1770,10 @@ begin
 			begin
 				RST_FF00_N <= 1'b1;
 				RST_FF02_N <= 1'b1;
+//				RST_FF20_N <= 1'b1;
 				RST_FF22_N <= 1'b1;
 				RST_FF92_N <= 1'b1;
-				RST_FF92H_N <= 1'b1;
-				RST_FF92V_N <= 1'b1;
-				RST_FF92C_N <= 1'b1;
-				RST_FF92K_N <= 1'b1;
-				RST_FF92T_N <= 1'b1;
 				RST_FF93_N <= 1'b1;
-				RST_FF93T_N <= 1'b1;
-				RST_FF93H_N <= 1'b1;
-				RST_FF93V_N <= 1'b1;
-				RST_FF93C_N <= 1'b1;
-				RST_FF93K_N <= 1'b1;
 				TMR_RST_N <= 1'b1;
 			end
 			endcase
@@ -1986,9 +1959,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93H_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93H_N)
+	if(!RST_FF93_N)
 	begin
 		HSYNC3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2026,9 +1999,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93V_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93V_N)
+	if(!RST_FF93_N)
 	begin
 		VSYNC3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2066,9 +2039,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93C_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93C_N)
+	if(!RST_FF93_N)
 	begin
 		CART3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2106,9 +2079,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93K_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93K_N)
+	if(!RST_FF93_N)
 	begin
 		KEY3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2146,9 +2119,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF93T_N)
+always @ (negedge clk_sys or negedge RST_FF93_N)
 begin
-	if(!RST_FF93T_N)
+	if(!RST_FF93_N)
 	begin
 		TIMER3_FIRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2187,9 +2160,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92H_N)
+always @ (negedge clk_sys or negedge RST_FF92_N)
 begin
-	if(!RST_FF92H_N)
+	if(!RST_FF92_N)
 	begin
 		HSYNC3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2225,9 +2198,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92V_N)
+always @ (negedge clk_sys or negedge RST_FF92_N)
 begin
-	if(!RST_FF92V_N)
+	if(!RST_FF92_N)
 	begin
 		VSYNC3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2339,9 +2312,9 @@ begin
 	end
 end
 
-always @ (negedge clk_sys or negedge RST_FF92T_N)
+always @ (negedge clk_sys or negedge RST_FF92_N)
 begin
-	if(!RST_FF92T_N)
+	if(!RST_FF92_N)
 	begin
 		TIMER3_IRQ_STAT_N <= 1'b1;			// no int
 	end
@@ -2351,6 +2324,7 @@ begin
 			TIMER3_IRQ_STAT_N <= 1'b0;				// Interrupt
 	end
 end
+
 
 assign CPU_IRQ_N =  ( GIME_IRQ  | (HSYNC1_IRQ_N		&	VSYNC1_IRQ_N))
 						& (!GIME_IRQ  | (TIMER3_IRQ_N		&	HSYNC3_IRQ_N	&	VSYNC3_IRQ_N	&	KEY3_IRQ_N	&	CART3_IRQ_N));
@@ -2439,6 +2413,8 @@ begin
 		end
 	end
 end
+
+
 
 reg	sync_rst1;
 

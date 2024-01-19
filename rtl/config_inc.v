@@ -1,16 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Project Name:	CoCo3FPGA Version 5.x.x
-// File Name:		config.v
-//
-// CoCo3 in an FPGA
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// CPU section copyrighted by John Kent
-//
-////////////////////////////////////////////////////////////////////////////////
-// Project Name:	CoCo3FPGA Version 5.x.x
-// File Name:		config.v
+// File Name:		config_inc.v
 //
 // CoCo3 in an FPGA
 //
@@ -68,25 +58,66 @@
 // 
 ////////////////////////////////////////////////////////////////////////////////
 
-// This file is a configuration definition file.  The CoCo3FPGA for MiSTer source files
+// This file is a configuration definition include file.  The CoCo3FPGA for MiSTer source files
 // can be built into multiple objects which have mutually exclusive features.
 
-`include "..\RTL\config_inc.v"
+`define Config_Debug_Value (`config_num_1 | `config_num_2 | `config_num_3 | `config_num_4 | `config_num_5 | `config_num_6 | `config_num_7 | `config_num_8)
+`define Config_Debug_FLAG	8'h55
+`define FEATURE_1 8'h01
+`define FEATURE_2 8'h02
+`define FEATURE_3 8'h04
+`define FEATURE_4 8'h08
+`define FEATURE_5 8'h10
+`define FEATURE_6 8'h20
+`define FEATURE_7 8'h40
+`define FEATURE_8 8'h80
+`define config_num_1 8'h00
+`define config_num_2 8'h00
+`define config_num_3 8'h00
+`define config_num_4 8'h00
+`define config_num_5 8'h00
+`define config_num_6 8'h00
+`define config_num_7 8'h00
+`define config_num_8 8'h00
 
-//	If defined the Config_Debug sets the FEATURE MASKS all OR'd together which appears on COCO space at FFF1 & (FFF0 = 0x55 as a debug flag)
-`define	Config_Debug
-
-// Feature list - note only FEATURE_1 - FEATURE_8 are supported
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-`set_feature(CoCo3_Horz_INT_FIX, FEATURE_1)			// Connection of the horz int to the Mister CoCo3 V5 rasterizer
-
-//`set_feature(CoCo3_Vert_INT_FIX, FEATURE_2)		// Connection of the vert int to the Mister CoCo3 V5 rasterizer
-
-//`set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
-
-//`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
-
-//`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
-
-//`set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
-
+`define	set_feature(Feat_Name, Feat_Mask) \
+`define Feat_Name \
+`ifndef config_value_1 \
+	`define config_value_1 Feat_Mask \
+	`define config_num_1 Feat_Mask \
+`else \
+	`ifndef config_value_2 \
+		`define config_value_2 Feat_Mask \
+		`define config_num_2 Feat_Mask \
+	`else \
+		`ifndef config_value_3 \
+			`define config_value_3 Feat_Mask \
+			`define config_num_3 Feat_Mask \
+		`else \
+			`ifndef config_value_4 \
+				`define config_value_4 Feat_Mask \
+				`define config_num_4 Feat_Mask \
+			`else \
+				`ifndef config_value_5 \
+					`define config_value_5 Feat_Mask \
+					`define config_num_5 Feat_Mask \
+				`else \
+					`ifndef config_value_6 \
+						`define config_value_6 Feat_Mask \
+						`define config_num_6 Feat_Mask \
+					`else \
+						`ifndef config_value_7 \
+							`define config_value_7 Feat_Mask \
+							`define config_num_7 Feat_Mask \
+						`else \
+							`ifndef config_value_8 \
+								`define config_value_8 Feat_Mask \
+								`define config_num_8 Feat_Mask \
+							`endif \
+						`endif \
+					`endif \
+				`endif \
+			`endif \
+		`endif \
+	`endif \
+`endif
