@@ -48,7 +48,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 //	Define Config features
-`include "..\RTL\config.v"
+`include "../RTL/config.v"
 
 module sdc(
 	input        		CLK,     		// clock
