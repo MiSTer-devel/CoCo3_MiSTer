@@ -82,7 +82,7 @@
 
 //`set_feature(CoCo3_Vert_INT_FIX, FEATURE_2)		// Connection of the vert int to the Mister CoCo3 V5 rasterizer
 
-//`set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
+`set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
 
 //`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
 

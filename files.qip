@@ -12,6 +12,7 @@ set_global_assignment -name VERILOG_FILE rtl/UART_6551/6551rx.v
 set_global_assignment -name VHDL_FILE rtl/CPU09/cpu09l_128a.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/coco3fpga.sv
 #set_global_assignment -name QIP_FILE CoCo3FPGA_Common/PH2_CLK.qip
+set_global_assignment -name VERILOG_FILE rtl/mc6809glb/mc6809glb.v
 set_global_assignment -name VERILOG_FILE rtl/pll.v
 set_global_assignment -name VERILOG_FILE rtl/pll/pll_0002.v
 set_global_assignment -name VERILOG_FILE rtl/cassette.v
