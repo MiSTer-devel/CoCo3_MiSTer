@@ -6,7 +6,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// CPU section copyrighted by John Kent
+// CPU section copyrighted by John Kent or Greg Miller dependant on selection
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -254,7 +254,7 @@ reg				RESET_N;
 reg		[6:0]	CPU_RESET_SM;
 reg				CPU_RESET;
 wire			RESET_INS;
-reg				MUGS;
+reg				MUGS = 0;
 wire			RESET;
 wire			RESET_P;
 wire	[15:0]	ADDRESS;
@@ -724,36 +724,37 @@ assign BLOCK_ADDRESS =  ({MMU_EN, MMU_TR, ADDRESS[15:13]}               ==  5'b1
            ({VEC_PAG_RAM, MMU_EN, MMU_TR, ADDRESS[15:8]}                ==11'b01111111110)  ?   SAM17:  // 011 1111 1110 FE00-FEFF RAM Vector page
                                                                                                {9'h007, ADDRESS[15:13]};
 
-assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         				?   1'b1:       // GART 1
-                (ADDRESS[15:0]== 16'hFFE9)         				?   1'b1:       // GART 2
-				({ADDRESS[15:8]}== 8'hFF)           			?   1'b0:       // Hardware (FF00-FFFF) always Excluded
-                ({VEC_PAG_RAM, ADDRESS[15:8]} ==  9'b111111110)	?   1'b1:  		// If VEC_PAG_RAM then include FEXX Secondary Vectors
-                 ROM_SEL                            			?   1'b0:       // Internal ROM
-                 CART_SEL                        				?   1'b0:       // Cart ROM
-																	1'b1;
+assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         					?   1'b1:       // GART 1
+                (ADDRESS[15:0]== 16'hFFE9)         					?   1'b1:       // GART 2
+				({ADDRESS[15:8]}== 8'hFF)           				?   1'b0:       // Hardware (FF00-FFFF) always Excluded
+                ({VEC_PAG_RAM, ADDRESS[15:8]} ==  9'b111111110)     ?   1'b1:  		// If VEC_PAG_RAM then include FEXX Secondary Vectors
+                 ROM_SEL                            				?   1'b0:       // Internal ROM
+                 CART_SEL                        					?   1'b0:       // Cart ROM
+																		1'b1;
 
 
 
 /*****************************************************************************
 * ROM signals
 ******************************************************************************/
-// ROM_SEL is 1 when the system is accessing any cartridge "ROM" meaning the
+// ROM_SEL is 1 when the system is accessing the internal "ROM"
+// CART_SEL is 1 when the system is accessing any cartridge "ROM" meaning the
 // 4 slots of the MPI, this is:
-//		Slot 1 	Orchestra-90C
-//		Slot 2	Alternate Disk Controller ROM
+//		Slot 1 	Not Used 
+//		Slot 2	Disk Controller ROM
 //		Slot 3	Cart slot
 //		Slot 4	Disk Controller ROM
 
-assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   ?    1'b1:   // Enable for Vectors
-                     (ADDRESS[15:9]                                     ==  7'b1111111)        ?    1'b0:   // Disabled for FE00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  ?    1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
-                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  ?    1'b1:   // Enabled 32K int, Page 7, x           $78000-$7FFFF
+assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   	?   1'b1:   // Enable for Vectors
+                     (ADDRESS[15:9]                                     ==  7'b1111111)      	?   1'b0:   // Disabled for FE00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  	?   1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  	?   1'b1:   // Enabled 32K int, Page 7, x           $78000-$7FFFF
                                                                                                     1'b0;
 
-assign  CART_SEL =   (ADDRESS[15:8]                                     ==  8'b11111111)       ?    1'b0:   // Disabled for FF00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  ?    1'b1:   // Enabled Read, 16K Cart, Page 7, x1	$7C000-$7FEFF
-                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  ?    1'b1:   // Enabled 32K Cart, Page 7, x1       	$78000-$7FEFF
-                                                                                                    1'b0;
+assign  CART_SEL =   (ADDRESS[15:8]                                     ==  8'b11111111)        ?   1'b0:   // Disabled for FF00 - FFFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  	?   1'b1:   // Enabled Read, 16K Cart, Page 7, x1 $7C000-$7FEFF
+                    ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  	?   1'b1:   // Enabled 32K Cart, Page 7, x1       $78000-$7FEFF
+																									1'b0;
 
 //ROM
 //00		16 Internal + 16 External
@@ -764,10 +765,10 @@ assign  CART_SEL =   (ADDRESS[15:8]                                     ==  8'b1
 
 assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]}:  //8K Disk BASIC 8K Slot 4
 							ENA_DISK2           			?   {9'b000000100, ADDRESS[12:0]}:  //[maps to same disk rom]
-							ENA_ORCC            			?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
+							ENA_ORCC           				?   {9'b000000101, ADDRESS[12:0]}:  //8K Orchestra 8K 90CC Slot 1
 							({ENA_PAK, ROM[1]} == 2'b10)	?	{5'b00000,ROM_BANK,	ADDRESS[13:0]}:	//16K External R CART ROM
 							({ENA_PAK, ROM} == 3'b111)		?	{4'b0000,ROM_BANK,	~ADDRESS[14], ADDRESS[13:0]}:	//32K External R CART ROM
-																{7'b0000000,ADDRESS[14:0]};
+																{7'b0000000,ADDRESS[14:0]};							//32K Internal COCO3 ROM
 
 
 //ROM
@@ -841,12 +842,15 @@ assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
 																								1'b0;
 assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
 																								1'b0;
-assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:4]} == 14'b11111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 4
-																								1'b0;
-assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:4]} == 14'b01111111110100)	?	1'b1:		// FF40-FF4F with MPI switch = 2
-																								1'b0;
-assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)				?	1'b1:		//FF68-FF6B
-																								1'b0;
+assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:5]} == 13'b1111111111010)		?	1'b1:		// FF40-FF5F with MPI switch = 4
+																			1'b0;
+
+assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)		?	1'b1:		// FF40-FF5F with MPI switch = 2
+																			1'b0;
+
+assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)	?	1'b1:		//FF68-FF6B - Now in slot 1
+																			1'b0;
+
 assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)	?	1'b1:		// FF40-FF5F Ensure this only appears in slot 3 PHYSICALLY
 																			1'b0;
 
@@ -877,8 +881,8 @@ end
 
 
 `ifdef	Config_Debug
-	wire	Config_FLAG = `Config_Debug_FLAG;
-	wire	Config_Debug_Value = `Config_Debug_Value;
+	wire[7:0]	Config_FLAG = `Config_Debug_FLAG;
+	wire[7:0]	Config_Debug_Value = `Config_Debug_Value;
 `endif
 
 assign	DATA_IN =
@@ -1137,8 +1141,11 @@ wire	cache_hit  /* synthesis preserve */;
 assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
 //assign	cache_hit = 1'b0;
 
-//BANKS
-// CPU clock / SRAM Signals for old SRAM
+//	Master timing loop
+
+// This sig is only used for the cycle accurate 09
+reg cpu_cycle_ena;
+
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
@@ -1161,12 +1168,14 @@ begin
 		GART_WR <= 1'b0;
 		GART_RD <= 1'b0;
 		AMW_WR <= 1'b0;
+		cpu_cycle_ena <= 1'b0;
 	end
 	else
 	begin
 		clear_data_ready <= 1'b0;
 		sdram_BE_0 <= 1'b0;
 		sdram_BE_1 <= 1'b0;
+		cpu_cycle_ena <= 1'b0;  // This is only a single clock per cpu cycle
 
 //		If we are in hold were done @ data_ready.
 		if (hold)
@@ -1176,6 +1185,7 @@ begin
 //				Hold states are done - kill hold and set end hold to drive data
 				hold <= 1'b0;
 				end_hold <= 1'b1;
+				cpu_cycle_ena <= 1'b1; // Cycle at the end of a memory transaction
 				clear_data_ready <= 1'b1;
 				hold_data_L <= hold_data;
 				sdram_BE_0 <= RAM0_BE0_L;
@@ -1210,10 +1220,14 @@ begin
 			begin
 				cpu_ena <= 1'b1;
 
+				cpu_cycle_ena <= 1'b1;  // Default cycle
+
 				if (AMW_EN)			// Automated Memory Write ?
 				begin
 					AMW_WR <= 1'b1;
 					cpu_ena <= 1'b0; // Kill cpu enable
+					cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
+
 
 //					Start AMW cycle
 					RAM0_BE0_L <=  !AMW_Adrs[0];
@@ -1226,6 +1240,9 @@ begin
 				else if (VMA & RAM_CS) // FFE8 / FFE9 is now in RAM_CS
 				begin
 //					sdram memory cycle
+					`ifdef CoCo3_disable_GART_in_GIMEX
+					if (0);
+					`else
 					if ((ADDRESS[15:0] == 16'hFFE8) | (ADDRESS[15:0] == 16'hFFE9)) // GART
 					begin
 						if (~RW_N)
@@ -1241,11 +1258,14 @@ begin
 							GART_RD <= 1'b1;
 						end
 						hold <= 1'b1;
+						cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
 						sdram_cpu_req <= 1'b1;
 						sdram_cpu_rnw <= RW_N;
 						last_write <= 1'b1; // Kill cache hit on any access after GART
 					end
+					`endif
 					else  // Normal CPU cycle
+					begin
 //						get which byte
 						RAM0_BE0_L <=  !ADDRESS[0];
 						RAM0_BE1_L <=  ADDRESS[0];
@@ -1255,11 +1275,13 @@ begin
 							end_hold <= 1'b1;					// If so then end the cpu_ena cycle with the updated byte enable
 							sdram_BE_0 <= !ADDRESS[0];
 							sdram_BE_1 <= ADDRESS[0];
+																// Allow cpu_cycke_ena previously set based upon cache tansaction
 						end
 						else
 						begin
 							sdram_cpu_addr_L <= sdram_cpu_addr;	// Else set hold and start a sdram cycle
 							hold <= 1'b1;
+							cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
 							sdram_cpu_req <= 1'b1;
 							sdram_cpu_rnw <= RW_N;
 							last_write <= ~RW_N;
@@ -1267,7 +1289,7 @@ begin
 					end
 				end
 			end
-			
+		end
 		6'h01:
 		begin
 			PH_2_RAW <= 1'b0;
@@ -1324,15 +1346,12 @@ begin
 	end
 end
 
-assign PH_2 = PH_2_RAW;
 
 
 assign RESET_P =	!BUTTON_N[3]					// Button
 					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS
 
 // Make sure all resets are enabled for a long enough time to allow voltages to settle
-
-
 always @ (posedge clk_sys)
 begin
 	if (RESET)
@@ -1369,6 +1388,55 @@ begin
 	end
 end
 
+////////////////////////////////////////////////////////////////////
+//
+//		CPU Selection
+//
+////////////////////////////////////////////////////////////////////
+
+`ifdef CoCo3_CYC_ACC_6809
+
+//	Create VMA out of AVMA
+wire AVMA;
+
+always @(negedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		VMA <= 1'b0;
+	end
+	else
+	begin
+		if (cpu_cycle_ena)
+		begin
+			VMA <= AVMA;
+		end
+	end
+end
+
+// Cycle Accurate CPU section copyrighted by Greg Miller
+
+mc6809x GLBCPU09(
+	.D(DATA_IN),
+	.DOut(DATA_OUT),
+	.ADDR(ADDRESS),
+	.RnW(RW_N),
+	.MASTER(clk_sys),
+	.E(cpu_cycle_ena),
+	.Q(cpu_cycle_ena),
+	.nIRQ(CPU_IRQ_N),
+	.nFIRQ(CPU_FIRQ_N),
+	.nNMI(!NMI_09),
+	.AVMA(AVMA),
+	.nHALT(~HALT),
+	.nRESET(~CPU_RESET),
+	.nDMABREQ(1'b1)
+);
+
+assign PH_2 = cpu_cycle_ena;
+
+`else
+
 // CPU section copyrighted by John Kent
 cpu09 GLBCPU09(
 	.clk(clk_sys),
@@ -1385,6 +1453,10 @@ cpu09 GLBCPU09(
 	.firq(!CPU_FIRQ_N),
 	.nmi(NMI_09)
 );
+
+assign PH_2 = PH_2_RAW;
+
+`endif
 
 wire	[8:0]		BUFF_ADD_W;		
 wire	[8:0]		BUFF_ADD;
