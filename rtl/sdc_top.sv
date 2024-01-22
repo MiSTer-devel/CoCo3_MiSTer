@@ -77,6 +77,10 @@ module sdc_top(
 	input				SDC_REG_W_ENA,
 	input				SDC_REG_READ,
 
+	output				ext_response,
+
+	input		[7:0]	SZ,
+
 // 	SD block level interface
 
 	input 		[1:0]	img_mounted, 	// signaling that new image has been mounted
@@ -126,14 +130,14 @@ end
 localparam SDC_MAGIC_CMD = 			8'h43;
 
 wire	[7:0]	FF40_READ_VALUE = 	{HALT_EN, DRIVE_SEL_EXT[3], DENSITY, WRT_PREC, MOTOR,	DRIVE_SEL_EXT[2:0]};
-wire	  		SDC_EN = 			(FF40_READ_VALUE == SDC_MAGIC_CMD);
+wire	  		SDC_EN = 			((FF40_READ_VALUE == SDC_MAGIC_CMD) | sdc_always);
 wire	[7:0]	SDC_READ_DATA;
 wire			sdc_always;
 wire			FF40_RD =			({SDC_EN_CS, ADDRESS[3:0]} == 5'h10);
 
 
 //FDC read data path.  =$ff40 or wd1793(s)
-assign	DATA_HDD =		(SDC_EN | sdc_always)				?	SDC_READ_DATA:
+assign	DATA_HDD =		(SDC_EN | ext_response)				?	SDC_READ_DATA:
 						(SDC_EN_CS & (ADDRESS[3:1] == 3'b001))	?	SDC_READ_DATA:	// FF42 & FF43
 						(FF40_RD)							?	FF40_READ_VALUE:
 						(WD1793_RD)							?	DATA_1793: //(1793[s])
@@ -173,9 +177,14 @@ sdc coco_sdc(
 	.SDC_WR(SDC_REG_W_ENA),
 	.SDC_RD(SDC_REG_READ),
 
+	.sdc_HALT(sdc_HALT),
+
+	.ext_response(ext_response),
+
+	.SZ(SZ),
+
 	.sdc_always(sdc_always), // SDC is active  [output from sdc (sdc is turning off fdc)]
 
-	.sdc_HALT(sdc_HALT),
 
 // 	SD block level interface
 

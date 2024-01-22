@@ -59,15 +59,20 @@ module sdc(
 	input				SDC_WR,
 	input				SDC_RD,
 
-	output				sdc_always,
-
 	output	reg			sdc_HALT,
+
+	output	reg			ext_response,
+
+	input		[7:0]	SZ,
+
+	output	reg			sdc_always,
+
 
 // 	SD block level interface
 
 	input 		[1:0]	img_mounted, 	// signaling that new image has been mounted
 	input				img_readonly, 	// mounted as read only. valid only for active bit in img_mounted
-	input 		[19:0] 	img_size,    	// size of image in bytes. 1MB MAX!
+	input 		[63:0] 	img_size,    	// size of image in bytes. 1MB MAX!
 
 	output		[31:0] 	sd_lba[2],
 	output reg	[1:0]	sd_rd,
@@ -87,11 +92,12 @@ reg		[7:0]	transfer_address;
 
 reg				new_cmd, new_cmd_d, cmd_done;
 reg 			data_inc, run;
+reg				rxt_res_end;
 reg				transfer_clear;
 reg		[3:0]	sdc_data_reg;
 
 wire	[7:0]	sdc_status_reg = {sdc_data_reg, 4'h4};
-reg		[15:0]	drive_size[2];
+reg		[23:0]	drive_size[2];
 
 typedef enum 
 {
@@ -133,13 +139,14 @@ begin
 		command <= 8'h00;
 		new_cmd <= 1'b0;
 		data_inc <=	1'b0;
+		rxt_res_end <= 1'b0;
 		transfer_address <= 8'h00;
 		sdc_data_reg <=	4'h0;
 	end
 	else
 	begin
 		data_inc <=	1'b0;
-
+		rxt_res_end <= 1'b0;
 		if (cmd_done)
 			new_cmd <= 1'b0;
 
@@ -188,6 +195,9 @@ begin
 		if (CLK_EN & SDC_RD & (ADDRESS[3:1] == 3'b101) & (run))	// Read @ $ff4A / $ff4B
 			data_inc <=	1'b1;
 
+		if (CLK_EN & SDC_RD & (ADDRESS[3:0] == 4'b1001) & (~run))	// Read @ $ff49 [last of size data]
+			rxt_res_end <= 	1'b1;
+
 		if (data_inc)
 			transfer_address <= transfer_address + 1'b1;
 
@@ -205,7 +215,6 @@ localparam 		CMD_EXT = 				5'b11000;
 
 reg				wr_cmd;
 reg				ack_d;
-reg				ext_response;
 reg		[23:0]	response_reg;
 wire			end_ack = ~sd_ack[l_drive] & ack_d;
 reg				l_drive, buffer_upper;
@@ -250,6 +259,9 @@ begin
 			sdc_ready <= 1'b0;
 		end
 
+		if (rxt_res_end)						// If we read ff4b then we've read the ext_response
+			ext_response <= 1'b0;
+
 		case(state)
 		state_idle:
 		begin
@@ -271,7 +283,10 @@ begin
 					state <= state_ext;
 				end
 				else							// no valid command found
+				begin
+					sdc_fail <= 1'b1;
 					cmd_done <= 1'b1;
+				end
 		end
 		state_read:
 		begin
@@ -372,15 +387,16 @@ begin
 				sdc_busy <= 1'b1;
 				state <= state_e1;
 			end
-//			else if (LSN[23:16] == 8'H67)		//	This is g [Disable FDC emulation]
-//			begin
-//				cmd_done <= 1'b1;
-//				sdc_always <= 1'b1;				// Disable floppy
-//				state <= state_idle;
-//			end
+			else if (LSN[23:16] == 8'H67)		//	This is g [Disable FDC emulation]
+			begin
+				cmd_done <= 1'b1;
+				sdc_always <= 1'b1;				// Disable floppy
+				state <= state_idle;
+			end
 			else
 			begin
 				cmd_done <= 1'b1;				//  All other ext commands...
+				sdc_fail <= 1'b1;
 				state <= state_idle;
 			end
 		end
@@ -389,7 +405,11 @@ begin
 		begin
 			sdc_busy <= 1'b0;
 			ext_response <= 1'b1;
-			response_reg <= {8'h00, drive_size[l_drive]};
+			`ifdef CoCo3_sdc_override_size
+				response_reg <= { SZ, SZ, SZ};						// This fixes a redirect error in OS9EOU  - Value=no hardware
+			`else
+				response_reg <= drive_size[l_drive][31:8];		// This returns the correct size of the mounted drive in sectors
+			`endif
 			state <= state_e2;
 		end
 		
@@ -436,8 +456,8 @@ assign	sdc_status = {sdc_fail, drive_wp[l_drive], 1'b0, ~drive_ready[l_drive], 2
 
 assign	SDC_READ_DATA =	(ADDRESS == ADRS_FF42) 						?	{sdc_data_reg, 4'h0}:
 						(ADDRESS == ADRS_FF43) 						?	sdc_status_reg:
-						((ADDRESS == ADRS_FF48) & ~ext_response) 	?	sdc_status:
-						((ADDRESS == ADRS_FF48) & ext_response) 	?	response_reg[23:16]:
+						(ADDRESS == ADRS_FF48)						?	sdc_status:
+						(ADDRESS == ADRS_FF49)					 	?	response_reg[23:16]:
 						((ADDRESS == ADRS_FF4A) &  ~ext_response)	?	hd_buff_data:
 						((ADDRESS == ADRS_FF4A) &  ext_response)	?	response_reg[15:8]:
 						((ADDRESS == ADRS_FF4B) &  ~ext_response)	?	hd_buff_data:
@@ -450,7 +470,7 @@ always @(negedge img_mounted[0])
 begin
 	drive_wp[0] <= img_readonly;
 	drive_ready[0] <= 1'b1;
-	drive_size[0] <= {4'h0, img_size[19:8]};  //Size / 256
+	drive_size[0] <= img_size[31:0];
 end
 
 // SD Drive 1
@@ -459,7 +479,7 @@ always @(negedge img_mounted[1])
 begin
 	drive_wp[1] <= img_readonly;
 	drive_ready[1] <= 1'b1;
-	drive_size[1] <= {4'h0, img_size[19:8]};  //Size / 256
+	drive_size[1] <= img_size[31:0];
 end
 
 endmodule

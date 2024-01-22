@@ -84,9 +84,9 @@
 
 `set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
 
-//`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
+`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
 
-//`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
+`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
 
-//`set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
+`set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
 

@@ -834,28 +834,36 @@ COCO_ROM_CART CC3_ROM_CART(
 
 wire	SDC_EN_CS;
 
-assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)						?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
-																								1'b0;
-assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)						?	1'b1:		// Alternative Disk controller ROM up to 32K
-																								1'b0;
-assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)						?	1'b1:		// ROM SLOT 3
-																								1'b0;
-assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)						?	1'b1:		// Disk C000-DFFF Slot 4
-																								1'b0;
-assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:5]} == 13'b1111111111010)		?	1'b1:		// FF40-FF5F with MPI switch = 4
-																			1'b0;
+assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)									?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
+																						1'b0;
+assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)									?	1'b1:		// Alternative Disk controller ROM up to 32K
+																						1'b0;
+assign	ENA_PAK =	({CART_SEL, MPI_CTS} == 3'b110)									?	1'b1:		// ROM SLOT 3
+																						1'b0;
+assign	ENA_DSK =	({CART_SEL, MPI_CTS} == 3'b111)									?	1'b1:		// Disk C000-DFFF Slot 4
+																						1'b0;
+`ifdef CoCo3_sdc_fix_os9_driver
+assign	HDD_EN = 	({ext_response, MPI_SCS, ADDRESS[15:5]} == 15'b01111111111010)	?	1'b1:		// FF40-FF5F with MPI switch = 4
+																						1'b0;
 
-assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)		?	1'b1:		// FF40-FF5F with MPI switch = 2
-																			1'b0;
+assign	SDC_EN_CS = (({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010) | 
+					((ADDRESS[15:5] == 11'b11111111010) & ext_response))			?	1'b1:		// FF40-FF5F with MPI switch = 2
+																						1'b0;
+`else
+assign	HDD_EN = 	({MPI_SCS, ADDRESS[15:5]} == 13'b1111111111010)					?	1'b1:		// FF40-FF5F with MPI switch = 4
+																						1'b0;
+assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)					?	1'b1:		// FF40-FF5F with MPI switch = 2
+																						1'b0;
+`endif
 
-assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)	?	1'b1:		//FF68-FF6B - Now in slot 1
-																			1'b0;
+assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 1
+																						1'b0;
 
-assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)	?	1'b1:		// FF40-FF5F Ensure this only appears in slot 3 PHYSICALLY
-																			1'b0;
+assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)				?	1'b1:		// FF40-FF5F Ensure this only appears in slot 3 PHYSICALLY
+																						1'b0;
 
-assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)					?	1'b1:		// FF7E
-																								1'b0;
+assign	VDAC_EN = ({RW_N,ADDRESS[15:0]} == 17'H0FF7E)								?	1'b1:		// FF7E
+																						1'b0;
 /*
 $FF40 - This is the bank latch. The same latch that is used by the Super Program Paks to bank 16K of the Pak ROM
 at a time. This latch is set to $00 on reset or power up (same as the super program paks).
@@ -889,8 +897,8 @@ assign	DATA_IN =
 														(sdram_BE_0)	?	hold_data_L[7:0]:
 														(sdram_BE_1)	?	hold_data_L[15:8]:
 														FLASH_CE_S		?	FLASH_DATA:
+														SDC_EN_CS		?	DATA_SDC:	// needs priority due to nitros9 llcocosdc ddriver bug
 														HDD_EN			?	DATA_HDD:
-														SDC_EN_CS		?	DATA_SDC:
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
 // FF00, FF04, FF08, FF0C
@@ -1512,6 +1520,7 @@ wire	HALT_sdc, HALT_fdc;
 wire 	NMI_09_sdc, NMI_09_fdc;
 
 wire	SDC_REG_W_ENA, SDC_REG_READ;
+wire	ext_response;
 
 assign	FF40_ENA =				({PH_2, RW_N, HDD_EN, ADDRESS[3:0]} == 7'B1010000)		?	1'b1:
 																							1'b0;
@@ -1602,6 +1611,10 @@ sdc_top coco_sdc_top(
 //	SDC I/O
 	.SDC_REG_W_ENA(SDC_REG_W_ENA),
 	.SDC_REG_READ(SDC_REG_READ),
+
+	.ext_response(ext_response),
+
+	.SZ(GPIO),
 
 // 	SD block level interface
 	.img_mounted(img_mounted[5:4]), 	// signaling that new image has been mounted
@@ -2514,7 +2527,7 @@ begin
 //		MPI_CTS <= SWITCH[2:1];
 // FF8E-FF8F
 		GPIO_DIR <= 8'h00;
-		GPIO_OUT <= 8'h00;
+//		GPIO_OUT <= 8'h00;
 // FF90
 		ROM <= 2'b00;
 		ST_SCS <= 1'b0;
@@ -3498,28 +3511,28 @@ begin
 		dac_joya2[7:0]  <= 8'd128;
 		
 		if (joy1[0])	// right
-			dac_joya1[15:8] <= 8'd240;
+			dac_joya1[15:8] <= 8'd255;
 
 		if (joy1[1])	// left
-			dac_joya1[15:8] <= 8'd16;
+			dac_joya1[15:8] <= 8'd0;
 		
 		if (joy1[2])	// down
-			dac_joya1[7:0] <= 8'd240;
+			dac_joya1[7:0] <= 8'd255;
 
 		if (joy1[3])	// up
-			dac_joya1[7:0] <= 8'd16;
+			dac_joya1[7:0] <= 8'd0;
 		
 		if (joy2[0])	// right
-			dac_joya2[15:8] <= 8'd240;
+			dac_joya2[15:8] <= 8'd255;
 
 		if (joy2[1])	// left
-			dac_joya2[15:8] <= 8'd16;
+			dac_joya2[15:8] <= 8'd0;
 		
 		if (joy2[2])	// down
-			dac_joya2[7:0] <= 8'd240;
+			dac_joya2[7:0] <= 8'd255;
 
 		if (joy2[3])	// upimg_mounted
-			dac_joya2[7:0] <= 8'd16;
+			dac_joya2[7:0] <= 8'd0;
 	end
 	else
 	begin
