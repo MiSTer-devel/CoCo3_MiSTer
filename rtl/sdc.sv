@@ -406,7 +406,7 @@ begin
 			sdc_busy <= 1'b0;
 			ext_response <= 1'b1;
 			`ifdef CoCo3_sdc_override_size
-				response_reg <= { SZ, SZ, SZ};						// This fixes a redirect error in OS9EOU  - Value=no hardware
+				response_reg <= 24'H404040;						// This fixes a redirect error in OS9EOU  - Value=no hardware
 			`else
 				response_reg <= drive_size[l_drive][31:8];		// This returns the correct size of the mounted drive in sectors
 			`endif
