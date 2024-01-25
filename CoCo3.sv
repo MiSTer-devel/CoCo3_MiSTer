@@ -248,7 +248,7 @@ localparam  CONF_STR = {
         "R0,Reset;",
         "J,Button1,Button2;",
         "jn,A,B;",
-		"v,51;",
+//		"v,51;",
         "V,v",`BUILD_DATE
 };
 
