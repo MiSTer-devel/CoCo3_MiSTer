@@ -519,17 +519,6 @@ cyclonev_hps_interface_peripheral_uart uart
 	.txd(uart_txd)
 );
 
-wire aspi_sck,aspi_mosi,aspi_ss,aspi_miso;
-cyclonev_hps_interface_peripheral_spi_master spi
-(
-	.sclk_out(aspi_sck),
-	.txd(aspi_mosi), // mosi
-	.rxd(aspi_miso), // miso
-
-	.ss_0_n(aspi_ss),
-	.ss_in_n(1)
-);
-
 wire [63:0] f2h_irq = {video_sync,HDMI_TX_VS};
 cyclonev_hps_interface_interrupts interrupts
 (
@@ -635,11 +624,13 @@ ddr_svc ddr_svc
 	.ram_write(ram2_write),
 	.ram_bcnt(ram2_bcnt),
 
+`ifndef MISTER_DISABLE_ALSA
 	.ch0_addr(alsa_address),
 	.ch0_burst(1),
 	.ch0_data(alsa_readdata),
 	.ch0_req(alsa_req),
 	.ch0_ready(alsa_ready),
+`endif
 
 	.ch1_addr(pal_addr),
 	.ch1_burst(128),
@@ -1023,13 +1014,11 @@ reg   [5:0] adj_address;
 reg  [31:0] adj_data;
 
 `ifndef MISTER_DEBUG_NOHDMI
-pll_cfg pll_cfg
+pll_cfg_hdmi pll_cfg_hdmi
 (
 	.mgmt_clk(FPGA_CLK1_50),
 	.mgmt_reset(reset_req),
 	.mgmt_waitrequest(cfg_waitrequest),
-	.mgmt_read(0),
-	.mgmt_readdata(),
 	.mgmt_write(cfg_write),
 	.mgmt_address(cfg_address),
 	.mgmt_writedata(cfg_data),
@@ -1194,11 +1183,12 @@ always @(posedge clk_vid) begin
 		end
 
 		dv_de1 <= !{hss,dv_hs_osd} && vde;
-		dv_hs1 <= csync_en ? dv_cs_osd : dv_hs_osd;
-		dv_vs1 <= dv_vs_osd;
 	end
 
 	dv_d1  <= dv_data_osd;
+	dv_hs1 <= csync_en ? dv_cs_osd : dv_hs_osd;
+	dv_vs1 <= dv_vs_osd;
+
 	dv_d2  <= dv_d1;
 	dv_de2 <= dv_de1;
 	dv_hs2 <= dv_hs1;
@@ -1333,6 +1323,33 @@ osd vga_osd
 wire vga_cs_osd;
 csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 
+`ifndef MISTER_DISABLE_YC
+	reg         pal_en;
+	reg         yc_en;
+	reg         cvbs;
+	reg  [16:0] ColorBurst_Range;
+	reg  [39:0] PhaseInc;
+	wire [23:0] yc_o;
+	wire        yc_hs, yc_vs, yc_cs;
+
+	yc_out yc_out
+	(
+		.clk(clk_vid),
+		.PAL_EN(pal_en),
+		.CVBS(cvbs),
+		.PHASE_INC(PhaseInc),
+		.COLORBURST_RANGE(ColorBurst_Range),
+		.hsync(vga_hs_osd),
+		.vsync(vga_vs_osd),
+		.csync(vga_cs_osd),
+		.dout(yc_o),
+		.din(vga_data_osd),
+		.hsync_o(yc_hs),
+		.vsync_o(yc_vs),
+		.csync_o(yc_cs)
+	);
+`endif
+
 `ifndef MISTER_DUAL_SDRAM
 	wire VGA_DISABLE;
 	wire [23:0] vgas_o;
@@ -1368,31 +1385,6 @@ csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 	);
 
 `ifndef MISTER_DISABLE_YC
-	reg         pal_en;
-	reg         yc_en;
-	reg         cvbs;
-	reg  [16:0] ColorBurst_Range;
-	reg  [39:0] PhaseInc;
-	wire [23:0] yc_o;
-	wire        yc_hs, yc_vs, yc_cs;
-
-	yc_out yc_out
-	(
-		.clk(clk_vid),
-		.PAL_EN(pal_en),
-		.CVBS(cvbs),
-		.PHASE_INC(PhaseInc),
-		.COLORBURST_RANGE(ColorBurst_Range),
-		.hsync(vga_hs_osd),
-		.vsync(vga_vs_osd),
-		.csync(vga_cs_osd),
-		.dout(yc_o),
-		.din(vga_data_osd),
-		.hsync_o(yc_hs),
-		.vsync_o(yc_vs),
-		.csync_o(yc_cs)
-	);
-	
 	assign {vga_o, vga_hs, vga_vs, vga_cs } = ~yc_en ? {vga_o_t, vga_hs_t, vga_vs_t, vga_cs_t } : {yc_o, yc_hs, yc_vs, yc_cs };
 `else
 	assign {vga_o, vga_hs, vga_vs, vga_cs } =  {vga_o_t, vga_hs_t, vga_vs_t, vga_cs_t } ;
@@ -1477,8 +1469,10 @@ audio_out audio_out
 	.core_l(audio_l),
 	.core_r(audio_r),
 
+`ifndef MISTER_DISABLE_ALSA
 	.alsa_l(alsa_l),
 	.alsa_r(alsa_r),
+`endif
 
 	.i2s_bclk(HDMI_SCLK),
 	.i2s_lrclk(HDMI_LRCLK),
@@ -1490,6 +1484,18 @@ audio_out audio_out
 	.spdif(spdif)
 );
 
+
+`ifndef MISTER_DISABLE_ALSA
+wire aspi_sck,aspi_mosi,aspi_ss,aspi_miso;
+cyclonev_hps_interface_peripheral_spi_master spi
+(
+	.sclk_out(aspi_sck),
+	.txd(aspi_mosi), // mosi
+	.rxd(aspi_miso), // miso
+
+	.ss_0_n(aspi_ss),
+	.ss_in_n(1)
+);
 
 wire [28:0] alsa_address;
 wire [63:0] alsa_readdata;
@@ -1517,6 +1523,7 @@ alsa alsa
 	.pcm_l(alsa_l),
 	.pcm_r(alsa_r)
 );
+`endif
 
 ////////////////  User I/O (USB 3.0 connector) /////////////////////////
 
@@ -1759,6 +1766,21 @@ assign sync_out = sync_in ^ pol;
 
 reg pol;
 always @(posedge clk) begin
+	reg [31:0] cnt;
+	reg s1,s2;
+
+	s1 <= sync_in;
+	s2 <= s1;
+	cnt <= s2 ? (cnt - 1) : (cnt + 1);
+
+	if(~s2 & s1) begin
+		cnt <= 0;
+		pol <= cnt[31];
+	end
+end
+
+/*
+always @(posedge clk) begin
 	integer pos = 0, neg = 0, cnt = 0;
 	reg s1,s2;
 
@@ -1773,6 +1795,7 @@ always @(posedge clk) begin
 
 	pol <= pos > neg;
 end
+*/
 
 endmodule
 
