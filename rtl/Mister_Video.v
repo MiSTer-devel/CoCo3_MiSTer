@@ -1,8 +1,87 @@
+////////////////////////////////////////////////////////////////////////////////
+// Project Name:    CoCo3FPGA Version 5.x.x
+// File Name:       Mister_Video.v
+//
+// CoCo3 in an FPGA
+//
+// Revision: 4.0 07/10/16
+////////////////////////////////////////////////////////////////////////////////
+//	MESS Artifact function supplied by Brandan Donahe given to Gary Becker
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Color Computer 3 compatible system on a chip
+//
+// Version : 5.x
+//
+// Copyright (c) 2008 Gary Becker (gary_l_becker@yahoo.com)
+//
+// All rights reserved
+//
+// Redistribution and use in source and synthezised forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// Redistributions of source code must retain the above copyright notice,
+// this list of conditions and the following disclaimer.
+//
+// Redistributions in synthesized form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+//
+// Neither the name of the author nor the names of other contributors may
+// be used to endorse or promote products derived from this software without
+// specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+//
+// Please report bugs to the author, but before you do so, please
+// make sure that this is not a derivative work and that
+// you have the latest version of this file.
+//
+// The latest version of this file can be found at:
+//      http://groups.yahoo.com/group/CoCo3FPGA
+//
+// File history :
+//
+//  1.0         Full Release
+//  2.0         Partial Release
+//  3.0         Full Release
+//  3.0.0.1     Update to fix DoD interrupt issue
+//  3.0.1.0     Update to fix 32/40 CoCO3 Text issue and add 2 Meg max memory
+//  4.0.X.X     Full Release
+//  5.0.x.x     Full Release
+////////////////////////////////////////////////////////////////////////////////
+// Gary Becker
+// gary_L_becker@yahoo.com
+////////////////////////////////////////////////////////////////////////////////
+// MISTer Conversion by Stan Hodge and Alan Steremberg (& Gary Becker)
+// stan.pda@gmail.com
+////////////////////////////////////////////////////////////////////////////////
+// 640 256 Color Modes
+// `define color_640_256
+// 256 Color Modes
+`define color_256
+// Artifacts (Choose one)
+// `define no_arti
+// `define simple_arti
+`define mess_arti
+
 module COCO3VIDEO(
 // Clocks / RESET
 MASTER_CLK,
 PIX_CLK,
 RESET_N,
+
 // Video Out
 COLOR,
 HSYNC_N,
@@ -146,8 +225,11 @@ wire    [9:0]       BORDER;
 wire    [9:0]       CCOLOR;
 wire                MODE6;
 wire                SG6_ENABLE;
-//reg     [1:0]       HISTORY;
-//reg     [1:0]       FUTURE;
+reg     [1:0]       HISTORY_TMP;
+reg     [1:0]       HISTORY;
+reg     [1:0]       FUTURE_TMP;
+reg     [1:0]       FUTURE;
+
 wire    [8:0]       BUF_ADD_BASE;
 //reg   [353:0]       VSYNC_DELAY;
 //reg                 VBLANKING;
@@ -286,17 +368,17 @@ always @ (negedge MASTER_CLK)
                 |({COCO1,BP,HRES[3],HRES[2],HRES[1]}==5'b01001)))                                  //CoCo3 32/40 bytes/line
                 begin
                     CHAR_LATCH_0_TMP <= {8'h00,CHAR_LATCH_0_TMP[15:8]};
-//                    HISTORY <= CHAR_LATCH_0_TMP[1:0];
-//                    FUTURE <= CHAR_LATCH_1_TMP[7:6];
+                    HISTORY_TMP <= CHAR_LATCH_0_TMP[1:0];
+                    FUTURE_TMP <= CHAR_LATCH_1_TMP[7:6];
                 end
                 else
                 begin
                     CHAR_LATCH_0_TMP <= RAM_DATA[15:0];                                             // Everything else
-//                    FUTURE <= RAM_DATA[15:14];
-//                    if (HBLANKING)
-//                        HISTORY <= {VID_CONT[3],VID_CONT[3]};                                       // First history after hblanking depends on the border
-//                    else
-//                        HISTORY <= CHAR_LATCH_0_TMP[1:0];                                           // After that, it is the last two pixels
+                    FUTURE_TMP <= RAM_DATA[15:14];
+                    if (HBLANKING)
+                        HISTORY_TMP <= {VID_CONT[3],VID_CONT[3]};                                       // First history after hblanking depends on the border
+                    else
+                        HISTORY_TMP <= CHAR_LATCH_0_TMP[1:0];                                           // After that, it is the last two pixels
                 end
             end
         end
@@ -365,6 +447,8 @@ always @ (negedge MASTER_CLK)
             CHARACTER0      <=   CHARACTER3;
             CHARACTER1      <=   CHARACTER1_TMP;
             CHARACTER2      <=   CHARACTER4;
+            FUTURE           <=   FUTURE_TMP;
+            HISTORY          <=   HISTORY_TMP;
         end
         endcase
         
@@ -391,8 +475,268 @@ assign CHARACTER4 = ({COCO1,BP,CRES[0],CHAR_LATCH_1_TMP[15],BLINK}      == 5'b00
                     ({COCO1,BP,CRES[0],CHAR_LATCH_1_TMP[14],UNDERLINE}  == 5'b00111)    ?    8'h7E:             // Underline
                                                                                              CHARACTER2_TMP;    // Normal Video
 
+`ifdef mess_arti
+// This should be easy to convert to ROM
+function [7:0] messArtifactPalette(
+    input   [5:0]   VGAPixel6_delay6,
+    input           hcount_VGA,
+    input           sw_artifact_swap,
+    input           CSS);
+
+    reg     [7:0]   color;
+    reg     [7:0]   a0;
+    reg     [7:0]   a1;
+    reg     [7:0]   a2;
+    reg     [7:0]   a3;
+    reg     [7:0]   a4;
+    reg     [7:0]   a5;
+    reg     [7:0]   a6;
+    reg     [7:0]   a7;
+    reg     [7:0]   a8;
+    reg     [7:0]   a9;
+    reg     [7:0]   a10;
+    reg     [7:0]   a11;
+    reg     [7:0]   a12;
+    reg     [7:0]   a13;
+    reg     [7:0]   a14;
+    reg     [7:0]   a15;
+
+    if (!CSS)
+    begin
+        if(!sw_artifact_swap)
+        begin
+            a0 = 8'h08;
+            a1 = 8'h01;
+            a2 = 8'h01;
+            a3 = 8'h49;
+            a4 = 8'h48;
+            a5 = 8'h01;
+            a6 = 8'h01;
+            a7 = 8'h41;
+            a8 = 8'h40;
+            a9 = 8'h40;
+            a10 = 8'h48;
+            a11 = 8'h49;
+            a12 = 8'h49;
+            a13 = 8'h01;
+            a14 = 8'h01;
+            a15 = 8'h49;
+        end
+        else
+        begin
+            a0 = 8'h08;
+            a1 = 8'h01;
+            a2 = 8'h01;
+            a3 = 8'h48;
+            a4 = 8'h49;
+            a5 = 8'h01;
+            a6 = 8'h01;
+            a7 = 8'h40;
+            a8 = 8'h41;
+            a9 = 8'h48;
+            a10 = 8'h40;
+            a11 = 8'h49;
+            a12 = 8'h49;
+            a13 = 8'h01;
+            a14 = 8'h01;
+            a15 = 8'h49;
+        end
+    end
+    else
+    begin
+        if(!sw_artifact_swap)
+        begin
+            a0 = 8'h00;
+            a1 = 8'h08;
+            a2 = 8'h02;
+            a3 = 8'hFD;
+            a4 = 8'hFE;
+            a5 = 8'h13;
+            a6 = 8'h21;
+            a7 = 8'hDE;
+            a8 = 8'h76;
+            a9 = 8'h64;
+            a10 = 8'h9E;
+            a11 = 8'hDF;
+            a12 = 8'hFD;
+            a13 = 8'h00;
+            a14 = 8'hDF;
+            a15 = 8'h1F;
+        end
+        else
+        begin
+            a0 = 8'h00;
+            a1 = 8'h02;
+            a2 = 8'h08;
+            a3 = 8'hFE;
+            a4 = 8'hFD;
+            a5 = 8'h21;
+            a6 = 8'h13;
+            a7 = 8'h76;
+            a8 = 8'hDE;
+            a9 = 8'h9E;
+            a10 = 8'h64;
+            a11 = 8'hFD;
+            a12 = 8'hDF;
+            a13 = 8'h00;
+            a14 = 8'h02;
+            a15 = 8'hFF;
+        end
+    end
+
+    casex({VGAPixel6_delay6[5:0], hcount_VGA})
+    {6'b00000x, 1'bx}: color = a0;  // 0, 1
+
+    {6'b000010, 1'b0}: color = a0;  // 2
+    {6'b000010, 1'b1}: color = a6;
+
+    {6'b000011, 1'b0}: color = a0;  // 3
+    {6'b000011, 1'b1}: color = a2; 
+
+    {6'b00010x, 1'b0}: color = a5;  // 4, 5
+    {6'b00010x, 1'b1}: color = a7;
+
+    {6'b000110, 1'b0}: color = a1;  // 6
+    {6'b000110, 1'b1}: color = a3;
+
+    {6'b000111, 1'b0}: color = a1;  // 7
+    {6'b000111, 1'b1}: color = a11; 
+
+    {6'b001000, 1'b0}: color = a8;  // 8
+    {6'b001000, 1'b1}: color = a6;
+
+    {6'b001001, 1'b0}: color = a8;  // 9  
+    {6'b001001, 1'b1}: color = a14; 
+
+    {6'b00101x, 1'b0}: color = a8;  // 10, 11
+    {6'b00101x, 1'b1}: color = a9;
+
+    {6'b001100, 1'bx}: color = a4;  // 12
+
+    {6'b001101, 1'b0}: color = a4;  // 13
+    {6'b001101, 1'b1}: color = a15;
+
+    {6'b001110, 1'bx}: color = a12; // 14
+
+    {6'b001111, 1'b0}: color = a12; // 15
+    {6'b001111, 1'b1}: color = a15;
+
+    {6'b01000x, 1'b0}: color = a5;  // 16, 17
+    {6'b01000x, 1'b1}: color = a13;
+
+    {6'b010010, 1'b0}: color = a13; // 18
+    {6'b010010, 1'b1}: color = a0;
+
+    {6'b010011, 1'b0}: color = a13; // 19
+    {6'b010011, 1'b1}: color = a2;
+
+    {6'b01010x, 1'bx}: color = a10; // 20, 21
+
+    {6'b010110, 1'b0}: color = a10; // 22
+    {6'b010110, 1'b1}: color = a15;
+
+    {6'b010111, 1'b0}: color = a10; // 23
+    {6'b010111, 1'b1}: color = a11;
+
+    {6'b01100x, 1'b0}: color = a3;  // 24, 25
+    {6'b01100x, 1'b1}: color = a1;
+
+    {6'b01101x, 1'b0}: color = a15; // 26, 27
+    {6'b01101x, 1'b1}: color = a9;
+
+    {6'b01110x, 1'bx}: color = a11; // 28, 29
+
+    {6'b01111x, 1'bx}: color = a15; // 30, 31
+
+    {6'b10000x, 1'b0}: color = a14; // 32, 33
+    {6'b10000x, 1'b1}: color = a0;
+
+    {6'b100010, 1'b0}: color = a14; // 34
+    {6'b100010, 1'b1}: color = a6;
+
+    {6'b100011, 1'b0}: color = a14; // 35
+    {6'b100011, 1'b1}: color = a2;
+
+    {6'b10010x, 1'b0}: color = a0;  // 36, 37
+    {6'b10010x, 1'b1}: color = a7;
+
+    {6'b100110, 1'b0}: color = a1;  // 38
+    {6'b100110, 1'b1}: color = a3;
+
+    {6'b100111, 1'b0}: color = a1;  // 39
+    {6'b100111, 1'b1}: color = a11;
+
+    {6'b101000, 1'b0}: color = a9;  // 40
+    {6'b101000, 1'b1}: color = a6;
+
+    {6'b101001, 1'b0}: color = a9;  // 41
+    {6'b101001, 1'b1}: color = a14;
+
+    {6'b10101x, 1'bx}: color = a9;  // 42, 43
+
+    {6'b101100, 1'b0}: color = a15; // 44
+    {6'b101100, 1'b1}: color = a4;
+
+    {6'b101101, 1'bx}: color = a15; // 45
+
+    {6'b101110, 1'bx}: color = a12; // 46
+
+    {6'b101111, 1'b0}: color = a12; // 47
+    {6'b101111, 1'b1}: color = a15;
+
+    {6'b11000x, 1'b0}: color = a2;  // 48, 49
+    {6'b11000x, 1'b1}: color = a13;
+
+    {6'b110010, 1'b0}: color = a2;  // 50
+    {6'b110010, 1'b1}: color = a0;
+
+    {6'b110011, 1'bx}: color = a2;  // 51
+
+    {6'b11010x, 1'bx}: color = a10; // 52, 53
+
+    {6'b110110, 1'b0}: color = a10; // 54
+    {6'b110110, 1'b1}: color = a15;
+
+    {6'b110111, 1'b0}: color = a10; // 55
+    {6'b110111, 1'b1}: color = a11;
+
+    {6'b11100x, 1'b0}: color = a12; // 56, 57
+    {6'b11100x, 1'b1}: color = a1;
+
+    {6'b11101x, 1'b0}: color = a12; // 58, 59
+    {6'b11101x, 1'b1}: color = a9;
+
+    {6'b11110x, 1'b0}: color = a15; // 60, 61
+    {6'b11110x, 1'b1}: color = a11;
+
+    {6'b11111x, 1'bx}: color = a15; // 62, 63
+    endcase
+    messArtifactPalette = color;
+endfunction
+`endif
+
 assign SG6_ENABLE = SWITCH & VID_CONT[0];
 
+/*
+Standard Palette Colors
+    RGB                 CMP
+0   18  Green           18
+1   54  Yellow          36
+2   9   Blue            11
+3   36  Red             7
+4   63  Buff            63
+5   27  Cyan            31
+6   45  Magenta         9
+7   38  Orange          38
+8   0   Black           0
+9   18  Green           18
+10  0   Black           0
+11  63  Buff            63
+12  0   Black           0
+13  18  Green           18
+14  0   Black           0
+15  38  Orange          38
+*/
 assign PIXEL_X =
 // CoCo1 Text
     ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3],SG6_ENABLE,CHAR_LATCH_0[7]} == 8'b00001000)                         ?   {6'b000011,CSS,~CHARACTER0[7]}:        // 12, 13, 14, 15
@@ -593,23 +937,6 @@ assign PIXEL_X =
 
 // CoCo3 HR Text
 // 32/40
-// Pixel Set
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b001000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b001100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[5]} ==9'b010000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[5]} ==9'b010100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[4]} ==9'b011000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[4]} ==9'b011100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[3]} ==9'b100000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[3]} ==9'b100100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[2]} ==9'b101000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[2]} ==9'b101100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b110000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b110100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b111000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b111100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
 // Pixel Clear
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000000010)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000100010)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
@@ -627,24 +954,24 @@ assign PIXEL_X =
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b110100010)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b111000010)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b111100010)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
-// 64/80
 // Pixel Set
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b000100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[5]} ==9'b001000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[4]} ==9'b001100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[3]} ==9'b010000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[2]} ==9'b010100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b011000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b011100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[7]} ==9'b100000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[6]} ==9'b100100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[5]} ==9'b101000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[4]} ==9'b101100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[3]} ==9'b110000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[2]} ==9'b110100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[1]} ==9'b111000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
-    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[0]} ==9'b111100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b001000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b001100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[5]} ==9'b010000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[5]} ==9'b010100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[4]} ==9'b011000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[4]} ==9'b011100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[3]} ==9'b100000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[3]} ==9'b100100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[2]} ==9'b101000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[2]} ==9'b101100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b110000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b110100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b111000011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b111100011)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+// 64/80
 // Pixel Clear
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000000110)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b000100110)                               ?   {5'b00000,CHAR_LATCH_0[10:8]}:
@@ -662,6 +989,23 @@ assign PIXEL_X =
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[2]} ==9'b110100110)                               ?   {5'b00000,CHAR_LATCH_1[10:8]}:
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[1]} ==9'b111000110)                               ?   {5'b00000,CHAR_LATCH_1[10:8]}:
     ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[0]} ==9'b111100110)                               ?   {5'b00000,CHAR_LATCH_1[10:8]}:
+// Pixel Set
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[7]} ==9'b000000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[6]} ==9'b000100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[5]} ==9'b001000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[4]} ==9'b001100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[3]} ==9'b010000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[2]} ==9'b010100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[1]} ==9'b011000111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER0[0]} ==9'b011100111)                               ?   {5'b00001,CHAR_LATCH_0[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[7]} ==9'b100000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[6]} ==9'b100100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[5]} ==9'b101000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[4]} ==9'b101100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[3]} ==9'b110000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[2]} ==9'b110100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[1]} ==9'b111000111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
+    ({PIXEL_COUNT[3:0],COCO1,BP,HRES[2],CRES[0],CHARACTER2[0]} ==9'b111100111)                               ?   {5'b00001,CHAR_LATCH_1[13:11]}:
 
 // Attribute less HR Text
 // 32/40
@@ -825,137 +1169,164 @@ assign PIXEL_X =
     ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b111111110)                                                 ?   {5'h00,CSS,CHAR_LATCH_0[1:0]}:
 
 // 2 color 256
+`ifdef no_arti			  
 // No Artifacts
 // Black/Green and Black/White
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0000111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[7]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0001111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[7]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0010111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[6]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0011111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[6]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0100111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[5]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0101111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[5]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0110111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[4]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b0111111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[4]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1000111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[3]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1001111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[3]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1010111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[2]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1011111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[2]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1100111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[1]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1101111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[1]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1110111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[0]}:
-    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH} == 10'b1111111110)                                        ?   {6'h02,CSS,CHAR_LATCH_0[0]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0000_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[7]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0001_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[7]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0010_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[6]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0011_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[6]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0100_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[5]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0101_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[5]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0110_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[4]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b0111_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[4]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1000_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[3]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1001_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[3]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1010_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[2]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1011_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[2]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1100_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[1]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1101_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[1]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1110_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[0]}:
+    ({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b1111_1_1111)                                                  ?   {6'h02,CSS,CHAR_LATCH_0[0]}:
+`endif
 
+`ifdef simple_arti				  
 // Simple Artifacts
 // CSS = 1 Artifacting black, orange, blue, and white
 // CSS = 0 Artifacting black, orangeish, greenish, and green
 // Both Bits Clear
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b000011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b000111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b001011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b001111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b010011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b010111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b011011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b011111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b100011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b100111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b101011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b101111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b110011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b110111111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b111011111100)                        ?   {8'h10}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b111111111100)                        ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00001111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00011111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00101111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00111111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01001111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01011111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01101111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01111111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10001111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10011111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10101111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10111111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11001111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11011111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11101111100)                                   ?   {8'h10}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11111111100)                                   ?   {8'h10}:
 
-// Both Bits Set
+// Bits Set
 // 2 Pixels means Green/White
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b000011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b000111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b001011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[7:6]} == 12'b001111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b010011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b010111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b011011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[5:4]} == 12'b011111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b100011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b100111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b101011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[3:2]} == 12'b101111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b110011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b110111111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b111011111111)                        ?   {3'h0, CSS, 4'hF}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,CHAR_LATCH_0[1:0]} == 12'b111111111111)                        ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00001111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00011111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00101111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6]} == 11'b00111111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01001111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01011111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01101111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4]} == 11'b01111111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10001111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10011111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10101111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2]} == 11'b10111111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11001111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11011111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11101111111)                                   ?   {3'h0, CSS, 4'hF}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0]} == 11'b11111111111)                                   ?   {3'h0, CSS, 4'hF}:
 
-// Phase 1 Bits 01
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0000111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0001111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0010111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0011111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0100111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0101111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0110111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0111111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1000111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1001111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1010111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1011111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1100111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1101111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1110111111101)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1111111111101)                 ?   {3'h0, CSS, 4'h9}:
+// Bits = 01
+// Phase = 1
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110111111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111011111101)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111111111101)                            ?   {3'h0, CSS, 4'h9}:
 
-// Phase 0 Bits 01
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0000111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0001111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0010111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0011111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0100111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0101111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0110111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0111111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1000111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1001111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1010111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1011111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1100111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1101111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1110111111001)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1111111111001)                 ?   {3'h0, CSS, 4'hA}:
+// Bits = 01
+// Phase = 0
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110111111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111011111001)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111111111001)                            ?   {3'h0, CSS, 4'hA}:
 
-// Phase 1 Bits 10
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0000111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0001111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0010111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0011111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0100111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0101111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0110111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0111111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1000111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1001111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1010111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1011111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1100111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1101111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1110111111110)                 ?   {3'h0, CSS, 4'hA}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1111111111110)                 ?   {3'h0, CSS, 4'hA}:
+// Bits = 10
+// Phase = 1
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110111111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111011111110)                            ?   {3'h0, CSS, 4'hA}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111111111110)                            ?   {3'h0, CSS, 4'hA}:
 
-// Phase 0 Bits 10
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0000111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0001111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0010111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[7:6]} == 13'b0011111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0100111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0101111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0110111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[5:4]} == 13'b0111111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1000111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1001111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1010111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[3:2]} == 13'b1011111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1100111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1101111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1110111111010)                 ?   {3'h0, CSS, 4'h9}:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],SWITCH,PHASE,CHAR_LATCH_0[1:0]} == 13'b1111111111010)                 ?   {3'h0, CSS, 4'h9}:
+// Bits = 10
+// Phase = 0
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b000111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[7:6]} == 12'b001111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b010111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[5:4]} == 12'b011111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b100111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[3:2]} == 12'b101111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b110111111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111011111010)                            ?   {3'h0, CSS, 4'h9}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],PHASE,CHAR_LATCH_0[1:0]} == 12'b111111111010)                            ?   {3'h0, CSS, 4'h9}:
+`endif
 
+`ifdef mess_arti
+//MESS Arti
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b000011111)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b000111111)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b001011111)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b001111111)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b010011111)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b010111111)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b011011111)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b011111111)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b100011111)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b100111111)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b101011111)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b101111111)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b110011111)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b110111111)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b111011111)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0]} == 9'b111111111)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b1,   !PHASE, CSS):
+`endif
 // CoCo3 Graphics
 // 2 color 128/160 = 160/8 = 20
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b00000100000)                                              ?   {7'h00,CHAR_LATCH_0[7]}:
@@ -1172,6 +1543,7 @@ assign PIXEL_X =
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11100110010)                                              ?   {4'h0,CHAR_LATCH_3[15:12]}:
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11110110010)                                              ?   {4'h0,CHAR_LATCH_3[11:8]}:
 
+`ifdef color_256				
 // 256 color 32/40 = 40/1 = 40
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:2],CRES} == 10'b0000010011)                                               ?   CHAR_LATCH_0[7:0]:
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:2],CRES} == 10'b0001010011)                                               ?   CHAR_LATCH_0[7:0]:
@@ -1243,6 +1615,28 @@ assign PIXEL_X =
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11010110011)                                              ?   CHAR_LATCH_3[7:0]:
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11100110011)                                              ?   CHAR_LATCH_3[15:8]:
 ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11110110011)                                              ?   CHAR_LATCH_3[15:8]:
+`endif
+
+//`ifdef color_640_256
+// 256 color 512/640 = 640/1 = 640
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b00000110111)                                            ?   CHAR_LATCH_0[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b00010110111)                                            ?   CHAR_LATCH_0[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b00100110111)                                            ?   CHAR_LATCH_1[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b00110110111)                                            ?   CHAR_LATCH_1[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b01000110111)                                            ?   CHAR_LATCH_2[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b01010110111)                                            ?   CHAR_LATCH_2[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b01100110111)                                            ?   CHAR_LATCH_3[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b01110110111)                                            ?   CHAR_LATCH_3[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b10000110111)                                            ?   CHAR_LATCH_4[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b10010110111)                                            ?   CHAR_LATCH_4[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b10100110111)                                            ?   CHAR_LATCH_5[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b10110110111)                                            ?   CHAR_LATCH_5[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11000110111)                                            ?   CHAR_LATCH_6[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11010110111)                                            ?   CHAR_LATCH_6[15:8]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11100110111)                                            ?   CHAR_LATCH_7[7:0]:
+//            ({PIXEL_COUNT[3:0],COCO1,BP,HRES[3:1],CRES} == 11'b11110110111)                                            ?   CHAR_LATCH_7[15:8]:
+//`endif
+	  
 
 // Default, modes not implemented
                                                                                                                 8'h00;
@@ -1264,8 +1658,9 @@ always @ (negedge MASTER_CLK)
         COLOR <= CCOLOR;
 
 assign CCOLOR[9] =  ({VBLANKING,HBLANKING,COCO1} == 3'b000)                     ?   1'b0:                   // CoCo3 No Artifacts
-                    ({VBLANKING,HBLANKING,COCO1,SWITCH} == 4'b0010)             ?   1'b0:                   // CoCo1 No Artifacts
-                    ({VBLANKING,HBLANKING,COCO1,SWITCH} == 4'b0011)             ?   (VID_CONT == 4'b1111):  // CoCo1 with simple artifacts depends on mode
+//                    ({VBLANKING,HBLANKING,COCO1,SWITCH} == 4'b0010)             ?   1'b0:                   // CoCo1 No Artifacts
+//                    ({VBLANKING,HBLANKING,COCO1,SWITCH} == 4'b0011)             ?   (VID_CONT == 4'b1111):  // CoCo1 with simple artifacts depends on mode
+                    ({VBLANKING,HBLANKING,COCO1} == 3'b001)             		?   (VID_CONT == 4'b1111):  // CoCo1 with simple artifacts depends on mode
                     ({(VBORDER&HBORDER),(VBLANKING|HBLANKING)} == 2'b11)        ?   BORDER[9]:              // Border
                                                                                     1'b1;                   // Retrace / Artifacting mode
 
