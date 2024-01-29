@@ -225,6 +225,7 @@ localparam  CONF_STR = {
         "P1O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;", 
         "P1OL,Artifact Color,Off - SG4,On - SG6;",
         "P1OI,Artifact Color Set,0,1;",
+        "P1o56,Artifact Type,NONE,Simple,MESS;",
         "-;",
         "P2,Debug Menu;",
         "P2-;",
@@ -597,6 +598,7 @@ wire [5:0] cocosound;
 
 wire [2:0] turbo_speed = status[34:32];
 wire [2:0] assigned_turbo_speed;
+wire [1:0] art = status[38:37];
 
 wire AMW_ACK;
 
@@ -651,7 +653,7 @@ begin
 end
 
 //	Set bit 9 to swap serial ports...
-wire [9:0] switch = { 4'b1000,sg4v6,cartint,video,mpi,cpu_speed} ;
+wire [9:0] switch = { 2'b10,art,sg4v6,cartint,video,mpi,cpu_speed} ;
 
 
 wire reset = RESET | status[0] | buttons[1];
