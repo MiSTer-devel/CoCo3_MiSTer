@@ -1660,19 +1660,17 @@ always @ (negedge MASTER_CLK)
     if(PIX_CLK == 1'b0 && PIX_CLK_DELAY == 1'b1)
         COLOR <= CCOLOR;
 
-assign CCOLOR[9] =  ({VBLANKING,HBLANKING} == 2'b00)                            ?   1'b0:                   // Not Border
-//assign CCOLOR[9] =  ({VBLANKING,HBLANKING,COCO1} == 3'b000)                     ?   1'b0:                   // CoCo3 No Artifacts
-//                    ({VBLANKING,HBLANKING,COCO1,SWITCH} == 4'b0010)             ?   1'b0:                   // CoCo1 No Artifacts
-//                    ({VBLANKING,HBLANKING,COCO1,SWITCH} == 4'b0011)             ?   (VID_CONT == 4'b1111):  // CoCo1 with simple artifacts depends on mode
-//                    ({VBLANKING,HBLANKING,COCO1} == 3'b001)             		  ?   (VID_CONT == 4'b1111):  // CoCo1 with simple artifacts depends on mode
-                    ({(VBORDER&HBORDER),(VBLANKING|HBLANKING)} == 2'b11)        ?   BORDER[9]:              // Border
-                                                                                    1'b1;                   // Retrace / Artifacting mode
+assign CCOLOR[9] =  ({VBLANKING,HBLANKING,COCO1} == 3'b000)                     ?   1'b0:                   // CoCo3 never Hard coded
+                    ({VBLANKING,HBLANKING,COCO1,art} == 5'b001_00)              ?   1'b0:                   // CoCo1 Simple Artifacts, Never Hard coded
+                    ({VBLANKING,HBLANKING,COCO1,art} == 5'b001_01)              ?   (VID_CONT == 4'b1111):  // CoCo1 with simple artifacts (only simple arti gets hard coded)
+                    ({VBLANKING,HBLANKING,COCO1,art} == 5'b001_10)              ?   1'b0:                   // CoCo1 with MESS artifacts Never Hard coded
+                    ({(VBORDER&HBORDER),(VBLANKING|HBLANKING)} == 2'b11)        ?   BORDER[9]:              // Border Hard coded if BORDER is hard coded
+                                                                                    1'b1;                   // Retrace Hard coded
 
-assign CCOLOR[8] =  ({VBLANKING,HBLANKING,COCO1} == 3'b000)                     ?   ({BP,CRES} == 3'b111):  // CoCo3 normal screen depends on 256 color mode
-//                    ({VBLANKING,HBLANKING,COCO1} == 3'b001)                     ?   ({VID_CONT[3:0],ARTI} == 6'b111101): //normal screen area in CoCo1 MESS Artifacting mode
-					({VBLANKING,HBLANKING,COCO1} == 3'b001)                     ?   (VID_CONT == 4'b1111):  // CoCo1 with artifacts depends on mode
-					({(VBORDER&HBORDER),(VBLANKING|HBLANKING)} == 2'b11)        ?   BORDER[8]:              // Border
-                                                                                    1'b0;
+assign CCOLOR[8] =  ({VBLANKING,HBLANKING,COCO1} == 3'b000)                     ?   ({BP,CRES} == 3'b111):  // CoCo3 normal screen depends on 256 color mode CoCo3 256 Color modes use VDAC
+                    ({VBLANKING,HBLANKING,COCO1,VID_CONT,art} == 9'b0011111_10) ?   1'b1:                   // CoCo1 with MESS artifacts uses VDAC
+                    ({(VBORDER&HBORDER),(VBLANKING|HBLANKING)} == 2'b11)        ?   BORDER[8]:              // Border
+                                                                                    1'b0;                   // always 0, everytuhg else use palettes
 
 assign CCOLOR[7] =  ({VBLANKING,HBLANKING} == 2'b00)                            ?   PIXEL_X[7]:             // Normal screeen area
                     ({(VBORDER&HBORDER),(VBLANKING|HBLANKING)} == 2'b11)        ?   BORDER[7]:              // Border
