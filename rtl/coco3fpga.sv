@@ -299,8 +299,8 @@ reg		[7:0]	SCRN_START_LSB;
 reg		[6:0]	HOR_OFFSET;
 reg				HVEN;
 reg		[11:0]	PALETTE [16:0];
-wire	[9:0]	COLOR;
-reg		[9:0]	COLOR_BUF;
+wire	[8:0]	COLOR;
+reg		[8:0]	COLOR_BUF;
 wire			H_SYNC_N;
 wire			V_SYNC_N;
 reg		[1:0]	SEL;
@@ -3663,6 +3663,9 @@ reg		[3:0]    MISTER_HBLANK_D;
 assign 	HBLANK = MISTER_HBLANK_D[1];  // This is 2 clock delay on the ~HBORDER...
 assign	VBLANK = ~VBORDER;
 
+assign	RED[3:0] = RED[7:4];
+assign	GREEN[3:0] = GREEN[7:4];
+assign	BLUE[3:0] = BLUE[7:4];
 
 // Video DAC
 always @ (negedge clk_sys)
@@ -3673,190 +3676,33 @@ begin
 		COLOR_BUF <= COLOR;						// Delay COLOR by 1 clock cycle to align with 256 Color SRAM
 		H_SYNC <= !H_SYNC_N;					// Delay H_SYNC by 1 clock cycle
 		V_SYNC <= !V_SYNC_N;					// Delay V_SYNC by 1 clock cycle
-		RED[3:0] <= 4'B0000;
-		GREEN[3:0] <= 4'B0000;
-		BLUE[3:0] <= 4'B0000;
+//		RED[3:0] <= 4'B0000;
+//		GREEN[3:0] <= 4'B0000;
+//		BLUE[3:0] <= 4'B0000;
 		VGA_SYNC_N <= 1'b1;
 		
 		MISTER_HBLANK_D[3] <= ~HBORDER;
         MISTER_HBLANK_D[2:0] <= MISTER_HBLANK_D[3:1];
 
 
-        if(COLOR_BUF[9])
-        begin
-            case(COLOR_BUF[7:0])
-            //  8'h80:   // Black
-            //  begin
-            //   {RED3, GREEN3, BLUE3, RED2, GREEN2, BLUE2, RED1, GREEN1, BLUE1, RED0, GREEN0, BLUE0} <= 12'h000;   // Black
-            //  end
-            8'h81:   // Green
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h492;  // GREEN
-            end
-            8'h82:   // White
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hFFF;  // WHITE
-            end
-            8'h00:   // Dark Green
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h080;
-            end
-            8'h01:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h010;
-            end
-            8'h02:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h010;
-            end
-            8'h03:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h480;
-            end
-            8'h04:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h490;
-            end
-            8'h05:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h010;
-            end
-            8'h06:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h010;
-            end
-            8'h07:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h400;
-            end
-            8'h08:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h410;
-            end
-            8'h09:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h480;
-            end
-            8'h0A:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h400;
-            end
-            8'h0B:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h490;
-            end
-            8'h0C:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h490;
-            end
-            8'h0D:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h010;
-            end
-            8'h0E:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h010;
-            end
-            8'h0F:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h492;
-            end
-            //  8'h10:   // Black
-            //  begin
-            //    {RED3, GREEN3, BLUE3, RED2, GREEN2, BLUE2, RED1, GREEN1, BLUE1, RED0, GREEN0, BLUE0} <= 12'h000;
-            //  end
-            8'h11:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h028;
-            end
-            8'h12:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h082;
-            end
-            8'h13:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hFE8;
-            end
-            8'h14:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hFD0;
-            end
-            8'h15:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h218;
-            end
-            8'h16:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h130;
-            end
-            8'h17:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h768;
-            end
-            8'h18:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hDE0;
-            end
-            8'h19:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h9E0;
-            end
-            8'h1A:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h648;
-            end
-            8'h1B:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hFD8;
-            end
-            8'h1C:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hDF8;
-            end
-            8'h1D:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h008;
-            end
-            8'h1E:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h020;
-            end
-            8'h1F:
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'hFFF;
-            end
-            default:   // Black
-            begin
-                {RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= 12'h000; // Black
-            end
-            endcase
+		if(COLOR_BUF[8])
+		begin
+			{RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= VDAC_OUT[11:0];
 		end
 		else
-// 		Request for every other line to be black
-// 		Looks more like the original video
-// 		Not for 15KHz Video
 		begin
-			begin
-				if(COLOR_BUF[8])
-				begin
-					{RED[7], GREEN[7], BLUE[7], RED[6], GREEN[6], BLUE[6], RED[5], GREEN[5], BLUE[5], RED[4], GREEN[4], BLUE[4]} <= VDAC_OUT[11:0];
-				end
-				else
-				begin
-					RED[7] <= PALETTE[COLOR_BUF[4:0]][11];
-					RED[6] <= PALETTE[COLOR_BUF[4:0]][8];
-					RED[5] <= PALETTE[COLOR_BUF[4:0]][5];
-					RED[4] <= PALETTE[COLOR_BUF[4:0]][2];
-					GREEN[7] <= PALETTE[COLOR_BUF[4:0]][10];
-					GREEN[6] <= PALETTE[COLOR_BUF[4:0]][7];
-					GREEN[5] <= PALETTE[COLOR_BUF[4:0]][4];
-					GREEN[4] <= PALETTE[COLOR_BUF[4:0]][1];
-					BLUE[7] <=	PALETTE[COLOR_BUF[4:0]][9];
-					BLUE[6] <=	PALETTE[COLOR_BUF[4:0]][6];
-					BLUE[5] <=	PALETTE[COLOR_BUF[4:0]][3];
-					BLUE[4] <=	PALETTE[COLOR_BUF[4:0]][0];
-				end
-			end
+			RED[7] <= PALETTE[COLOR_BUF[4:0]][11];
+			RED[6] <= PALETTE[COLOR_BUF[4:0]][8];
+			RED[5] <= PALETTE[COLOR_BUF[4:0]][5];
+			RED[4] <= PALETTE[COLOR_BUF[4:0]][2];
+			GREEN[7] <= PALETTE[COLOR_BUF[4:0]][10];
+			GREEN[6] <= PALETTE[COLOR_BUF[4:0]][7];
+			GREEN[5] <= PALETTE[COLOR_BUF[4:0]][4];
+			GREEN[4] <= PALETTE[COLOR_BUF[4:0]][1];
+			BLUE[7] <=	PALETTE[COLOR_BUF[4:0]][9];
+			BLUE[6] <=	PALETTE[COLOR_BUF[4:0]][6];
+			BLUE[5] <=	PALETTE[COLOR_BUF[4:0]][3];
+			BLUE[4] <=	PALETTE[COLOR_BUF[4:0]][0];
 		end
 	end
 end
