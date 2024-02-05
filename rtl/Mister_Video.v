@@ -516,8 +516,8 @@ function [7:0] messArtifactPalette(
             a3 = 8'h49;//48
             a4 = 8'h48;//49
 
-            a5 = 8'h01;//01
-            a6 = 8'h01;//01
+            a5 = 8'h08;//01
+            a6 = 8'h08;//01
 
             a7 = 8'h41;//40
             a8 = 8'h40;//41
@@ -541,8 +541,8 @@ function [7:0] messArtifactPalette(
             a2 = 8'h08; //  0 0 0 0 1 0 0 0 0 0 0 0    00000_01000_00000
             a3 = 8'h48; //  0 1 0 0 1 0 0 0 0 0 0 0    00000_11000_00000
             a4 = 8'h49; //  0 1 0 0 1 0 0 1 0 0 0 0    00000_11100_00000
-            a5 = 8'h01; //  0 0 0 0 0 0 0 1 0 0 0 0    00000_00100_00000
-            a6 = 8'h01; //  0 0 0 0 0 0 0 1 0 0 0 0    00000_00100_00000
+            a5 = 8'h08; //  0 0 0 0 1 0 0 0 0 0 0 0    00000_01000_00000   [fixed my SH 2/4/24]
+            a6 = 8'h08; //  0 0 0 0 1 0 0 0 0 0 0 0    00000_01000_00000   [fixed my SH 2/4/24]
             a7 = 8'h40; //  0 1 0 0 0 0 0 0 0 0 0 0    00000_10000_00000
             a8 = 8'h41; //  0 1 0 0 0 0 0 1 0 0 0 0    00000_10100_00000
             a9 = 8'h48; //  0 1 0 0 1 0 0 0 0 0 0 0    00000_11000_00000
@@ -759,7 +759,6 @@ Standard Palette Colors
 15  38  Orange          38
 */
 
-parameter C_BLK = 8'h00;
 parameter C_WHT = 8'hFF;
 parameter C_FGR = 8'h49;
 
@@ -1200,56 +1199,56 @@ assign PIXEL_X =
 // Black/Green and Black/White
 
 
-    ({CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0000_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0001_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0010_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0011_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0100_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0101_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0110_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0111_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1000_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1001_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1010_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1011_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1100_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1101_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1110_1_1111_00)                                                  ?   C_BLK:
-    ({CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1111_1_1111_00)                                                  ?   C_BLK:
+    ({CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0000_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0001_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0010_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0011_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0100_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0101_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0110_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_0111_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1000_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1001_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1010_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1011_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1100_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1101_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1110_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+    ({CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 12'b0_1111_1_1111_10)                                                  ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
 
-    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0000_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0001_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0010_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0011_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0100_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0101_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0110_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0111_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1000_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1001_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1010_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1011_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1100_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1101_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1110_1_1111_00)                                            ?   C_WHT:
-    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1111_1_1111_00)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0000_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0001_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0010_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0011_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0100_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0101_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0110_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_0111_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1000_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1001_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1010_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1011_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1100_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1101_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1110_1_1111_10)                                            ?   C_WHT:
+    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b1_1_1111_1_1111_10)                                            ?   C_WHT:
 
-    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0000_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0001_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0010_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0011_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0100_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0101_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0110_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0111_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1000_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1001_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1010_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1011_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1100_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1101_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1110_1_1111_00)                                            ?   C_FGR:
-    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1111_1_1111_00)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0000_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[7],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0001_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0010_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[6],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0011_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0100_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[5],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0101_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0110_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[4],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_0111_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1000_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[3],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1001_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1010_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[2],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1011_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1100_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[1],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1101_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1110_1_1111_10)                                            ?   C_FGR:
+    ({CSS,CHAR_LATCH_0[0],PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 13'b0_1_1111_1_1111_10)                                            ?   C_FGR:
 
 //`endif
 
@@ -1258,22 +1257,23 @@ assign PIXEL_X =
 // CSS = 1 Artifacting black, orange, blue, and white
 // CSS = 0 Artifacting black, orangeish, greenish, and green
 // Both Bits Clear
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00001111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00011111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00101111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00111111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01001111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01011111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01101111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01111111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10001111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10011111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10101111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10111111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11001111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11011111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11101111100_01)                                   ?   C_BLK:
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11111111100_01)                                   ?   C_BLK:
+//00 vs 08
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00001111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00011111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00101111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[7:6],art} == 13'b00111111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01001111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01011111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01101111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[5:4],art} == 13'b01111111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10001111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10011111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10101111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[3:2],art} == 13'b10111111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11001111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11011111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11101111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],CHAR_LATCH_0[1:0],art} == 13'b11111111100_01)                                   ?   {1'b0, 1'b0, 1'b0, 1'b0,  !CSS, 1'b0, 1'b0, 1'b0}:
 
 // Bits Set
 // 2 Pixels means Green/White
@@ -1378,22 +1378,22 @@ assign PIXEL_X =
 
 //`ifdef mess_arti
 //MESS Arti
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b000011111_10)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b000111111_10)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b001011111_10)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b001111111_10)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b010011111_10)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b010111111_10)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b011011111_10)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b011111111_10)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b100011111_10)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b100111111_10)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b101011111_10)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b101111111_10)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b110011111_10)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b110111111_10)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b0,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b111011111_10)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b1,   !PHASE, CSS):
-({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b111111111_10)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b000011111_00)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b000111111_00)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b001011111_00)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b001111111_00)  ? messArtifactPalette({HISTORY[1:0],  CHAR_LATCH_0[7:4]},                 1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b010011111_00)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b010111111_00)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b011011111_00)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b011111111_00)  ? messArtifactPalette(                CHAR_LATCH_0[7:2],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b100011111_00)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b100111111_00)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b101011111_00)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b101111111_00)  ? messArtifactPalette(                CHAR_LATCH_0[5:0],                  1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b110011111_00)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b110111111_00)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b0,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b111011111_00)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b1,   !PHASE, CSS):
+({PIXEL_COUNT[3:0],COCO1,VID_CONT[3:0],art} == 11'b111111111_00)  ? messArtifactPalette({               CHAR_LATCH_0[3:0],  FUTURE[1:0]},   1'b1,   !PHASE, CSS):
 //`endif
 // CoCo3 Graphics
 // 2 color 128/160 = 160/8 = 20

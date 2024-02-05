@@ -201,8 +201,6 @@ localparam  CONF_STR = {
         "H2-;",
         "H2F1,CCC,Load Cartridge;",
         "H1-;",
-//        "H1S4,DSKVHD,Load SDC Drive 0;",
-//        "H1S5,DSKVHD,Load SDC Drive 1;",
         "H1S4,DSKVHD,Load SDC Drive 0;",
         "H1S5,DSKVHD,Load SDC Drive 1;",
         "H1-;",
@@ -223,8 +221,10 @@ localparam  CONF_STR = {
         "P1-;",
         "P1O89,Aspect ratio,Original,Full Screen,Wide,[ARC1];",
         "P1O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;", 
-        "P1OL,CoCo3 Lower Case:,Enabled,Disabled - SG6 Enabled;",
-        "P1o56,Artifact Type,NONE,Simple,MESS;",
+        "P1-;",
+        "P1OL,CoCo3 LC,Yes,No-(SG6=Yes);",
+        "P1-;",
+        "P1o56,Artifact Type,MESS,Simple,NONE;",
         "P1OI,Artifact Color Set,0,1;",
         "-;",
         "P2,Debug Menu;",
@@ -233,8 +233,6 @@ localparam  CONF_STR = {
         "P2-;",
         "P2F3,BIN,Load COCO Font;", 
         "P2OG,Cart Interrupt Disabled,OFF,ON;",
-        //P2O?,Force Disk 0 DS,Off,On;"
-        //P2O?,Force Disk 1 DS,Off,On;"
         "-;",
         "ON,D-Pad Joystick emu,No,Yes;",
         "O6,Swap Joysticks,Off,On;",
@@ -249,7 +247,7 @@ localparam  CONF_STR = {
         "R0,Reset;",
         "J,Button1,Button2;",
         "jn,A,B;",
-//		"v,51;",
+		"v,51;",
         "V,v",`BUILD_DATE
 };
 
