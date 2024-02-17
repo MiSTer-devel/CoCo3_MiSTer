@@ -201,7 +201,8 @@ input	[64:0]		RTC,
 input				F_Turbo,
 input	[2:0]		turbo_speed,
 output	[2:0]		assigned_turbo_speed,
-input	[2:0]		Mem_Size
+input	[2:0]		Mem_Size,
+input	[1:0]		AUTO_MODE
 
 );
 
@@ -323,7 +324,6 @@ wire			HDD_EN_DATA;
 
 reg		[1:0]	MPI_SCS;				// IO select
 reg		[1:0]	MPI_CTS;				// ROM select
-reg		[1:0]	W_PROT;
 reg				SBS;
 reg		[11:0]	SAM00;	// 8MB    5:0 for 512kb   
 reg		[11:0]	SAM01;
@@ -378,10 +378,6 @@ reg		[18:0]	LEFT_BUF2;
 reg		[18:0]	RIGHT_BUF2;
 reg		[7:0]	ORCH_LEFT;
 reg		[7:0]	ORCH_RIGHT;
-reg		[7:0]	ORCH_LEFT_EXT;
-reg		[7:0]	ORCH_RIGHT_EXT;
-reg		[7:0]	ORCH_LEFT_EXT_BUF;
-reg		[7:0]	ORCH_RIGHT_EXT_BUF;
 reg				DACLRCLK;
 reg		[5:0]	DAC_STATE;
 wire 			H_FLAG;
@@ -914,13 +910,13 @@ assign	DATA_IN =
 // FF03, FF07, FF0B, FF0F
 ({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100011)	?	{!VSYNC1_IRQ_BUF[1], 3'b011, SEL[1], DDR2, VSYNC1_POL, VSYNC1_IRQ_INT}:
 // FF20, FF24, FF28, FF2C
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100100)	?	DATA_REG3:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001000)	?	DATA_REG3:
 // FF21, FF25, FF29, FF2D
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100101)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001001)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
 // FF22, FF26, FF2A, FF2E
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100110)	?	DATA_REG4:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001010)	?	DATA_REG4:
 // FF23, FF27, FF2B, FF2F
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100111)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001011)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
 // HiRes Joystick
 //								({PDL,ADDRESS} == 17'h0FF60)	?	PADDLE_LATCH_0[11:4]:
 //								({PDL,ADDRESS} == 17'h0FF61)	?	{PADDLE_LATCH_0[3:0],4'b0000}:
@@ -941,7 +937,7 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFF74)		?	{1'b0, GART_READ[22:16]}:
 									(ADDRESS == 16'hFF75)		?	{       GART_READ[15:8]}:
 									(ADDRESS == 16'hFF76)		?	{       GART_READ[7:0]}:
-									(ADDRESS == 16'hFF7F)		?	{2'b11, MPI_CTS, W_PROT, MPI_SCS}:
+									(ADDRESS == 16'hFF7F)		?	{2'b11, MPI_CTS, 2'b00, MPI_SCS}:
 //									(ADDRESS == 16'hFF80)		?	{CK_DONE_BUF[1],
 //																						CK_FAIL,
 //																						CK_STATE}:
@@ -1158,6 +1154,7 @@ assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
 // This sig is only used for the cycle accurate 09
 reg cpu_cycle_ena;
 
+
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
@@ -1363,11 +1360,18 @@ end
 assign RESET_P =	!BUTTON_N[3]					// Button
 					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS
 
+reg	first_time = 1'b1;
+
 // Make sure all resets are enabled for a long enough time to allow voltages to settle
 always @ (posedge clk_sys)
 begin
 	if (RESET)
 		MUGS <= RESET_INS;	   	//This is holding a <ctrl><alt><ins> across a reset to activate the Easter Egg
+	if (first_time)
+	begin
+		MUGS <= 1'b0;
+		first_time = 1'b0;
+	end
 end
 
 always @ (posedge clk_sys or posedge RESET_P)
@@ -1573,20 +1577,20 @@ fdc coco_fdc(
 	.WD1793_RD_CTRL(wd1793_read),
 
 // 	SD block level interface
-	.img_mounted(img_mounted[3:0]), 			// signaling that new image has been mounted
+	.img_mounted(img_mounted[5:2]), 	// signaling that new image has been mounted
 	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
 	.img_size(img_size),    			// size of image in bytes. 
 
-	.sd_lba(sd_lba[0:3]),
-	.sd_blk_cnt(sd_blk_cnt[0:3]), 			// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
-	.sd_rd(sd_rd[3:0]),
-	.sd_wr(sd_wr[3:0]),
-	.sd_ack(sd_ack[3:0]),
+	.sd_lba(sd_lba[2:5]),
+	.sd_blk_cnt(sd_blk_cnt[2:5]), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+	.sd_rd(sd_rd[5:2]),
+	.sd_wr(sd_wr[5:2]),
+	.sd_ack(sd_ack[5:2]),
 
 // 	SD byte level access. Signals for 2-PORT altsyncram.
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din[0:3]),
+	.sd_buff_din(sd_buff_din[2:5]),
 	.sd_buff_wr(sd_buff_wr)
 );
 
@@ -1623,20 +1627,20 @@ sdc_top coco_sdc_top(
 	.ext_response(ext_response),
 
 // 	SD block level interface
-	.img_mounted(img_mounted[5:4]), 	// signaling that new image has been mounted
+	.img_mounted(img_mounted[1:0]), 	// signaling that new image has been mounted
 	.img_readonly(img_readonly), 		// mounted as read only. valid only for active bit in img_mounted
 	.img_size(img_size),    		// size of image in bytes. 
 
-	.sd_lba(sd_lba[4:5]),
-	.sd_blk_cnt(sd_blk_cnt[4:5]), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
-	.sd_rd(sd_rd[5:4]),
-	.sd_wr(sd_wr[5:4]),
-	.sd_ack(sd_ack[5:4]),
+	.sd_lba(sd_lba[0:1]),
+	.sd_blk_cnt(sd_blk_cnt[0:1]), 		// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+	.sd_rd(sd_rd[1:0]),
+	.sd_wr(sd_wr[1:0]),
+	.sd_ack(sd_ack[1:0]),
 
 // 	SD byte level access. Signals for 2-PORT altsyncram.
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din[4:5]),
+	.sd_buff_din(sd_buff_din[0:1]),
 	.sd_buff_wr(sd_buff_wr)
 );
 
@@ -1766,22 +1770,6 @@ begin
 				RST_FF02_N <= 1'b0;
 			17'h1FF1E:
 				RST_FF02_N <= 1'b0;
-/*			17'h1FF20:
-				RST_FF20_N <= 1'b0;
-			17'h1FF24:
-				RST_FF20_N <= 1'b0;
-			17'h1FF28:
-				RST_FF20_N <= 1'b0;
-			17'h1FF2C:
-				RST_FF20_N <= 1'b0;
-			17'h1FF30:
-				RST_FF20_N <= 1'b0;
-			17'h1FF34:
-				RST_FF20_N <= 1'b0;
-			17'h1FF38:
-				RST_FF20_N <= 1'b0;
-			17'h1FF3C:
-				RST_FF20_N <= 1'b0;	*/
 			17'h1FF22:
 				RST_FF22_N <= 1'b0;
 			17'h1FF26:
@@ -1790,14 +1778,6 @@ begin
 				RST_FF22_N <= 1'b0;
 			17'h1FF2E:
 				RST_FF22_N <= 1'b0;
-			17'h1FF32:
-				RST_FF22_N <= 1'b0;
-			17'h1FF36:
-				RST_FF22_N <= 1'b0;
-			17'h1FF3A:
-				RST_FF22_N <= 1'b0;
-			17'h1FF3E:
-				RST_FF22_N <= 1'b0;
 			17'h0FF22:
 				RST_FF22_N <= 1'b0;
 			17'h0FF26:
@@ -1805,14 +1785,6 @@ begin
 			17'h0FF2A:
 				RST_FF22_N <= 1'b0;
 			17'h0FF2E:
-				RST_FF22_N <= 1'b0;
-			17'h0FF32:
-				RST_FF22_N <= 1'b0;
-			17'h0FF36:
-				RST_FF22_N <= 1'b0;
-			17'h0FF3A:
-				RST_FF22_N <= 1'b0;
-			17'h0FF3E:
 				RST_FF22_N <= 1'b0;
 			17'h1FF92:
 				RST_FF92_N <= 1'b0;
@@ -2518,14 +2490,7 @@ begin
 		ORCH_LEFT <= 8'b10000000;
 // FF7B
 		ORCH_RIGHT <= 8'b10000000;
-// FF7C
-		ORCH_LEFT_EXT <= 8'b10000000;
-		ORCH_LEFT_EXT_BUF <= 8'b10000000;
-// FF7D
-		ORCH_RIGHT_EXT <= 8'b10000000;
-		ORCH_RIGHT_EXT_BUF <= 8'b10000000;
 // FF7F
-		W_PROT <= 2'b11;
 //		MPI_SCS <= SWITCH[2:1];
 //		MPI_CTS <= SWITCH[2:1];
 // FF8E-FF8F
@@ -2762,30 +2727,20 @@ begin
 				16'hFF20,
 				16'hFF24,
 				16'hFF28,
-				16'hFF2C,
-				16'hFF30,
-				16'hFF34,
-				16'hFF38,
-				16'hFF3C:
+				16'hFF2C:
 				begin
 					if(!DDR3)
 						DD_REG3 <= DATA_OUT;
 					else
 					begin
 						DTOA_CODE <= DATA_OUT[7:2];
-//						if({SOUND_EN,SEL} == 3'b100)
-//							SOUND_DTOA <= DATA_OUT[7:2];
 					end
 				end
 
 				16'hFF21,
 				16'hFF25,
 				16'hFF29,
-				16'hFF2D,
-				16'hFF31,
-				16'hFF35,
-				16'hFF39,
-				16'hFF3D:
+				16'hFF2D:
 				begin
 //					CD_INT <= DATA_OUT[0];
 //					CD_POL <= DATA_OUT[1];
@@ -2796,11 +2751,7 @@ begin
 				16'hFF22,
 				16'hFF26,
 				16'hFF2A,
-				16'hFF2E,
-				16'hFF32,
-				16'hFF36,
-				16'hFF3A,
-				16'hFF3E:
+				16'hFF2E:
 				begin
 					if(!DDR4)
 						DD_REG4 <= DATA_OUT;
@@ -2815,11 +2766,7 @@ begin
 				16'hFF23,
 				16'hFF27,
 				16'hFF2B,
-				16'hFF2F,
-				16'hFF33,
-				16'hFF37,
-				16'hFF3B,
-				16'hFF3F:
+				16'hFF2F:
 				begin
 					CART1_FIRQ_INT <= DATA_OUT[0];
 					CART1_POL <= DATA_OUT[1];
@@ -2831,21 +2778,13 @@ begin
 				16'hFF7A:
 				begin
 					ORCH_LEFT <= DATA_OUT;
-					ORCH_LEFT_EXT <= ORCH_LEFT_EXT_BUF;
 				end
 				16'hFF7B:
 				begin
 					ORCH_RIGHT <= DATA_OUT;
-					ORCH_RIGHT_EXT <= ORCH_RIGHT_EXT_BUF;
 				end
-				16'hFF7C:
-					ORCH_LEFT_EXT_BUF <= DATA_OUT;
-				16'hFF7D:
-					ORCH_RIGHT_EXT_BUF <= DATA_OUT;
 				16'hFF7F:
 				begin
-					W_PROT[0] <=  DATA_OUT[2] | !DATA_OUT[3];
-					W_PROT[1] <= !DATA_OUT[2] |  DATA_OUT[3] | W_PROT[0];
 					MPI_SCS <= DATA_OUT[1:0];
 					MPI_CTS <= DATA_OUT[5:4];
 				end
@@ -3373,10 +3312,10 @@ end
 // The code for the internal and Orchestra sound
 
 // Internal Sound generation
-assign SOUND		=	{1'b0, SBS, SOUND_DTOA};
+assign SOUND		=	{SBS, 7'b0000000} + {SOUND_DTOA, SOUND_DTOA[5:4]};
 
-assign SOUND_LEFT = {ORCH_LEFT,  ORCH_LEFT_EXT}	+ {SOUND, 8'h00};
-assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT_EXT}	+ {SOUND, 8'h00};
+assign SOUND_LEFT = {ORCH_LEFT,  ORCH_LEFT}	+ {SOUND, SOUND};
+assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT}	+ {SOUND, SOUND};
 
 
 // the DAC isn't really a DAC but represents the DAC chip on the schematic. 
@@ -3545,12 +3484,47 @@ COCOKEY coco_keyboard(
 		.SLO_CLK(V_SYNC_N),
 		.PS2_CLK(ps2_clk),
 		.PS2_DATA(ps2_data),
-		.KEY(KEY),
+		.KEY(KEY_RCVD),
 		.SHIFT(SHIFT),
 		.SHIFT_OVERRIDE(SHIFT_OVERRIDE),
 		.RESET(RESET),
 		.RESET_INS(RESET_INS)
 );
+
+wire	[72:0]	KEY_RCVD;
+
+Auto_Run CoCo3_Auto_Run(
+		.RESET_N(RESET_N),
+		.CLK(clk_sys),
+		.CLK_1_78(clk_1_78),
+		.MPI_SCS(SWITCH[2:1]),
+		.MODE(AUTO_MODE),
+		.AMW_ACK(AMW_ACK),
+		.KEY_IN(KEY_RCVD),
+		.KEY_OUT(KEY)
+);
+
+// Generate 1.78 Mhz [enable] GP clk
+reg clk_1_78;
+reg [4:0] clk_178_ctr;
+
+always @ (negedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		clk_1_78 <= 1'b0;
+		clk_178_ctr <= 5'b00000;
+	end
+	else
+	begin
+		clk_1_78 <= 1'b0;
+		clk_178_ctr <= clk_178_ctr + 1'b1;
+		if (clk_178_ctr == 5'd27)
+		begin
+			clk_1_78 <= 1'b1;
+		end
+	end
+end
 
 // PS2 Mouse [MiSTer]
 // Borrowed from MAC PLUS

@@ -92,7 +92,7 @@ reg					SHIFT;
 output				SHIFT_OVERRIDE;
 reg					SHIFT_OVERRIDE;
 output				RESET;
-reg					RESET;
+reg					RESET = 1'b0;
 output				RESET_INS;
 reg					RESET_INS = 1'b0;
 

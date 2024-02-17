@@ -318,7 +318,6 @@ set_global_assignment -name VHDL_FILE rtl/rom/coco_rom_16.vhd
 set_global_assignment -name SDC_FILE rtl/CoCo3FPGA.sdc
 
 set_global_assignment -name ENABLE_SIGNALTAP ON
-set_global_assignment -name USE_SIGNALTAP_FILE Vsync.stp
 set_global_assignment -name SIGNALTAP_FILE Video_Explorer.stp
 set_global_assignment -name SIGNALTAP_FILE rom_Exploror.stp1
 set_global_assignment -name SOURCE_FILE rom_Exploror.stp1

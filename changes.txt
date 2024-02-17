@@ -1,3 +1,23 @@
+1.	Changed PIA 2 addressing to align with real CoCo3 hardware and end at FF2F.
+2.	Removal of 16 bit sound extentions as they overlap speach / sound cart.  This is
+	accompanied by a rework of the sound mixing to be more correct.
+3.	Re-arranged MiSTer drive LUNs to support future auto-boot from SDC drive 0
+4.	Added 'Auto Run' feature.  You must use slot 2 [SDC].  Take your floopy or HD
+	and copy it to a file name of 'boot.vhd'.  This will be auto mounted to drive 0
+	on the SDC.  In the menu, find a new item Auto Run:.  It can be set to No, DOS or
+	AUTO.BAS.  Choosing dos causes the 'DOS' command to be executed on power up.  Setting
+	the option to 'AUTO.BAS' will cause a 'RUN"AUTO' command to be executed upon powerup.
+	Save your settings to cause the changes to be remembered.  The Auto Run system re-arms
+	upon using the 'Cold Boot' menu item.
+
+
+To Do...
+1.	Add Speech / Music cart
+2.	Fix Color File II
+3.	Fic Castle of Tharoggad 
+
+
+
 1.	For cycle accurate 6809, changed PH2 to cpu_cycle_ena. (Improve timing of control register writes)
 2.	Changed PIA(s) addressing to allow complete mirror through FF00-FF3F 
 3.	Corrected usage of SG6 enable (SW5 in orig code) which allows the usage of SG6.  Formerly it was used to 
@@ -13,8 +33,9 @@
 
 
 To Do...
-1.	Fix Color File II
-2.	Fic Castle of Tharoggad 
+1.	Change PIA 2 addressing to align with real CoCo3 hardware and end at FF2F.
+2.	Fix Color File II
+3.	Fic Castle of Tharoggad 
 
 
 

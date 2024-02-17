@@ -23,6 +23,7 @@ set_global_assignment -name VERILOG_FILE rtl/config.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fdc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdc_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/Auto_Run.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ps2_mouse.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram/sdram2.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/wd1793.sv

@@ -194,20 +194,20 @@ localparam  CONF_STR = {
         "-;",
         "OCD,Multi-Pak,(Slot 2) CoCoSDC,(Slot3) ECB /Cart,(Slot 4) Disk;",
         "H3-;",
-        "H3S0,DSK,Load Disk Drive 0;",
-        "H3S1,DSK,Load Disk Drive 1;",
-        "H3S2,DSK,Load Disk Drive 2;",
-        "H3S3,DSK,Load Disk Drive 3;",
+        "H3S2,DSK,Load Disk Drive 0;",
+        "H3S3,DSK,Load Disk Drive 1;",
+        "H3S4,DSK,Load Disk Drive 2;",
+        "H3S5,DSK,Load Disk Drive 3;",
         "H2-;",
         "H2F1,CCC,Load Cartridge;",
         "H1-;",
-        "H1S4,DSKVHD,Load SDC Drive 0;",
-        "H1S5,DSKVHD,Load SDC Drive 1;",
+        "H1S0,DSKVHD,Load SDC Drive 0;",
+        "H1S1,DSKVHD,Load SDC Drive 1;",
         "H1-;",
-        "H1S0,DSK,Load OS9 Floppy /d0;",
-        "H1S1,DSK,Load OS9 Floppy /d1;",
-        "H1S2,DSK,Load OS9 Floppy /d3;",
-        "H1S3,DSK,Load OS9 Floppy /d4;",
+        "H1S2,DSK,Load OS9 Floppy /d0;",
+        "H1S3,DSK,Load OS9 Floppy /d1;",
+        "H1S4,DSK,Load OS9 Floppy /d3;",
+        "H1S5,DSK,Load OS9 Floppy /d4;",
         "-;",
 
         "F2,CAS,Load Cassette;",
@@ -242,6 +242,7 @@ localparam  CONF_STR = {
         "OO,Force Turbo,No,Yes;",
         "o02,Turbo Speed,CoCo Ctrl, 0.89 Mhz,1.78 Mhz,2.86 Mhz, 3.58 Mhz,7.16 Mhz,9.54 Mhz;",
         "OPR,Memory Size,512K,1M,2M,16M;",
+        "o89,Auto Run,No,DOS,AUTO.BAS;",
         "-;",
         "RM,Cold Boot;",
         "R0,Reset;",
@@ -260,7 +261,7 @@ localparam  CONF_STR = {
 //   0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
 // 
 
-//   R  OOOO OOR OO TOOOOOOROOOOOO    ooo                                
+//   R  OOOO OOR OO TOOOOOOROOOOOO    ooo  oo oo                             
 //F    FF            
 //S  SSSSSS
 
@@ -582,6 +583,8 @@ coco3fpga coco3 (
 
   .Mem_Size(Mem_Size),
   
+  .AUTO_MODE(Auto_Mode),
+  
   .UART_TXD(UART_TXD),
   .UART_RXD(UART_RXD),
   .UART_RTS(UART_RTS),
@@ -597,6 +600,7 @@ wire [5:0] cocosound;
 wire [2:0] turbo_speed = status[34:32];
 wire [2:0] assigned_turbo_speed;
 wire [1:0] art = status[38:37];
+wire [1:0] Auto_Mode = status[41:40];
 
 wire AMW_ACK;
 
