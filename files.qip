@@ -27,7 +27,12 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/Auto_Run.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ps2_mouse.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram/sdram2.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/wd1793.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/music_speech.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sp0256.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/ym2149_audio.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/Music_Speech_SOC.sv
 set_global_assignment -name SYSTEMVERILOG_FILE CoCo3.sv
+set_global_assignment -name VHDL_FILE rtl/sram/CoCo_ram_6116.vhd
 set_global_assignment -name VHDL_FILE rtl/sram/coco_vid_ram_buf.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/coco_mem_fetch.sv
 set_global_assignment -name VERILOG_FILE rtl/EE_Cold_Bt.v

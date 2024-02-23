@@ -937,6 +937,9 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFF74)		?	{1'b0, GART_READ[22:16]}:
 									(ADDRESS == 16'hFF75)		?	{       GART_READ[15:8]}:
 									(ADDRESS == 16'hFF76)		?	{       GART_READ[7:0]}:
+`ifdef CoCo3_enable_Music_Speech
+									(ADDRESS == 16'hFF7E)		?	MUS_SPEECH_RD_DATA:
+`endif
 									(ADDRESS == 16'hFF7F)		?	{2'b11, MPI_CTS, 2'b00, MPI_SCS}:
 //									(ADDRESS == 16'hFF80)		?	{CK_DONE_BUF[1],
 //																						CK_FAIL,
@@ -1643,6 +1646,29 @@ sdc_top coco_sdc_top(
 	.sd_buff_din(sd_buff_din[0:1]),
 	.sd_buff_wr(sd_buff_wr)
 );
+
+////////////////////////////////////////////////////////////////
+//	Speech and Music cart
+
+`ifdef CoCo3_enable_Music_Speech
+
+wire	[7:0]	MUS_SPEECH_RD_DATA;
+wire	[7:0]	Mus_Spch_Audio;
+
+Music_Speech CoCo3_Music_Speech(
+		.RESET_N(RESET_N),
+		.CLK(clk_sys),
+		.CLK_EN(PH_2),
+		.CLK_1_78(clk_1_78),
+		.MPI_SCS(SWITCH[2:1]),
+		.ADDRESS(ADDRESS[15:0]),
+		.WRITE_DATA(DATA_OUT),
+		.READ_DATA(MUS_SPEECH_RD_DATA),
+		.RW_N(RW_N),
+		.AUDIO(Mus_Spch_Audio)
+);
+
+`endif
 
 
 reg cart_firq_enable;
@@ -3312,7 +3338,12 @@ end
 // The code for the internal and Orchestra sound
 
 // Internal Sound generation
+
+`ifdef CoCo3_enable_Music_Speech
+assign SOUND		=	{SBS, 7'b0000000} + {SOUND_DTOA, SOUND_DTOA[5:4]} + Mus_Spch_Audio;
+`else
 assign SOUND		=	{SBS, 7'b0000000} + {SOUND_DTOA, SOUND_DTOA[5:4]};
+`endif
 
 assign SOUND_LEFT = {ORCH_LEFT,  ORCH_LEFT}	+ {SOUND, SOUND};
 assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT}	+ {SOUND, SOUND};
@@ -3519,7 +3550,7 @@ begin
 	begin
 		clk_1_78 <= 1'b0;
 		clk_178_ctr <= clk_178_ctr + 1'b1;
-		if (clk_178_ctr == 5'd27)
+		if (clk_178_ctr == 5'd31)
 		begin
 			clk_1_78 <= 1'b1;
 		end

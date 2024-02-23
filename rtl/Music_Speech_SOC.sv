@@ -1,18 +1,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Project Name:	CoCo3FPGA Version 5.x.x
-// File Name:		config.v
+// File Name:		Music_Speech.sv
 //
 // CoCo3 in an FPGA
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// CPU section copyrighted by John Kent
-//
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Color Computer 3 compatible system on a chip
 //
-// Version : 5.x
 //
 // Copyright (c) 2008 Gary Becker (gary_l_becker@yahoo.com)
 //
@@ -48,36 +45,51 @@
 // make sure that this is not a derivative work and that
 // you have the latest version of this file.
 //
+//
 ////////////////////////////////////////////////////////////////////////////////
-// Gary Becker
-// gary_L_becker@yahoo.com
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-// MISTer Conversion by Stan Hodge and Alan Steremberg (& Gary Becker)
-// stan.pda@gmail.com
-// 
+// Stan Hodge
+//
+//	Music_Speech.sv by Stan Hodge 02/16/24
 ////////////////////////////////////////////////////////////////////////////////
 
-// This file is a configuration definition file.  The CoCo3FPGA for MiSTer source files
-// can be built into multiple objects which have mutually exclusive features.
+module Music_Speech_SOC(
+input				RESET_N,
+input				CLKIN,
+input				CLK_1_78,
 
-`include "../RTL/config_inc.v"
+input				INT1_N,
+input				INT3_N,
 
-//	If defined the Config_Debug sets the FEATURE MASKS all OR'd together which appears on COCO space at FFF1 & (FFF0 = 0x55 as a debug flag)
-//`define	Config_Debug
+output		[7:0]	PORT_A,
+output		[7:0]	PORT_B,
+output		[7:0]	PORT_C,
+output		[7:0]	PORT_D_OUT,
+input		[7:0]	PORT_D_IN
+);
 
-// Feature list - note only FEATURE_1 - FEATURE_8 are supported
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-`set_feature(CoCo3_Horz_INT_FIX, FEATURE_1)			// Connection of the horz int to the Mister CoCo3 V5 rasterizer
+//////////////////////////////////////////////////////////////////////////////////
+// 09 Processor
 
-//`set_feature(CoCo3_Vert_INT_FIX, FEATURE_2)		// Connection of the vert int to the Mister CoCo3 V5 rasterizer
+wire			VMA, RW_N, HALT, CPU_IRQ_N, CPU_FIRQ_N, NMI_09;
+wire	[15:0]	ADDRESS;
+wire	[7:0]	DATA_IN, DATA_OUT;
 
-`set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
+// CPU section copyrighted by John Kent
+cpu09 GLBCPU09(
+	.clk(CLKIN),
+	.rst(!RESET_N),
+	.vma(VMA),
+	.addr(ADDRESS),
+	.rw(RW_N),
+	.data_in(DATA_IN),
+	.data_out(DATA_OUT),
+	.halt(HALT),
+	.hold(hold | ~cpu_ena),		// ???
+	.irq(!CPU_IRQ_N),
+	.firq(!CPU_FIRQ_N),
+	.nmi(NMI_09)
+);
 
-`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
 
-`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
 
-`set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
-
-//`set_feature(CoCo3_enable_Music_Speech, FEATURE_7)	// Enable Music and Speech cart
+endmodule
