@@ -90,6 +90,23 @@ cpu09 GLBCPU09(
 	.nmi(NMI_09)
 );
 
+assign	DATA_IN	=		(ADDRESS[15:7] == 8'b00000000)	?	ram_data_out:
+
+
+/////////////////////////////////////////////////////////////////////////////
+// SRAM Chip
+
+wire	[7:0]	ram_data_out;
+wire			sram_write_enable;
+
+COCO_SRAM_128x8 CoCo3_SRAM_128x8(
+		.CLK(CLK),
+		.ENA(sram_write_enable),
+		.ADDR(ADDRESS[6:0]),
+		.R_N(RW_N),
+		.DATA_O(ram_data_out),
+		.DATA_I(DATA_OUT)
+);
 
 
 endmodule
