@@ -1,3 +1,33 @@
+1.  Changed PIA 2 addressing to align with real CoCo3 hardware and end at FF2F.
+2.  Re-arranged MiSTer drive LUNs to support future auto-boot from SDC drive 0.
+3.  Added 'Auto Run' feature. You must use slot 2 [SDC]. Take your floppy or HD
+    and copy it to a file name of 'boot.vhd'. This will be auto mounted to drive 0
+    on the SDC. In the menu, find a new item Auto Run:. It can be set to No, DOS or
+    AUTO.BAS. Choosing dos causes the 'DOS' command to be executed on power up. Setting
+    the option to 'AUTO.BAS' will cause a 'RUN"AUTO' command to be executed upon powerup.
+    Save your settings to cause the changes to be remembered. The Auto Run system re-arms
+    upon using the 'Cold Boot' menu item.
+4.	Fixed MiSTer / CoCo3 interface preventing the joysticks ever reaching the
+	max value of 63. Specifically '>' was changed to '>=' the DTOA values.
+	This fixes DonPan and is verified in Diagnostics 2.0.
+5.	HiRES[3] is used to enable some of the higher resolution graphics modes
+	Gary Becker designed into CoCo3FPGA, and while these are not fully 
+	supported, the control signals such as HiRES[3] at $FF98 bit 6 affectt
+	the graphics engine.  For some reason Color File II manipulates this bit
+	and was causing it not to work.  This change requires the SG6 extensions
+	to be enabled to set HiRES[3].  So specifically in the Video Settings 
+	insure CoCo3 LC is set to Yes.  Color File II now works properly.
+
+To Do...
+1.	Add support for cassette save.
+2.	Add Speech / Music cart
+3.	Fix Castle of Tharoggod 
+
+FYI - If you plan on playing with the build process - there is a new compile time feature
+in config.v called CoCo3_Select_GIMEX_RAST.  It is inactive and I suggest you leave
+it as its is a upcoming change which is not ready.
+
+
 1.	Changed PIA 2 addressing to align with real CoCo3 hardware and end at FF2F.
 2.	Removal of 16 bit sound extentions as they overlap speach / sound cart.  This is
 	accompanied by a rework of the sound mixing to be more correct.

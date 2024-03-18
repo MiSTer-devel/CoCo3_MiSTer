@@ -5,6 +5,7 @@ set_global_assignment -name VERILOG_FILE rtl/PS2_Key/ps2_keyboard.v
 set_global_assignment -name MIF_FILE rtl/VDAC.mif
 set_global_assignment -name VERILOG_FILE rtl/VDAC.v
 set_global_assignment -name VERILOG_FILE rtl/Mister_Video.v
+set_global_assignment -name VERILOG_FILE rtl/Mister_Video_GIMEX.v
 set_global_assignment -name VERILOG_FILE rtl/cocokey.v
 set_global_assignment -name VERILOG_FILE rtl/UART_6551/uart_6551.v
 set_global_assignment -name VERILOG_FILE rtl/UART_6551/6551tx.v
