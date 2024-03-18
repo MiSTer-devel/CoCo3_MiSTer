@@ -80,3 +80,4 @@
 
 `set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
 
+//`set_feature(CoCo3_Select_GIMEX_RAST, FEATURE_7)	// Use GIMEX Rasterizer Engine

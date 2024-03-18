@@ -300,8 +300,8 @@ reg		[7:0]	SCRN_START_LSB;
 reg		[6:0]	HOR_OFFSET;
 reg				HVEN;
 reg		[11:0]	PALETTE [16:0];
-wire	[8:0]	COLOR;
-reg		[8:0]	COLOR_BUF;
+wire	[9:0]	COLOR;
+reg		[9:0]	COLOR_BUF;
 wire			H_SYNC_N;
 wire			V_SYNC_N;
 reg		[1:0]	SEL;
@@ -315,7 +315,6 @@ wire	[24:0]	VIDEO_ADDRESS;		// 8MB   17:0 for 512kb
 wire			FLASH_CE_S;
 
 wire			ENA_DSK;
-wire			ENA_ORCC;
 wire			ENA_DISK2;
 wire			ENA_PAK;
 
@@ -724,8 +723,8 @@ assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         					?   1'b1:       // GART 
                 (ADDRESS[15:0]== 16'hFFE9)         					?   1'b1:       // GART 2
 				({ADDRESS[15:8]}== 8'hFF)           				?   1'b0:       // Hardware (FF00-FFFF) always Excluded
                 ({VEC_PAG_RAM, ADDRESS[15:8]} ==  9'b111111110)     ?   1'b1:  		// If VEC_PAG_RAM then include FEXX Secondary Vectors
-                 ROM_SEL                            				?   1'b0:       // Internal ROM
-                 CART_SEL                        					?   1'b0:       // Cart ROM
+                 ROM_SEL                            				?   1'b0:       // Internal ROMs
+                 CART_SEL                            				?   1'b0:       // External Cart
 																		1'b1;
 
 
@@ -747,7 +746,7 @@ assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b1
                     ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  	?   1'b1:   // Enabled 32K int, Page 7, x           $78000-$7FFFF
                                                                                                     1'b0;
 
-assign  CART_SEL =   (ADDRESS[15:8]                                     ==  8'b11111111)        ?   1'b0:   // Disabled for FF00 - FFFF
+assign  CART_SEL =  (ADDRESS[15:8]                                      ==  8'b11111111)        ?   1'b0:   // Disabled for FF00 - FFFF
                     ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  	?   1'b1:   // Enabled Read, 16K Cart, Page 7, x1 $7C000-$7FEFF
                     ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  	?   1'b1:   // Enabled 32K Cart, Page 7, x1       $78000-$7FEFF
 																									1'b0;
@@ -773,7 +772,6 @@ assign  FLASH_ADDRESS = 	ENA_DSK             			?   {9'b000000100, ADDRESS[12:0]
 //11		32 External
 
 assign FLASH_CE_S = ROM_SEL     ?   1'b1:
-                    ENA_ORCC    ?   1'b1:
                     ENA_DISK2   ?   1'b1:
                     ENA_PAK     ?   1'b1:
                     ENA_DSK     ?   1'b1:
@@ -828,9 +826,6 @@ COCO_ROM_CART CC3_ROM_CART(
 );
 
 wire	SDC_EN_CS;
-
-assign	ENA_ORCC =	({CART_SEL, MPI_CTS} == 3'b100)									?	1'b1:		// Orchestra-90CC C000-DFFF Slot 1
-																						1'b0;
 
 assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)									?	1'b1:		// Alternative Disk controller ROM up to 32K
 																						1'b0;
@@ -1502,7 +1497,8 @@ coco_mem_fetch video_fetch(
 	.HBORDER(HBORDER),
 	.HOR_OFFSET(HOR_OFFSET),
 	.COCO1(COCO1),
-	.HRES(HRES)
+	.HRES(HRES),
+	.CT_320_160(1'b1)
 );
 
 
@@ -2837,7 +2833,8 @@ begin
 				16'hFF98:
 				begin
 					GRMODE <= DATA_OUT[7];
-					HRES[3] <= DATA_OUT[6];	// Extended resolutions
+					if (SWITCH[5])				// On in Extended CoCo3 mode
+						HRES[3] <= DATA_OUT[6];	// Extended resolutions
 					LPR <= DATA_OUT[2:0];
 				end
 				16'hFF99:
@@ -3312,7 +3309,8 @@ end
 // The code for the internal and Orchestra sound
 
 // Internal Sound generation
-assign SOUND		=	{SBS, 7'b0000000} + {SOUND_DTOA, SOUND_DTOA[5:4]};
+//assign SOUND		=	{SBS, 7'b0000000} + {SOUND_DTOA, SOUND_DTOA[5:4]};
+assign SOUND		=	{SBS, SOUND_DTOA, SOUND_DTOA[5]};
 
 assign SOUND_LEFT = {ORCH_LEFT,  ORCH_LEFT}	+ {SOUND, SOUND};
 assign SOUND_RIGHT = {ORCH_RIGHT, ORCH_RIGHT}	+ {SOUND, SOUND};
@@ -3374,22 +3372,22 @@ always @(negedge clk_sys)
 begin
 	case (SEL)
 	2'b00:
-		if (dac_joya2[15:10] > DTOA_CODE)
+		if (dac_joya2[15:10] >= DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
 	2'b01:
-  		if (dac_joya2[7:2] > DTOA_CODE)
+  		if (dac_joya2[7:2] >= DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
 	2'b10:
-		if (dac_joya1[15:10] > DTOA_CODE)
+		if (dac_joya1[15:10] >= DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
 	2'b11:
-  		if (dac_joya1[7:2] > DTOA_CODE)
+  		if (dac_joya1[7:2] >= DTOA_CODE)
 			JSTICK<=1;
 		else
 			JSTICK<=0;
@@ -3687,7 +3685,9 @@ wire HBORDER;
 wire VBORDER;
 wire VBLANK_1;
 wire HBLANK_1;
+wire double, buff_bank;
 
+`ifndef CoCo3_Select_GIMEX_RAST
 // Video timing and modes
 COCO3VIDEO MISTER_COCOVID(
 // Clocks / RESET
@@ -3752,7 +3752,73 @@ COCO3VIDEO MISTER_COCOVID(
 	.art(SWITCH[7:6])
 );
 
+`else
 
+wire	[9:0]	BUFF_ADD_temp;
+assign			BUFF_ADD = BUFF_ADD_temp[8:0];
+
+COCO3VIDEO_GIMEX MISTER_COCOVID(
+// Clocks / RESET
+	.PIX_CLK(PIX_CLK),			//14.32 MHz = 69.3 nS
+	.RESET_N(RESET_N),
+
+	.COLOR(COLOR),
+	.HSYNC_N(H_SYNC_N),
+	.VSYNC_N(V_SYNC_N),
+
+// RAM / Buffer
+	.BUFF_ADD_F(BUFF_ADD_temp),
+	.RAM_ADD(VIDEO_ADDRESS),
+	.RAM_DATA(BUFF_DATA),
+
+// Mode Selection
+	.COCO1(COCO1),
+	.V(V),
+	.BP(GRMODE),
+	.VERT(VERT),
+	.VID_CONT(VDG_CONTROL),
+ 	.CSS(CSS),
+	.LPF(LPF),
+	.VERT_FIN_SCRL(VERT_FIN_SCRL),
+	.HLPR(HLPR),
+	.LPR(LPR),
+	.HRES(HRES),
+	.CRES(CRES),
+	.HVEN(HVEN),
+
+// Starting location
+	.SCRN_START_HSB(SCRN_START_HSB),		// 2 extra bits for 2MB screen start
+	.SCRN_START_MSB(SCRN_START_MSB),
+	.SCRN_START_LSB(SCRN_START_LSB),
+
+	.SWITCH(SWITCH[5]),
+
+	.BLINK(BLINK),
+
+	.ARTI(SWITCH[7:6]),
+	.PHASE(PHASE),
+	.HBORDER(HBORDER),
+	.VBORDER(VBORDER),
+
+//	Interrupts
+`ifdef CoCo3_Horz_INT_FIX
+	.HBORDER_INT(HBORDER_INT),
+`endif
+
+`ifdef CoCo3_Vert_INT_FIX
+	.VBORDER_INT(VBORDER_INT),
+`endif
+
+
+//	.DOUBLE(double),
+//	.BUFF_BANK(buff_bank),
+	.TURBO(1'b0),
+	.SDRate(1'b0),
+
+	.ROM_ADDRESS(font_adrs),
+	.ROM_DATA1(font_data)
+);
+`endif
 
 parameter SHDOW_FONT_LOCK_REG = 16'hfff0;
 parameter SHDOW_FONT_DATA_REG = 16'hfff1;

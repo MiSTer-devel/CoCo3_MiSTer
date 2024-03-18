@@ -67,12 +67,14 @@ module coco_mem_fetch(
 	input				HBORDER,
 	input	[6:0]		HOR_OFFSET,
 	input				COCO1,
-	input	[3:0]		HRES
+	input	[3:0]		HRES,
 
+	input				CT_320_160
 
 );
 
-localparam WORD_END_COUNT = 9'd160 - 1'd1;
+wire	[8:0]	WORD_END_COUNT;
+//localparam WORD_END_COUNT = 9'd160 - 1'd1;
 
 
 wire	[24:0]	PHY_VID_ADD;
@@ -89,6 +91,9 @@ localparam state_start = 		4'd1;
 localparam state_wait_accept = 	4'd2;
 
 localparam state_done = 		4'd10;
+
+assign WORD_END_COUNT = (CT_320_160)	?	9'd320 - 1'd1:
+											9'd160 - 1'd1;
 
 assign BUF_HBORDER[0] = HBORDER;
 assign a0_delay[0] = init_offset_a0;
