@@ -61,7 +61,7 @@
 // This file is a configuration definition file.  The CoCo3FPGA for MiSTer source files
 // can be built into multiple objects which have mutually exclusive features.
 
-`include "../RTL/config_inc.v"
+`include "../rtl/config_inc.v"
 
 //	If defined the Config_Debug sets the FEATURE MASKS all OR'd together which appears on COCO space at FFF1 & (FFF0 = 0x55 as a debug flag)
 //`define	Config_Debug
