@@ -213,8 +213,11 @@ localparam  CONF_STR = {
         "F2,CAS,Load Cassette;",
         "TF,Stop & Rewind;",
         "OH,Monitor Tape Sound,No,Yes;",
-		  
         "-;",
+        "S76,CAS,Save Cassette;",
+        "OE,Cass Rwd=0 / Rec=1,0,1;",
+        "-;",
+
         "P1,Video Settings;",
         "P1-;",
         "P1-, -= Video Settings =-;",
@@ -261,9 +264,9 @@ localparam  CONF_STR = {
 //   0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
 // 
 
-//   R  OOOO OOR OO TOOOOOOROOOOOO    ooo  oo oo                             
+//   R  OOOO OOR OOOTOOOOOOROOOOOO    ooo  oo oo                             
 //F    FF            
-//S  SSSSSS
+//S  SSSSSS S
 
 ////////////////////   CLOCKS   ///////////////////
 
@@ -315,8 +318,8 @@ assign CLK_VIDEO = clk_sys;
 
 wire [64:0] RTC;
 
-// SD - 6 drives [4 fdc and 2 sdc] 512 size blocks [the wd1793 translates to a 256 byte sector size]	
-hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(6), .BLKSZ(2)) hps_io
+// SD - 7 drives [4 fdc, 2 sdc and 1 cass_wr] 512 size blocks [the wd1793 translates to a 256 byte sector size]	
+hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(7), .BLKSZ(2)) hps_io
 (
       .clk_sys(clk_sys),
       .HPS_BUS(HPS_BUS),
@@ -373,21 +376,21 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(6), .BLKSZ(2)) hps_io
 );
 
 // SD block level interface
-wire	[5:0]  		img_mounted;
+wire	[6:0]  		img_mounted;
 wire			    img_readonly;
 wire	[63:0] 		img_size;
 
-wire	[31:0] 		sd_lba[6];
-wire	[5:0] 		sd_blk_cnt[6];
+wire	[31:0] 		sd_lba[7];
+wire	[5:0] 		sd_blk_cnt[7];
 
-wire	[5:0]		sd_rd;
-wire	[5:0]		sd_wr;
-wire	[5:0]		sd_ack;
+wire	[6:0]		sd_rd;
+wire	[6:0]		sd_wr;
+wire	[6:0]		sd_ack;
 
 // SD byte level access. Signals for 2-PORT altsyncram.
 wire  	[8:0]       sd_buff_addr;
 wire  	[7:0]       sd_buff_dout;
-wire 	[7:0]       sd_buff_din[6];
+wire 	[7:0]       sd_buff_din[7];
 wire        		sd_buff_wr;
 
 
@@ -604,10 +607,11 @@ wire [1:0] Auto_Mode = status[41:40];
 
 wire AMW_ACK;
 
-wire cpu_speed = status[11];
+//wire cpu_speed = status[11];
 
 wire [1:0] mpi = status[13:12] + 1'b1;
-wire video=status[14];
+//wire video=status[14];
+wire CASS_REW_RECORD=status[14];
 wire cartint=status[16];
 wire sg4v6 = status[21];
 
@@ -655,7 +659,7 @@ begin
 end
 
 //	Set bit 9 to swap serial ports...
-wire [9:0] switch = { 2'b10,art,sg4v6,cartint,video,mpi,cpu_speed} ;
+wire [9:0] switch = { 2'b10,art,sg4v6,cartint,CASS_REW_RECORD,mpi,1'b0};
 
 
 wire reset = RESET | status[0] | buttons[1];

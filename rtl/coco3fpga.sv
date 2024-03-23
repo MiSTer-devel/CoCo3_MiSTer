@@ -146,21 +146,21 @@ input				ioctl_wr,
 input 	[15:0]		ioctl_index,
 
 // SD block level interface
-input   [5:0]  		img_mounted, // signaling that new image has been mounted
+input   [6:0]  		img_mounted, // signaling that new image has been mounted
 input				img_readonly, // mounted as read only. valid only for active bit in img_mounted
 input 	[63:0] 		img_size,    // size of image in bytes. 1MB MAX!
 
-output	[31:0] 		sd_lba[6],
-output  [5:0] 		sd_blk_cnt[6], // number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+output	[31:0] 		sd_lba[7],
+output  [5:0] 		sd_blk_cnt[7], // number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
 
-output 	reg  [5:0]	sd_rd,
-output 	reg  [5:0]	sd_wr,
-input        [5:0]	sd_ack,
+output 	reg  [6:0]	sd_rd,
+output 	reg  [6:0]	sd_wr,
+input        [6:0]	sd_ack,
 
 // SD byte level access. Signals for 2-PORT altsyncram.
 input  	[8:0] 		sd_buff_addr,
 input  	[7:0] 		sd_buff_dout,
-output 	[7:0] 		sd_buff_din[6],
+output 	[7:0] 		sd_buff_din[7],
 input        		sd_buff_wr,
 
 //	GPIO
@@ -171,7 +171,7 @@ input				EE_N,
 input				PHASE,
 output	[31:0]		PROBE,
 
-//  Cassette
+//  Cassette Input linkage
 output				clk_Q_out,
 output				cas_relay,
 input				casdout,
@@ -3986,5 +3986,33 @@ glb6551 RS232(
 .DTR(UART_DTR),
 .DSR(UART_DSR)
 );
+
+Cassette_Write CoCo3_Cassette_Write(
+		.RESET_N(RESET_N),
+		.CLK(clk_sys),
+		.CLK_1_78(clk_1_78),
+
+		.CASS_REWIND_RECORD(SWITCH[3]),
+		.MOTOR_ON(CAS_MTR),
+		.DTOA_CODE(DTOA_CODE),
+		
+// 		SD block level interface
+		.img_mounted(img_mounted[6]), 	// signaling that new image has been mounted
+		.img_readonly(img_readonly),	// mounted as read only. valid only for active bit in img_mounted
+		.img_size(img_size),    		// size of image in bytes. 
+
+		.sd_lba(sd_lba[6]),
+		.sd_blk_cnt(sd_blk_cnt[6]), 	// number of blocks-1, total size ((sd_blk_cnt+1)*(1<<(BLKSZ+7))) must be <= 16384!
+		.sd_rd(sd_rd[6]),
+		.sd_wr(sd_wr[6]),
+		.sd_ack(sd_ack[6]),
+
+// 		SD byte level access. Signals for 2-PORT altsyncram.
+		.sd_buff_addr(sd_buff_addr),
+		.sd_buff_dout(sd_buff_dout),
+		.sd_buff_din(sd_buff_din[6]),
+		.sd_buff_wr(sd_buff_wr)
+);
+
 
 endmodule
