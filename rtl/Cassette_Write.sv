@@ -137,16 +137,17 @@ reg			wave_negative;
 
 localparam			time_out		=	6'h3f;
 localparam			wave_zero_level	=	6'd32;
-localparam			bit_time_1		=	6'd21;
-localparam			sync			=	15'b010_1010_1001_1110;	// Pre shift $553C
+localparam			bit_time_1		=	6'd22;
+//localparam			sync			=	15'b010_1010_1001_1110;	// Pre shift $553C
+localparam			sync			=	15'b0111_1000_1010_101;	// Pre shift $553C [L -> R]
 localparam			sync_proper		=	8'h3C;
-localparam			leader			=	8'hFF;
+localparam			leader			=	8'h55;
 localparam			pre_rollover	=	9'h1FF;
 localparam			rollover		=	9'h000;
 
 reg				byte_clk;
 reg				look_for_sync;
-reg				flush_end;
+reg				flush_end, flush_end_que;
 reg				sd_hold;
 reg				pre_roll;
 reg		[7:0]	blk_type;
@@ -200,6 +201,7 @@ begin
 		st_state <= st_beg0;
 		p_state <= p_sync;
 		flush_end <= 1'b0;
+		flush_end_que <= 1'b0;
 		
 		sd_lba <= 32'd0;
 		sd_wr <= 1'b0;
@@ -237,6 +239,7 @@ begin
 			p_state <= p_sync;
 			buf_write <= 1'b0;
 			flush_end <= 1'b0;
+			flush_end_que <= 1'b0;
 
 			sd_lba <= 32'd0;
 			sd_wr <= 1'b0;
@@ -271,13 +274,13 @@ begin
 						byte_clk <= 1'b1;
 				end
 //				Shift
-				incomming_reg[15:1] <= incomming_reg[14:0];
+				incomming_reg[14:0] <= incomming_reg[15:1];
 				if (bit_time <  bit_time_1)
-					incomming_reg[0] <= 1'b1;
+					incomming_reg[15] <= 1'b1;
 				else
 				begin
-					incomming_reg[0] <= 1'b0;
-					if (incomming_reg[14:0] == sync)
+					incomming_reg[15] <= 1'b0;
+					if (incomming_reg[15:1] == sync)
 					begin
 						look_for_sync <= 1'b0;
 						byte_clk <= 1'b1;
@@ -323,9 +326,9 @@ begin
 
 						p_sync:
 						begin
-							if (incomming_reg[7:0] == sync_proper)
+							if (incomming_reg[15:8] == sync_proper)
 							begin
-								buf_data_in <= incomming_reg[7:0];
+								buf_data_in <= incomming_reg[15:8];
 								state_stack <= st_st1;				// We come back here
 								st_state <= st_wr;					// Write a byte
 								p_state <= p_blk_type;
@@ -334,8 +337,8 @@ begin
 
 						p_blk_type:
 						begin
-							buf_data_in <= incomming_reg[7:0];
-							blk_type <= incomming_reg[7:0];
+							buf_data_in <= incomming_reg[15:8];
+							blk_type <= incomming_reg[15:8];
 							state_stack <= st_st1;				// We come back here
 							st_state <= st_wr;					// Write a byte
 							p_state <= p_len;
@@ -343,11 +346,11 @@ begin
 
 						p_len:
 						begin
-							buf_data_in <= incomming_reg[7:0];
-							protocol_data_count <= incomming_reg[7:0];
+							buf_data_in <= incomming_reg[15:8];
+							protocol_data_count <= incomming_reg[15:8];
 							state_stack <= st_st1;				// We come back here
 							st_state <= st_wr;						// Write a byte
-							if (incomming_reg[7:0] == 8'h00)
+							if (incomming_reg[15:8] == 8'h00)
 								p_state <= p_cksum;
 							else
 								p_state <= p_dta;
@@ -355,7 +358,7 @@ begin
 
 						p_dta:
 						begin
-							buf_data_in <= incomming_reg[7:0];
+							buf_data_in <= incomming_reg[15:8];
 							protocol_data_count <= protocol_data_count - 1'b1;
 							state_stack <= st_st1;				// We come back here
 							st_state <= st_wr;						// Write a byte
@@ -366,11 +369,11 @@ begin
 
 						p_cksum:
 						begin
-							buf_data_in <= incomming_reg[7:0];
+							buf_data_in <= incomming_reg[15:8];
 							look_for_sync <= 1'b1;
 							if (blk_type == 8'hff)
 							begin
-								flush_end <= 1'b1;
+								flush_end_que <= 1'b1;
 								state_stack <= st_st1;			// We come back here [close it]
 							end
 							else
@@ -409,7 +412,7 @@ begin
 //			This acts like a sub routine....
 			st_wr:
 			begin
-				if (sd_hold)
+				if (!sd_hold)
 				begin
 					buf_write <= 1'b1;
 					st_state <= st_wr1;
@@ -420,6 +423,8 @@ begin
 			begin
 				buf_address <= buf_address + 1'b1;
 				buf_write <= 1'b0;
+				flush_end  <= flush_end_que;
+				flush_end_que <= 1'b0;
 				st_state <= state_stack;
 			end
 

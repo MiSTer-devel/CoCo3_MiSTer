@@ -214,7 +214,7 @@ localparam  CONF_STR = {
         "TF,Stop & Rewind;",
         "OH,Monitor Tape Sound,No,Yes;",
         "-;",
-        "S76,CAS,Save Cassette;",
+        "S6,CAS,Save Cassette;",
         "OE,Cass Rwd=0 / Rec=1,0,1;",
         "-;",
 
@@ -266,7 +266,7 @@ localparam  CONF_STR = {
 
 //   R  OOOO OOR OOOTOOOOOOROOOOOO    ooo  oo oo                             
 //F    FF            
-//S  SSSSSS S
+//S  SSSSSSS
 
 ////////////////////   CLOCKS   ///////////////////
 
