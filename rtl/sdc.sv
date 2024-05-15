@@ -47,8 +47,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-//	Define Config features
-`include "../RTL/config.v"
 
 module sdc(
 	input        		CLK,     		// clock
@@ -88,6 +86,9 @@ module sdc(
 	input        		sd_buff_wr
 
 );
+
+//	Define Config features
+`include "../rtl/config.sv"
 
 reg		[23:0]	LSN;
 reg		[7:0]	command;

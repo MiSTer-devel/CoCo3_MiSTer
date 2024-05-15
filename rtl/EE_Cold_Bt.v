@@ -55,6 +55,7 @@
 
 module EE_Cold_Bt(
 input				CLK,
+input				RESET,
 
 input				Display_EE,			// from MISTer subsystem
 input				Cold_Boot,			// from MISTer subsystem
@@ -106,105 +107,117 @@ assign		Start_Display_EE = ((Display_EE == 1'b1) & (Display_EE_D == 1'b0));
 assign		Start_Cold_Boot = ((Cold_Boot == 1'b1) & (Cold_Boot_D == 1'b0));
 
 
-always @(posedge CLK)
+always @ (posedge CLK or posedge RESET)
 begin
-
-	Display_EE_D <= Display_EE;
-	Cold_Boot_D <= Cold_Boot;
-
-	next_instruction <= 1'b0;
-
-	if (Start_Display_EE)
+	if(RESET)
 	begin
-		prog <= EE_PROG;
+		Display_EE_D <= 1'b0;
+		Cold_Boot_D <= 1'b0;
+		EE <= 1'b1;
+		N_RESET <= 1'b1;
+		prog <= 48'h000000000000;
+		next_instruction <= 1'b0;
+		timer <= 24'h000000;
 	end
-
-	if (Start_Cold_Boot)
+	else
 	begin
-		prog <= Cold_Boot_PROG;
-	end
+		Display_EE_D <= Display_EE;
+		Cold_Boot_D <= Cold_Boot;
 
-	if (next_instruction)
-		prog[43:0] <= prog[47:4];
+		next_instruction <= 1'b0;
 
-	case(inst)
-	
-	inst_NULL:;
-	
-	inst_START:
-	begin
-		if (!next_instruction)
+		if (Start_Display_EE)
 		begin
-			timer <= 24'h000000;		// clear timer
-			next_instruction <= 1'b1;
+			prog <= EE_PROG;
 		end
-	end
 
-	inst_EE_ACTIVE:
-	begin
-		if (!next_instruction)
+		if (Start_Cold_Boot)
 		begin
-			EE <= 1'b0;
-			next_instruction <= 1'b1;
+			prog <= Cold_Boot_PROG;
 		end
-	end
-	
-	inst_EE_INACTIVE:
-	begin
-		if (!next_instruction)
-		begin
-			EE <= 1'b1;
-			next_instruction <= 1'b1;
-		end
-	end
 
-	inst_RESET_ACTIVE:
-	begin
-		if (!next_instruction)
-		begin
-			N_RESET <= 1'b0;
-			next_instruction <= 1'b1;
-		end
-	end
+		if (next_instruction)
+			prog[43:0] <= prog[47:4];
+
+		case(inst)
 	
-	inst_RESET_INACTIVE:
-	begin
-		if (!next_instruction)
-		begin
-			N_RESET <= 1'b1;
-			next_instruction <= 1'b1;
-		end
-	end
-	
-	inst_SHORT_TIMER:
-	begin
-		if (!next_instruction)
-		begin
-			timer <= timer + 1'b1;
-			if (timer==SHORT_TIME)
+			inst_NULL:;
+
+			inst_START:
 			begin
-				next_instruction <= 1'b1;
-				timer <= 24'h000000;		// clear timer
+				if (!next_instruction)
+				begin
+					timer <= 24'h000000;		// clear timer
+					next_instruction <= 1'b1;
+				end
 			end
-		end
-	end
 
-	inst_LONG_TIMER:
-	begin
-		if (!next_instruction)
-		begin
-			timer <= timer + 1'b1;
-			if (timer==LONG_TIME)
+			inst_EE_ACTIVE:
 			begin
-				next_instruction <= 1'b1;
-				timer <= 24'h000000;		// clear timer
+				if (!next_instruction)
+				begin
+					EE <= 1'b0;
+					next_instruction <= 1'b1;
+				end
 			end
-		end
+	
+			inst_EE_INACTIVE:
+			begin
+				if (!next_instruction)
+				begin
+					EE <= 1'b1;
+					next_instruction <= 1'b1;
+				end
+			end
+
+			inst_RESET_ACTIVE:
+			begin
+				if (!next_instruction)
+				begin
+					N_RESET <= 1'b0;
+					next_instruction <= 1'b1;
+				end
+			end
+	
+			inst_RESET_INACTIVE:
+			begin
+				if (!next_instruction)
+				begin
+					N_RESET <= 1'b1;
+					next_instruction <= 1'b1;
+				end
+			end
+	
+			inst_SHORT_TIMER:
+			begin
+				if (!next_instruction)
+				begin
+					timer <= timer + 1'b1;
+					if (timer==SHORT_TIME)
+					begin
+						next_instruction <= 1'b1;
+						timer <= 24'h000000;		// clear timer
+					end
+				end
+			end
+
+			inst_LONG_TIMER:
+			begin
+				if (!next_instruction)
+				begin
+					timer <= timer + 1'b1;
+					if (timer==LONG_TIME)
+					begin
+						next_instruction <= 1'b1;
+						timer <= 24'h000000;		// clear timer
+					end
+				end
+			end
+
+			default:;
+
+		endcase
 	end
-
-	default:;
-
-	endcase
 end
 
 endmodule

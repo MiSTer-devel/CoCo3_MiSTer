@@ -1,3 +1,39 @@
+1.	Added support for cassette save.  To use: A) You have to have a file [anyname.cas]
+	which is larger than needed.  B) Select the file through the UI Menu 'Save 
+	Cassette'.  C)Set 'Cass Rwd=0 / Rec=1' to 1. D) Issue your 'CSAVE "NAME"'
+	E) When done, set 'Cass Rwd=0 / Rec=1' to 0 to complete the write.  The file can 
+	now be loaded or copied.  Note a dummy file of a specific size can be created in
+	the MiSTer SSH shell in the /media/fat/games/coco3 with the command:
+	'truncate -s 65536 tapefileame.cas'. [Note do NOT use over 65536 file length]
+2.	Fixed serial interrupt [6551] to not be functional on slot 3 [carts].
+3.	Modification of sys_top.v to override use of USER_IO for HDMI - so it can be used
+	for logic analyzer debug.  This will only occur when `define	Config_Debug is 
+	enabled in config.v.
+4.	Fixed MUGS of powerup issue occurring on some MiSTer units.
+5.	Fixed incorrect application of GIME_IRQ on legacy interrupts.  Fixed race condition
+	on reading IRQ status vs clearing the interrupt.
+6.	Improved Castle of Tharoggad.  App now loads but locks as the graphics animate.  This
+	change improved mmu usage through to CARTS.
+7.	Builds now keep track of multiple builds in the same date.  It shows as V240512-001 in
+	the menus.  Its also exposed to BASIC and a boot.vhd which can be enabled to autorun is
+	supplied in the archive to show how it works.
+8.	Additionally, on the boot.vhd disk, is a program which demonstrated how to load a font -
+	IBMFONT.BAS. Run it and it maps a font much like the IBM font to the 80 column format.
+	Also, a file called TESTRTC.BAS pulls the MiSTer RTC values exposed in BASIC to display
+	a clock.
+9.	Large improvement in the Timer function.  Code closer emulates COCO3 Timer. Fixes
+	Sliphead cart.
+10.	In the 20231023 release the wd1773 instances were reduced to 1 for the FDC and one for
+	the FDC.  This saved space but introduced a bug when using multiple drives at the same
+	time - like a copy command.  This change was removed and the copy command works again.
+
+To Do...
+1.	Add Speech / Music cart
+2.	Fix Castle of Tharoggad 
+
+
+
+
 1.  Changed PIA 2 addressing to align with real CoCo3 hardware and end at FF2F.
 2.  Re-arranged MiSTer drive LUNs to support future auto-boot from SDC drive 0.
 3.  Added 'Auto Run' feature. You must use slot 2 [SDC]. Take your floppy or HD

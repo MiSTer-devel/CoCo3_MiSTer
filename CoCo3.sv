@@ -1,6 +1,6 @@
 //============================================================================
 //  CoCo3 port to MiSTer
-//  Copyright (c) 2019 Alan Steremberg - alanswx
+//  Copyright (c) 2019 Alan Steremberg - alanswx, Stan Hodge - MasterS3263827
 //
 //
 //============================================================================
@@ -189,6 +189,8 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 
 
 `include "build_id.v"
+`include "build_id_num.v"
+
 localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
@@ -252,7 +254,7 @@ localparam  CONF_STR = {
         "J,Button1,Button2;",
         "jn,A,B;",
 		"v,51;",
-        "V,v",`BUILD_DATE
+        "V,v",{`BUILD_DATE,"-",`BUILD_NUMBER}
 };
 
 // Status bits Directory
@@ -277,7 +279,7 @@ assign clk_sys=CLK_57;
 wire pll_locked, pll2_locked;
 wire CLK_114, CLK_57, CLK_28, CLK_14;
 
-
+assign VGA_DISABLE = 1'b0;
 
 pll pll
 (
@@ -317,6 +319,7 @@ wire [21:0] gamma_bus;
 assign CLK_VIDEO = clk_sys;
 
 wire [64:0] RTC;
+wire [15:0] sdram_sz;
 
 // SD - 7 drives [4 fdc, 2 sdc and 1 cass_wr] 512 size blocks [the wd1793 translates to a 256 byte sector size]	
 hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(7), .BLKSZ(2)) hps_io
@@ -342,6 +345,8 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(7), .BLKSZ(2)) hps_io
       .ioctl_dout(ioctl_data),
       .ioctl_index(ioctl_index),
 
+      .sdram_sz(sdram_sz),
+	  
       // 	SD block level interface
 
       .img_mounted(img_mounted), 		// signaling that new image has been mounted
@@ -455,7 +460,9 @@ wire	Programmed_EE;
 
 EE_Cold_Bt COCO3_EE_Cold_Bt (
 	.CLK(CLK_14),
+	.RESET(1'b0),
 
+//	.Display_EE(1'b0),						// from MISTer subsystem
 	.Display_EE(easter_egg),				// from MISTer subsystem
 	.Cold_Boot(AMW_ACK),					// from AMW system
 
@@ -474,10 +481,14 @@ wire [7:0] r;
 wire [7:0] g;
 wire [7:0] b;
 
-wire easter_egg = ~status[10];
+wire easter_egg = status[10];
 wire	[31:0]	probe;
 
 assign USER_OUT[6:0] = probe[6:0];
+
+wire [71:0]	Config_Data;
+
+assign Config_Data = {`BUILD_DATE, `BUILD_NUMBER};
 
 coco3fpga coco3 (
   //	CLOCKS
@@ -522,7 +533,7 @@ coco3fpga coco3 (
   // R1, L2, R2, L1
   .P_SWITCH(~{coco_joy2[4],coco_joy1[5],coco_joy2[5],coco_joy1[4]}),
   .SWITCH(switch),
-  .SOUND_OUT(cocosound),
+//  .SOUND_OUT(cocosound),
   .SOUND_LEFT(audio_left),
   .SOUND_RIGHT(AUDIO_R),
 
@@ -532,6 +543,9 @@ coco3fpga coco3 (
   .ioctl_download(ioctl_download),
   .ioctl_index(ioctl_index),
   .ioctl_wr(ioctl_wr),
+
+//	SDRAM Info
+  .sdram_sz(sdram_sz),
 
 // SD block level interface
 
@@ -580,6 +594,7 @@ coco3fpga coco3 (
   .RTC(RTC),
 
   .AMW_Trigger(coldboot | mpi_reset | mem_reset),
+//  .AMW_Trigger(coldboot),
   .AMW_ACK(AMW_ACK),
 
   .F_Turbo(F_Turbo),
@@ -587,6 +602,8 @@ coco3fpga coco3 (
   .Mem_Size(Mem_Size),
   
   .AUTO_MODE(Auto_Mode),
+
+  .Config_Data(Config_Data),
   
   .UART_TXD(UART_TXD),
   .UART_RXD(UART_RXD),
@@ -598,7 +615,7 @@ coco3fpga coco3 (
 
 assign status_set = 1'b0;
 
-wire [5:0] cocosound;
+//wire [5:0] cocosound;
 
 wire [2:0] turbo_speed = status[34:32];
 wire [2:0] assigned_turbo_speed;
@@ -741,7 +758,7 @@ cassette cassette(
 
   .sdram_addr(ram_addr),
   .sdram_data(ram_data_o),
-  .sdram_rd(ram_rd), // Not connected for sram
+//  .sdram_rd(ram_rd), // Not connected for sram
 
   .data(casdout)
 );

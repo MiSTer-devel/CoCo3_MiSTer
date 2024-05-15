@@ -146,53 +146,26 @@ assign	DATA_HDD =
 
 wire		[31:0] 	sdc_sd_lba[2];
 wire		[31:0] 	fdc_sd_lba[2];
-wire		[31:0] 	wd1793_sd_lba;
 wire 		[1:0]	sdc_sd_rd;
-wire				wd1793_sd_rd;
 wire 		[1:0]	fdc_sd_rd;
 wire 		[1:0]	sdc_sd_wr;
 wire 		[1:0]	fdc_sd_wr;
-wire				wd1793_sd_wr;
 wire 		[7:0] 	sdc_sd_buff_din[2];
 wire 		[7:0] 	fdc_sd_buff_din[2];
 wire 		[7:0] 	wd1793_sd_buff_din;
-wire				wd1793_sd_ack;
 wire				sdc_HALT;
 
 assign		sd_lba[0:1]			=	SDC_EN					?	sdc_sd_lba[0:1]:
 																fdc_sd_lba[0:1];
 
-assign		fdc_sd_lba[0]		=	wd1793_sd_lba;
-assign		fdc_sd_lba[1]		=	wd1793_sd_lba;
-
 assign		sd_rd[1:0]			=	SDC_EN					?	sdc_sd_rd[1:0]:
 																fdc_sd_rd[1:0];
 
-assign		fdc_sd_rd[0]		=	(drive_index == 3'd1)	?	wd1793_sd_rd:
-																1'b0;
-																
-assign		fdc_sd_rd[1]		=	(drive_index == 3'd2)	?	wd1793_sd_rd:
-																1'b0;
-											
 assign		sd_wr[1:0]			=	SDC_EN					?	sdc_sd_wr[1:0]:
 																fdc_sd_wr[1:0];
 
-assign		fdc_sd_wr[0]		=	(drive_index == 3'd1)	?	wd1793_sd_wr:
-																1'b0;
-																
-assign		fdc_sd_wr[1]		=	(drive_index == 3'd2)	?	wd1793_sd_wr:
-																1'b0;
-
 assign		sd_buff_din[0:1]	=	SDC_EN					?	sdc_sd_buff_din[0:1]:
 																fdc_sd_buff_din[0:1];
-
-assign		fdc_sd_buff_din[0]	=	wd1793_sd_buff_din;
-assign		fdc_sd_buff_din[1]	=	wd1793_sd_buff_din;
-
-
-assign		wd1793_sd_ack		=	(drive_index == 3'd1)	?	sd_ack[0]:
-									(drive_index == 3'd2)	?	sd_ack[1]:
-																sd_ack[0];		// default is drive 1
 
 
 sdc coco_sdc(
@@ -277,13 +250,13 @@ begin
 				drive_index <= 3'd1;
 
 			4'b1011:							//	This is what the Magic Number $43 does so we select a non-active drive
-				drive_index <= 3'd0;
+				drive_index <= 3'd1;
 			4'b1000:							//	This is no drive with DS = illegal drive
-				drive_index <= 3'd0;
+				drive_index <= 3'd1;
 			4'b0000:							//	This is no drive (maybe 0 in ff40) = illegal drive
-				drive_index <= 3'd0;
+				drive_index <= 3'd1;
 			default:
-				drive_index <= 3'd0;
+				drive_index <= 3'd1;
 			endcase
 		end
 	end
@@ -310,14 +283,17 @@ end
 
 // Control signals for the wd1793
 
+wire 			INTRQ[2];
+wire			DRQ[2];
 wire			selected_DRQ;
 wire			selected_INTRQ;
 
-wire			WR;
-wire			RD;
-wire			RD_E;
+wire			WR[2];
+wire			RD[2];
+wire			RD_E[2];
 wire			HALT_EN_RST;
 wire	[7:0]	DATA_1793;
+wire	[7:0]	dout[2];
 reg				read;
 reg				write;
 reg 			read_d;
@@ -329,7 +305,8 @@ reg				read1;
 reg				write1;
 reg		[1:0]	ADDRESS_L;
 
-assign RD = (read || RD_E); 															// Even with no drive selected allow read to the controller
+assign RD[0] = (read || RD_E[0]) && (drive_index == 2'd1);
+assign RD[1] = (read || RD_E[1]) && (drive_index == 3'd2);
 
 // The idea here is to "stretch" the CPU read and write signals to ensure we catch a 8 mhz enable.
 // For writes we will buffer the data out to ensure it does not go away.
@@ -350,8 +327,10 @@ begin
 		write_d <= 1'b0;
 		r_w_active <= 1'b0;
 		clk_8Mhz_enable_found <= 1'b0;
-		WR <= 1'b0;
-		RD_E <= 1'b0;
+		WR[0] <= 1'b0;
+		WR[1] <= 1'b0;
+		RD_E[0] <= 1'b0;
+		RD_E[1] <= 1'b0;
 		read1 <= 1'b0;
 		write1 <= 1'b0;
 		read <= 1'b0;
@@ -383,14 +362,24 @@ begin
 		begin
 //			Set Write
 			r_w_active <= 1'b1;
-			WR <= 1'b1;
+			case (drive_index)
+				3'd1:
+					WR[0] <= 1'b1;
+				3'd2:
+					WR[1] <= 1'b1;
+			endcase
 		end
 
 //		Synchronus rising edge of read
 		if ((read == 1'b1) && (read_d == 1'b0))
 		begin
 			r_w_active <= 1'b1;
-			RD_E <= 1'b1;
+			case (drive_index)
+				3'd1:
+					RD_E[0] <= 1'b1;
+				3'd2:
+					RD_E[1] <= 1'b1;
+			endcase
 		end
 
 //		Clears
@@ -402,22 +391,41 @@ begin
 		begin
 			clk_8Mhz_enable_found <= 1'b0;
 			r_w_active <= 1'b0;
-			WR <= 1'b0;
-			RD_E <= 1'b0;
+			WR[0] <= 1'b0;
+			WR[1] <= 1'b0;
+
+			RD_E[0] <= 1'b0;
+			RD_E[1] <= 1'b0;
 		end
 	end
 end
 
 
 //	NMI from disk controller
+//	Selected INTRQ
+assign	selected_INTRQ	=	(drive_index == 3'd1)	?	INTRQ[0]:
+							(drive_index == 3'd2)	?	INTRQ[1]:
+														1'b0;
 
 assign	NMI_09	=	~SDC_EN & DENSITY & selected_INTRQ;		// Send NMI if Double Density (Halt Mode)
 
+
+
 //	HALT from disk controller
 
+//	Selected DRQ
+assign	selected_DRQ	=	(drive_index == 3'd1)	?	DRQ[0]:
+							(drive_index == 3'd2)	?	DRQ[1]:
+														1'b1;
+														
 assign	HALT	=	(~SDC_EN & HALT_EN & ~selected_DRQ) | sdc_HALT;
 
 assign	HALT_EN_RST = RESET_N & ~selected_INTRQ; // From controller schematic
+
+// Data bus selection
+assign	DATA_1793 	=		(drive_index == 3'd1)	?	dout[0]:
+							(drive_index == 3'd2)	?	dout[1]:
+														8'd0;
 
 
 // The SD_BLK interface and thus the wd1793 will allways transfer 1 blk. This is blk qty - 1 per spec.
@@ -428,8 +436,6 @@ reg       drive_wp[2];
 reg       [1:0] drive_ready  = 2'b00;
 reg       [1:0] double_sided = 2'b00;
 reg		  [31:0] drive_size[2];
-wire	  [31:0] selected_drive_size;
-wire			 selected_drive_ready, selected_drive_wp, selected_double_sided;
 
 // As drives are mounted in MISTer this logic saves the write protect and generates ready for
 // changing drives to the wd1793.
@@ -457,56 +463,83 @@ begin
 	double_sided[1]<= (img_size > 64'd368600) & (img_size < 64'd740000);//20'd368640;
 end
 
-assign		selected_drive_size	=	(drive_index == 3'd1)	?	drive_size[0]:
-									(drive_index == 3'd2)	?	drive_size[1]:
-																drive_size[0];		// default is drive 1
 
-assign		selected_drive_wp	=	(drive_index == 3'd1)	?	drive_wp[0]:
-									(drive_index == 3'd2)	?	drive_wp[1]:
-																drive_wp[0];		// default is drive 1
-
-assign		selected_double_sided=	(drive_index == 3'd1)	?	double_sided[0]:
-									(drive_index == 3'd2)	?	double_sided[1]:
-																double_sided[0];	// default is drive 1
-
-assign		selected_drive_ready =	(drive_index == 3'd1)	?	drive_ready[0]:
-									(drive_index == 3'd2)	?	drive_ready[1]:
-																drive_ready[0];		// default is drive 1
-
-wd1793 #(1,0) coco_wd1793_sdc
+wd1793 #(1,0) coco_wd1793_sdc_0
 (
 	.clk_sys(~CLK),
 	.ce(ena_8Mhz),
 	.reset(~RESET_N),
 	.io_en(1'b1),
-	.rd(RD),
-	.wr(WR),
+	.rd(RD[0]),
+	.wr(WR[0]),
 	.addr(ADDRESS_L[1:0]),
 	.din(DATA_IN_L),
-	.dout(DATA_1793),
-	.drq(selected_DRQ),
-	.intrq(selected_INTRQ),
+	.dout(dout[0]),
+	.drq(DRQ[0]),
+	.intrq(INTRQ[0]),
 
 	.img_mounted(1'b0),						// Not used when using _override
 	.img_mounted_overide(1'b1),				// Load img_size and layout on each clock
-	.img_size(selected_drive_size[19:0]),
+	.img_size(drive_size[0]),
 
-	.sd_lba(wd1793_sd_lba),
-	.sd_rd(wd1793_sd_rd),
-	.sd_wr(wd1793_sd_wr), 
-	.sd_ack(wd1793_sd_ack),
+	.sd_lba(fdc_sd_lba[0]),
+	.sd_rd(fdc_sd_rd[0]),
+	.sd_wr(fdc_sd_wr[0]), 
+	.sd_ack(sd_ack[0]),
 
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(wd1793_sd_buff_din), 
+	.sd_buff_din(fdc_sd_buff_din[0]), 
 	.sd_buff_wr(sd_buff_wr),
 
-	.wp(selected_drive_wp),
+	.wp(drive_wp[0]),
 
 	.size_code(3'd5),						// 5 is 18 sector x 256 bits COCO standard
-	.layout(~selected_double_sided),		// 0 = Track-Side-Sector, 1 - Side-Track-Sector
-	.side(selected_double_sided  & DRIVE_SEL_EXT[3]),
-	.ready(selected_drive_ready),
+	.layout(~double_sided[0]),		// 0 = Track-Side-Sector, 1 - Side-Track-Sector
+	.side(double_sided[0]  & DRIVE_SEL_EXT[3]),
+	.ready(drive_ready[0]),
+
+	.input_active(0),						// Section not used
+	.input_addr(0),
+	.input_data(0),
+	.input_wr(0),
+	.buff_din(0)
+);
+
+wd1793 #(1,0) coco_wd1793_sdc_1
+(
+	.clk_sys(~CLK),
+	.ce(ena_8Mhz),
+	.reset(~RESET_N),
+	.io_en(1'b1),
+	.rd(RD[1]),
+	.wr(WR[1]),
+	.addr(ADDRESS_L[1:0]),
+	.din(DATA_IN_L),
+	.dout(dout[1]),
+	.drq(DRQ[1]),
+	.intrq(INTRQ[1]),
+
+	.img_mounted(1'b0),						// Not used when using _override
+	.img_mounted_overide(1'b1),				// Load img_size and layout on each clock
+	.img_size(drive_size[1]),
+
+	.sd_lba(fdc_sd_lba[1]),
+	.sd_rd(fdc_sd_rd[1]),
+	.sd_wr(fdc_sd_wr[1]), 
+	.sd_ack(sd_ack[1]),
+
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din(fdc_sd_buff_din[1]), 
+	.sd_buff_wr(sd_buff_wr),
+
+	.wp(drive_wp[1]),
+
+	.size_code(3'd5),						// 5 is 18 sector x 256 bits COCO standard
+	.layout(~double_sided[1]),		// 0 = Track-Side-Sector, 1 - Side-Track-Sector
+	.side(double_sided[1]  & DRIVE_SEL_EXT[3]),
+	.ready(drive_ready[1]),
 
 	.input_active(0),						// Section not used
 	.input_addr(0),

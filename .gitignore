@@ -10,3 +10,4 @@ jtag.cdf
 greybox_tmp/cbx_args.txt
 */greybox_tmp/cbx_args.txt
 changes.txt
+rtl/config_inc.sv

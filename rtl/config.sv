@@ -61,23 +61,47 @@
 // This file is a configuration definition file.  The CoCo3FPGA for MiSTer source files
 // can be built into multiple objects which have mutually exclusive features.
 
-`include "../RTL/config_inc.v"
+`define Config_Debug_FLAG	4'hA
+localparam [7:0] FEATURE_1 = 8'h01;
+localparam [7:0] FEATURE_2 = 8'h02;
+localparam [7:0] FEATURE_3 = 8'h04;
+localparam [7:0] FEATURE_4 = 8'h08;
+localparam [7:0] FEATURE_5 = 8'h10;
+localparam [7:0] FEATURE_6 = 8'h20;
+localparam [7:0] FEATURE_7 = 8'h40;
+localparam [7:0] FEATURE_8 = 8'h80;
 
-//	If defined the Config_Debug sets the FEATURE MASKS all OR'd together which appears on COCO space at FFF1 & (FFF0 = 0x55 as a debug flag)
-//`define	Config_Debug
+//			This is used for hardware debugging - it overrides the USER_IO to be user_out direct.
+//			It should be commented out for release
+//`define Config_Debug
 
 // Feature list - note only FEATURE_1 - FEATURE_8 are supported
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-`set_feature(CoCo3_Horz_INT_FIX, FEATURE_1)			// Connection of the horz int to the Mister CoCo3 V5 rasterizer
+//	`set_feature(CoCo3_Horz_INT_FIX,Feat_1)					// Connection of the horz int to the Mister CoCo3 V5 rasterizer
+	`define CoCo3_Horz_INT_FIX
+	`define Feat_1
 
-//`set_feature(CoCo3_Vert_INT_FIX, FEATURE_2)		// Connection of the vert int to the Mister CoCo3 V5 rasterizer
+//	`set_feature(CoCo3_Vert_INT_FIX,Feat_2)					// Connection of the vert int to the Mister CoCo3 V5 rasterizer
+//	`define CoCo3_Vert_INT_FIX
+//	`define Feat_2
 
-`set_feature(CoCo3_CYC_ACC_6809, FEATURE_3)			// Use cycle accurate 6809
+//	`set_feature(CoCo3_CYC_ACC_6809,Feat_3)					// Use cycle accurate 6809
+	`define CoCo3_CYC_ACC_6809
+	`define Feat_3
 
-`set_feature(CoCo3_sdc_override_size, FEATURE_4)	// Define static size value
+//	`set_feature(CoCo3_sdc_override_size,Feat_4)			// Define static size value
+	`define CoCo3_sdc_override_size
+	`define Feat_4
 
-`set_feature(CoCo3_sdc_fix_os9_driver, FEATURE_5)	// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
+//	`set_feature(CoCo3_sdc_fix_os9_driver,Feat_5)			// fix sdc query disk size issue in llcocosdc driver in multipak enviroment
+	`define CoCo3_sdc_fix_os9_driver
+	`define Feat_5
 
-`set_feature(CoCo3_disable_GART_in_GIMEX, FEATURE_6)// Disable GIMEX ram transfers [GIMEX detection in OS( EOU]
+//	`set_feature(CoCo3_disable_GART_in_GIMEX,Feat_6)		// Disable GIMEX ram transfers [GIMEX detection in OS9 EOU]
+	`define CoCo3_disable_GART_in_GIMEX
+	`define Feat_6
 
-//`set_feature(CoCo3_Select_GIMEX_RAST, FEATURE_7)	// Use GIMEX Rasterizer Engine
+//	`set_feature(CoCo3_Select_GIMEX_RAST,Feat_7)			// Use GIMEX Rasterizer Engine
+//	`define CoCo3_Select_GIMEX_RAST
+//	`define Feat_7
+

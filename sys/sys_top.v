@@ -19,6 +19,9 @@
 //
 //============================================================================
 
+//	Define Config features - For CoCo use of USER I/O
+//`include "../rtl/config.sv"
+
 module sys_top
 (
 	/////////// CLOCK //////////
@@ -1526,7 +1529,24 @@ alsa alsa
 `endif
 
 ////////////////  User I/O (USB 3.0 connector) /////////////////////////
+// Modifications for use of the CoCo3 with LA
+`ifdef	Config_Debug
+//assign USER_IO[0] =                       !user_out[0]  ? 1'b0 : 1'bZ;
+//assign USER_IO[1] =                       !user_out[1]  ? 1'b0 : 1'bZ;
+//assign USER_IO[2] = 					  !user_out[2]  ? 1'b0 : 1'bZ;
+//assign USER_IO[3] =                       !user_out[3]  ? 1'b0 : 1'bZ;
+//assign USER_IO[4] =                       !user_out[4]  ? 1'b0 : 1'bZ;
+//assign USER_IO[5] =                       !user_out[5]  ? 1'b0 : 1'bZ;
+//assign USER_IO[6] =                       !user_out[6]  ? 1'b0 : 1'bZ;
 
+assign USER_IO[0] = user_out[0];
+assign USER_IO[1] = user_out[1];
+assign USER_IO[2] = user_out[2];
+assign USER_IO[3] = user_out[3];
+assign USER_IO[4] = user_out[4];
+assign USER_IO[5] = user_out[5];
+assign USER_IO[6] = user_out[6];
+`else
 assign USER_IO[0] =                       !user_out[0]  ? 1'b0 : 1'bZ;
 assign USER_IO[1] =                       !user_out[1]  ? 1'b0 : 1'bZ;
 assign USER_IO[2] = !(SW[1] ? HDMI_I2S   : user_out[2]) ? 1'b0 : 1'bZ;
@@ -1534,6 +1554,7 @@ assign USER_IO[3] =                       !user_out[3]  ? 1'b0 : 1'bZ;
 assign USER_IO[4] = !(SW[1] ? HDMI_SCLK  : user_out[4]) ? 1'b0 : 1'bZ;
 assign USER_IO[5] = !(SW[1] ? HDMI_LRCLK : user_out[5]) ? 1'b0 : 1'bZ;
 assign USER_IO[6] =                       !user_out[6]  ? 1'b0 : 1'bZ;
+`endif
 
 assign user_in[0] =         USER_IO[0];
 assign user_in[1] =         USER_IO[1];

@@ -1827,15 +1827,25 @@ always @ (negedge MASTER_CLK)
 // Adjust HSYNC here
 **************************************************************************************/
 // Width from 87 GIME 5.08 uS = 73 clocks
-        11'd751:                            // 824 - 751 = 73 (approx 5.09 uS)
+//        11'd751:                            // 824 - 751 = 73 (approx 5.09 uS)
+//        begin
+//            HSYNC_N <= 1'b0;                // Turn on Sync
+//            PIXEL_COUNT <= 11'd752;
+//        end
+//        11'd810:                            // End of SYNC start of front porch 804 + 80 - 1, End of Sync to Video = 167 816 + 167 = 
+//        begin
+//            HSYNC_N <= 1'b1;                // SYNC OFF
+//            PIXEL_COUNT <= 11'd811;
+//        end
+        11'd752:                            // 824 - 751 = 73 (approx 5.09 uS)
         begin
             HSYNC_N <= 1'b0;                // Turn on Sync
-            PIXEL_COUNT <= 11'd752;
+            PIXEL_COUNT <= 11'd753;
         end
-        11'd810:                            // End of SYNC start of front porch 804 + 80 - 1, End of Sync to Video = 167 816 + 167 = 
+        11'd811:                            // End of SYNC start of front porch 804 + 80 - 1, End of Sync to Video = 167 816 + 167 = 
         begin
             HSYNC_N <= 1'b1;                // SYNC OFF
-            PIXEL_COUNT <= 11'd811;
+            PIXEL_COUNT <= 11'd812;
         end
 /**************************************************************************************
 * End of HSYNC adjustment

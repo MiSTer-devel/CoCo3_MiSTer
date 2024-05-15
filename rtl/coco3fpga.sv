@@ -71,8 +71,6 @@
 // 
 ////////////////////////////////////////////////////////////////////////////////
 
-//	Define Config features
-`include "../rtl/config.v"
 
 
 module coco3fpga(
@@ -95,7 +93,7 @@ output	reg	[7:0]	BLUE,
 
 output	reg			H_SYNC,
 output	reg			V_SYNC,
-output	reg			VGA_SYNC_N,
+//output	reg			VGA_SYNC_N,
 output				PIX_CLK,
 output				HBLANK,
 output				VBLANK,
@@ -117,13 +115,13 @@ output				UART_DTR,
 input 				UART_DSR,
 
 
-output [5:0] 		SOUND_OUT,
+//output [5:0] 		SOUND_OUT,
 output [15:0] 		SOUND_LEFT,
 output [15:0] 		SOUND_RIGHT,
 
 // CoCo Joystick
 // Needs removal.... ???
-input	[3:0]		PADDLE_CLK,
+//input	[3:0]		PADDLE_CLK,
 input	[3:0]		P_SWITCH,
 // joystick input
 // digital for buttons
@@ -144,6 +142,9 @@ input	[24:0]		ioctl_addr,
 input				ioctl_download,
 input				ioctl_wr,
 input 	[15:0]		ioctl_index,
+
+//	SDRAM Info
+input	[15:0]		sdram_sz,
 
 // SD block level interface
 input   [6:0]  		img_mounted, // signaling that new image has been mounted
@@ -202,7 +203,9 @@ input				F_Turbo,
 input	[2:0]		turbo_speed,
 output	[2:0]		assigned_turbo_speed,
 input	[2:0]		Mem_Size,
-input	[1:0]		AUTO_MODE
+input	[1:0]		AUTO_MODE,
+
+input	[71:0]		Config_Data
 
 );
 
@@ -229,6 +232,10 @@ parameter BOARD_TYPE = 8'h01;	// No Riser - 2M
 
 ////////////////////////////////////////////////////////////////////////////////
 
+//	Define Config features
+
+reg		[7:0]	i_val;
+`include "../rtl/config.sv"
 
 
 reg		[15:0]	RAM0_DATA_I;
@@ -250,7 +257,9 @@ reg				CLK3_57MHZ;
 
 wire			EF;
 wire			PH_2;
+`ifndef CoCo3_CYC_ACC_6809
 reg 			PH_2_RAW;
+`endif
 reg				RESET_N;
 reg		[6:0]	CPU_RESET_SM;
 reg				CPU_RESET;
@@ -284,7 +293,7 @@ reg				MMU_TR;
 reg		[3:0]	TMR_MSB;
 reg		[7:0]	TMR_LSB;
 wire			TMR_RST;
-reg				TMR_ENABLE;
+reg		[1:0]	TMR_ENABLE;
 reg		[15:0]	VIDEO_BUFFER;
 reg				GRMODE;
 reg				BLINK;
@@ -362,7 +371,7 @@ wire			CART_SEL;
 reg		[5:0]	DTOA_CODE;
 reg		[5:0]	SOUND_DTOA;
 
-assign SOUND_OUT = SOUND_DTOA; // AJS - hook up sound directly
+//assign SOUND_OUT = SOUND_DTOA; // AJS - hook up sound directly
 
 wire	[7:0]	SOUND;
 wire	[18:0]	DAC_LEFT;
@@ -383,6 +392,12 @@ wire 			H_FLAG;
 
 reg		[3:0]	SWITCH_L;
 
+wire			RST_FF00_N;
+wire			RST_FF02_N;
+//reg			RST_FF20_N;
+wire			RST_FF22_N;
+wire			RST_FF92_N;
+wire			RST_FF93_N;
 wire			CPU_IRQ_N;
 wire			CPU_FIRQ_N;
 reg		[2:0]	DIV_7;
@@ -552,19 +567,13 @@ reg				ANALOG;
 wire			VDAC_EN;
 wire	[15:0]	VDAC_OUT;
 
-reg				RST_FF00_N;
-reg				RST_FF02_N;
-//reg			RST_FF20_N;
-reg				RST_FF22_N;
-reg				RST_FF92_N;
-reg				RST_FF93_N;
-reg				TMR_RST_N;
 wire			CART_INT_N;
 reg				CART_INT_N_D;
 wire			VSYNC_INT_N;
 reg				VSYNC_INT_N_D;
 wire			HSYNC_INT_N;
 reg				HSYNC_INT_N_D;
+wire            TMR_RESET_N;
 reg				TIMER_INT_N;
 reg				TIMER_INT_N_D;
 wire			KEY_INT_N;
@@ -641,8 +650,9 @@ wire	[7:0]	CART_DATA;
 wire			clk_sys;
 
 reg 			hold;
+`ifndef CoCo3_CYC_ACC_6809
 reg 			cpu_ena;
-
+`endif
 
 wire	[4:0]	CENT; // BIN Values
 wire	[6:0]	YEAR;
@@ -677,7 +687,7 @@ rtc #(50000000) CC3_rtc(
 // Probe's defined
 //assign PROBE[6:0] = {CART1_POL, CART1_BUF_RESET_N, CART1_FIRQ_STAT_N, CART1_CLK_N, CART1_FIRQ_N, RESET_N, PH_2};
 //assign PROBE[7:0] = {1'b0, CART1_POL, CART1_FIRQ_N, CART1_FIRQ_BUF[0], CART1_CLK_N_D, CART1_FIRQ_RESET_N, CART1_CLK_N, PH_2};
-assign PROBE[7:0] = {2'b00, cache_hit, COCO3_ROM_WRITE, ioctl_wr, ioctl_download, ioctl_index[7], ioctl_index[6]};
+assign PROBE[7:0] = {1'b0, TMR_CLK, DATA_IN[5], RST_FF93_N_SFT[0], RST_FF93_N, !TIMER3_FIRQ_N, VSYNC_INT_N, TIMER_INT_N};
 assign PROBE[15:8] = 8'h00;
 assign PROBE[23:16] = 8'h00;
 //assign PROBE[31:24] = {3'b000, DATA_OUT[3], MOTOR, DRIVE_SEL_EXT[0], HDD_EN, ADDRESS[0]};
@@ -742,12 +752,15 @@ assign RAM_CS = (ADDRESS[15:0]== 16'hFFE8)         					?   1'b1:       // GART 
 
 assign  ROM_SEL =    (ADDRESS[15:4]                                     == 12'b111111111111)   	?   1'b1:   // Enable for Vectors
                      (ADDRESS[15:9]                                     ==  7'b1111111)      	?   1'b0:   // Disabled for FE00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011110)  	?   1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
+//					 (CART_SEL											==	1'b1)				?	1'b0:
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:1]}    				== 13'b0000000011110)  	?   1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
+//                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}  == 13'b0000000011110)  	?   1'b1:   // Enabled Read, 16K Int, Page 7, x1    $78000-$7BFFF
                     ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1000000001111)  	?   1'b1:   // Enabled 32K int, Page 7, x           $78000-$7FFFF
                                                                                                     1'b0;
 
 assign  CART_SEL =  (ADDRESS[15:8]                                      ==  8'b11111111)        ?   1'b0:   // Disabled for FF00 - FFFF
-                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]}    == 13'b0000000011111)  	?   1'b1:   // Enabled Read, 16K Cart, Page 7, x1 $7C000-$7FEFF
+//                    ({ROM[1], RAM, BLOCK_ADDRESS[11:2], ADDRESS[14]} 	== 13'b0000000011111)  	?   1'b1:   // Enabled Read, 16K Cart, Page 7, x1 $7C000-$7FEFF
+                    ({ROM[1], RAM, BLOCK_ADDRESS[11:1]}    				== 13'b0000000011111)  	?   1'b1:   // Enabled Read, 16K Cart, Page 7, x1 $7C000-$7FEFF
                     ({ROM,    RAM, BLOCK_ADDRESS[11:2]}                 == 13'b1100000001111)  	?   1'b1:   // Enabled 32K Cart, Page 7, x1       $78000-$7FEFF
 																									1'b0;
 
@@ -789,6 +802,7 @@ localparam	[5:0]	BOOT  = 6'd0;
 
 wire			COCO3_ROM_WRITE = (ioctl_index[7:0] == {BOOT0, BOOT})  & ioctl_wr;
 wire			COCO3_DISKROM_WRITE = (ioctl_index[7:0] == {BOOT1, BOOT}) & ioctl_wr;
+wire			COCO3_CART_WRITE = (ioctl_index[5:0] == 6'd1) & ioctl_wr & !cart_lock;
 
 
 COCO_ROM_32K CC3_ROM(
@@ -810,10 +824,10 @@ COCO_ROM_8K CC3_DISK_ROM(
 );
 
 
-assign FLASH_DATA =	ENA_PAK	?								CART_DATA:
-					(FLASH_ADDRESS[15] == 1'b0)			?	COCO3_ROM_DATA:
-					(FLASH_ADDRESS[15:13] == 3'b100)	?	COCO3_DISK_ROM_DATA:
-															8'b00000000;
+assign FLASH_DATA =	ENA_PAK	?									CART_DATA:
+					(FLASH_ADDRESS[15] == 1'b0)				?	COCO3_ROM_DATA:
+					(FLASH_ADDRESS[15:13] == 3'b100)		?	COCO3_DISK_ROM_DATA:
+																8'b00000000;
 
 
 COCO_ROM_CART CC3_ROM_CART(
@@ -822,7 +836,7 @@ COCO_ROM_CART CC3_ROM_CART(
 .CLK(~clk_sys),
 .WR_ADDR(ioctl_addr[16:0]),
 .WR_DATA(ioctl_data[7:0]),
-.WRITE((ioctl_index[5:0] == 6'd1) & ioctl_wr)
+.WRITE(COCO3_CART_WRITE)
 );
 
 wire	SDC_EN_CS;
@@ -882,10 +896,138 @@ begin
 end
 
 
-`ifdef	Config_Debug
-	wire [7:0]	Config_FLAG = `Config_Debug_FLAG;
-	wire [7:0]	Config_Debug_Value = `Config_Debug_Value;
-`endif
+wire [3:0]	Config_FLAG = `Config_Debug_FLAG;
+wire [7:0]	Build_Info;
+reg	 [3:0]	Build_Info_Count;
+reg			Build_Info_Read, Build_Info_Read_Delay;
+
+reg	[3:0]	i_count;
+
+always @(negedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		i_count <= 4'b0000;
+		i_val <= 8'h00;
+	end
+	else
+	begin
+		if ( !(i_count == 4'b1000))
+			i_count <= i_count + 1'b1;
+		case(i_count)
+		4'b0001:
+		begin
+			`ifdef Feat_1
+				i_val <= i_val + FEATURE_1;
+			`endif
+		end
+		4'b0010:
+		begin
+			`ifdef Feat_2
+				i_val <= i_val + FEATURE_2;
+			`endif
+		end
+		4'b0011:
+		begin
+			`ifdef Feat_3
+				i_val <= i_val + FEATURE_3;
+			`endif
+		end
+		4'b0100:
+		begin
+			`ifdef Feat_4
+				i_val <= i_val + FEATURE_4;
+			`endif
+		end
+		4'b0101:
+		begin
+			`ifdef Feat_5
+				i_val <= i_val + FEATURE_5;
+			`endif
+		end
+		4'b0110:
+		begin
+			`ifdef Feat_6
+				i_val <= i_val + FEATURE_6;
+			`endif
+		end
+		4'b0111:
+		begin
+			`ifdef Feat_7
+				i_val <= i_val + FEATURE_7;
+			`endif
+		end
+		default:;
+		endcase
+	end
+end
+
+always @(negedge clk_sys or negedge RESET_N)
+begin
+	if(!RESET_N)
+	begin
+		Build_Info_Count <= 4'b0000;
+		Build_Info <= 8'h00;
+		Build_Info_Read <= 1'b0;
+		Build_Info_Read_Delay <= 1'b0;
+	end
+	else
+	begin
+        Build_Info_Read <= 1'b0;
+		Build_Info_Read_Delay <= Build_Info_Read;
+		if (Build_Info_Read_Delay)
+			Build_Info_Count <= Build_Info_Count + 1'b1;
+
+		case (Build_Info_Count)
+		4'd0:
+			Build_Info <= Config_Data[71:64];		// Year MSB
+		4'd1:
+			Build_Info <= Config_Data[63:56];		// Year LSB
+		4'd2:
+			Build_Info <= Config_Data[55:48];		// Month MSB
+		4'd3:
+			Build_Info <= Config_Data[47:40];		// Month LSB
+		4'd4:
+			Build_Info <= Config_Data[39:32];		// Day MSB
+		4'd5:
+			Build_Info <= Config_Data[31:24];		// Day LSB
+		4'd6:
+			Build_Info <= Config_Data[23:16];		// Daily Build ID
+		4'd7:
+			Build_Info <= Config_Data[15:8];		// Daily Build ID
+		4'd8:
+			Build_Info <= Config_Data[7:0];			// Daily Build ID
+		4'd9:
+			`ifdef Config_Debug
+				Build_Info <= {4'b1111, Config_FLAG};
+			`else
+				Build_Info <= {4'b0000, Config_FLAG};
+			`endif
+		4'd10:
+			Build_Info <= i_val;
+		4'd11:
+			Build_Info <= {Config_FLAG, sdram_sz[15], 1'b0, sdram_sz[1:0]};
+		4'd12:
+			Build_Info <= Version_Hi;
+		4'd13:
+			Build_Info <= (Version_Lo + BOARD_TYPE);
+
+        default:
+			Build_Info <= 8'h00;
+        endcase
+
+        if(PH_2)
+        begin
+            case ({RW_N,ADDRESS})
+            17'h1FFEF:
+            begin
+                Build_Info_Read <= 1'b1;
+            end
+            default:;
+            endcase
+        end
+	end
+end
 
 
 assign	DATA_IN =
@@ -896,35 +1038,22 @@ assign	DATA_IN =
 														HDD_EN			?	DATA_HDD:
 														RS232_EN		?	DATA_RS232:
 														SLOT3_HW		?	{5'b00000, ROM_BANK}:
-// FF00, FF04, FF08, FF0C
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100000)	?	DATA_REG1:
-// FF01, FF05, FF09, FF0D
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100001)	?	{!HSYNC1_IRQ_BUF[1], 3'b011, SEL[0], DDR1, HSYNC1_POL, HSYNC1_IRQ_INT}:
-// FF02, FF06, FF0A, FF0E
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100010)	?	DATA_REG2:
-// FF03, FF07, FF0B, FF0F
-({ADDRESS[15:5], ADDRESS[1:0]} == 13'b1111111100011)	?	{!VSYNC1_IRQ_BUF[1], 3'b011, SEL[1], DDR2, VSYNC1_POL, VSYNC1_IRQ_INT}:
+// FF00, FF04, FF08, FF0C, FF10, FF14, FF18, FF1C
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b11111111000_00)	?	DATA_REG1:
+// FF01, FF05, FF09, FF0D, FF11, FF15, FF19, FF1D
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b11111111000_01)	?	{!HSYNC1_IRQ_BUF[1], 3'b011, SEL[0], DDR1, HSYNC1_POL, HSYNC1_IRQ_INT}:
+// FF02, FF06, FF0A, FF0E, FF12, FF16, FF1A, FF1E
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b11111111000_10)	?	DATA_REG2:
+// FF03, FF07, FF0B, FF0F, FF13, FF17, FF1B, FF1F
+({ADDRESS[15:5], ADDRESS[1:0]} == 13'b11111111000_11)	?	{!VSYNC1_IRQ_BUF[1], 3'b011, SEL[1], DDR2, VSYNC1_POL, VSYNC1_IRQ_INT}:
 // FF20, FF24, FF28, FF2C
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001000)	?	DATA_REG3:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b111111110010_00)	?	DATA_REG3:
 // FF21, FF25, FF29, FF2D
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001001)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b111111110010_01)	?	{4'b0011, CAS_MTR, DDR3, 2'b00}:	// CD_POL, CD_INT}:
 // FF22, FF26, FF2A, FF2E
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001010)	?	DATA_REG4:
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b111111110010_10)	?	DATA_REG4:
 // FF23, FF27, FF2B, FF2F
-({ADDRESS[15:4], ADDRESS[1:0]} == 14'b11111111001011)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
-// HiRes Joystick
-//								({PDL,ADDRESS} == 17'h0FF60)	?	PADDLE_LATCH_0[11:4]:
-//								({PDL,ADDRESS} == 17'h0FF61)	?	{PADDLE_LATCH_0[3:0],4'b0000}:
-//								({PDL,ADDRESS} == 17'h0FF62)	?	PADDLE_LATCH_1[11:4]:
-//								({PDL,ADDRESS} == 17'h0FF63)	?	{PADDLE_LATCH_1[3:0],4'b0000}:
-//								({PDL,ADDRESS} == 17'h1FF60)	?	PADDLE_LATCH_2[11:4]:
-//								({PDL,ADDRESS} == 17'h1FF61)	?	{PADDLE_LATCH_2[3:0],4'b0000}:
-//								({PDL,ADDRESS} == 17'h1FF62)	?	PADDLE_LATCH_3[11:4]:
-//								({PDL,ADDRESS} == 17'h1FF63)	?	{PADDLE_LATCH_3[3:0],4'b0000}:
-//									  (ADDRESS  == 16'hFF6C)	?	{(!WF_RDFIFO_RDEMPTY & WF_IRQ_EN),
-//																			5'b00000,
-//																			!WF_RDFIFO_RDEMPTY,							// 1 = data available
-//																			WF_WRFIFO_WRFULL}:							// 1 = Write FIFO Full
+({ADDRESS[15:4], ADDRESS[1:0]} == 14'b111111110010_11)	?	{!CART1_FIRQ_BUF[1], 3'b011, SOUND_EN, DDR4, CART1_POL, CART1_FIRQ_INT}:
 
 									(ADDRESS == 16'hFF70)		?	{1'b0, GART_WRITE[22:16]}:		// 2MB
 									(ADDRESS == 16'hFF71)		?	{       GART_WRITE[15:8]}:
@@ -932,19 +1061,8 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFF74)		?	{1'b0, GART_READ[22:16]}:
 									(ADDRESS == 16'hFF75)		?	{       GART_READ[15:8]}:
 									(ADDRESS == 16'hFF76)		?	{       GART_READ[7:0]}:
-									(ADDRESS == 16'hFF7F)		?	{2'b11, MPI_CTS, 2'b00, MPI_SCS}:
-//									(ADDRESS == 16'hFF80)		?	{CK_DONE_BUF[1],
-//																						CK_FAIL,
-//																						CK_STATE}:
-//									(ADDRESS == 16'hFF81)		?	CK_DATA_IN:
 
-//									(ADDRESS == 16'hFF84)		?	{SDRAM_READY_BUF[1], 3'b000, SDRAM_STATE, SDRAM_READ}:
-//									(ADDRESS == 16'hFF85)		?	SDRAM_DOUT[7:0]:
-//									(ADDRESS == 16'hFF86)		?	SDRAM_DOUT[15:8]:
-//									(ADDRESS == 16'hFF87)		?	{1'b0, SDRAM_ADDR[21:15]}:
-//									(ADDRESS == 16'hFF88)		?	SDRAM_ADDR[14:7]:
-//									(ADDRESS == 16'hFF87)		?	BUFF_DATA[15:8]:
-//									(ADDRESS == 16'hFF88)		?	BUFF_DATA[7:0]:
+									(ADDRESS == 16'hFF7F)		?	{2'b11, MPI_CTS, 2'b00, MPI_SCS}:
 
 									(ADDRESS == 16'hFF8E)		?	GPIO_DIR:
 									(ADDRESS == 16'hFF8F)		?	GPIO:
@@ -955,14 +1073,14 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFF93)		?	{2'b00, !TIMER3_FIRQ_N, !HSYNC3_FIRQ_N, !VSYNC3_FIRQ_N, 1'b0, !KEY3_FIRQ_N, !CART3_FIRQ_N}:
 									(ADDRESS == 16'hFF94)		?	{4'h0,TMR_MSB}:
 									(ADDRESS == 16'hFF95)		?	TMR_LSB:
-//									(ADDRESS == 16'hFF98)		?	{GRMODE, HRES[3], DESCEN, MONO, 1'b0, LPR}:
-//									(ADDRESS == 16'hFF99)		?	{HLPR, LPF, HRES[2:0], CRES}:
-//									(ADDRESS == 16'hFF9A)		?	{2'b00, PALETTE[16][5:0]}:
-//									(ADDRESS == 16'hFF9B)		?	{2'b00, SAM_EXT, SCRN_START_HSB}:	// 4 extra bits for 8MB. Real hardware can't read back!!
-//									(ADDRESS == 16'hFF9C)		?	{4'h0,VERT_FIN_SCRL}:
-//									(ADDRESS == 16'hFF9D)		?	SCRN_START_MSB:
-//									(ADDRESS == 16'hFF9E)		?	SCRN_START_LSB:
-//									(ADDRESS == 16'hFF9F)		?	{HVEN,HOR_OFFSET}:
+									(ADDRESS == 16'hFF98)		?	{GRMODE, HRES[3], 3'b000, LPR}:
+									(ADDRESS == 16'hFF99)		?	{HLPR, LPF, HRES[2:0], CRES}:
+									(ADDRESS == 16'hFF9A)		?	{2'b00, PALETTE[16][5:0]}:
+									(ADDRESS == 16'hFF9B)		?	{SAM_EXT[2], SCRN_START_HSB[4],SAM_EXT[1:0],SCRN_START_HSB[3:0]}:	// 4 extra bits for 8MB. Real hardware can't read back!!
+									(ADDRESS == 16'hFF9C)		?	{4'h0,VERT_FIN_SCRL}:
+									(ADDRESS == 16'hFF9D)		?	SCRN_START_MSB:
+									(ADDRESS == 16'hFF9E)		?	SCRN_START_LSB:
+									(ADDRESS == 16'hFF9F)		?	{HVEN,HOR_OFFSET}:
 									(ADDRESS == 16'hFFA0)		?	SAM00[7:0]:
 									(ADDRESS == 16'hFFA1)		?	SAM01[7:0]:
 									(ADDRESS == 16'hFFA2)		?	SAM02[7:0]:
@@ -1004,37 +1122,10 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFFC6)		?	{2'b00, MIN}:
 									(ADDRESS == 16'hFFC7)		?	{2'b00, SEC}:
 
-									(ADDRESS == 16'hFFCC)		?	{KEY[51],KEY[52],KEY[72],KEY[71],
-																			 KEY[28],KEY[27],KEY[30],KEY[29]}:
-									(ADDRESS == 16'hFFCD)		?	{KEY[70],KEY[69],KEY[65],KEY[66],
-																			 KEY[67],KEY[68],2'b00}:
-									(ADDRESS == 16'hFFCE)		?	{KEY[61],KEY[60],KEY[59],KEY[58],
-																			 KEY[57],KEY[56],KEY[54],KEY[53]}:
-									(ADDRESS == 16'hFFCF)		?	{V_SYNC,VBLANK,H_SYNC,HBLANK,
-																			 KEY[0],KEY[64],KEY[63],KEY[62]}:
+									(ADDRESS == 16'hFFD9)       ?   {5'h00, RATE_PGM}:
 
-									`ifdef	Config_Debug
-									(ADDRESS == 16'hFFF0)		?	Config_FLAG:
-									(ADDRESS == 16'hFFF1)		?	Config_Debug_Value:
-									`else
-									(ADDRESS == 16'hFFF0)		?	Version_Hi:
-									(ADDRESS == 16'hFFF1)		?	(Version_Lo + BOARD_TYPE):
-									`endif
-									(ADDRESS == 16'hFFF2)		?	8'hFE:
-									(ADDRESS == 16'hFFF3)		?	8'hEE:
-									(ADDRESS == 16'hFFF4)		?	8'hFE:
-									(ADDRESS == 16'hFFF5)		?	8'hF1:
-									(ADDRESS == 16'hFFF6)		?	8'hFE:
-									(ADDRESS == 16'hFFF7)		?	8'hF4:
-									(ADDRESS == 16'hFFF8)		?	8'hFE:
-									(ADDRESS == 16'hFFF9)		?	8'hF7:
-									(ADDRESS == 16'hFFFA)		?	8'hFE:
-									(ADDRESS == 16'hFFFB)		?	8'hFA:
-									(ADDRESS == 16'hFFFC)		?	8'hFE:
-									(ADDRESS == 16'hFFFD)		?	8'hFD:
-									(ADDRESS == 16'hFFFE)		?	8'h8C:
-									(ADDRESS == 16'hFFFF)		?	8'h1B:
-																	8'h55;
+									(ADDRESS == 16'hFFEF)		?	Build_Info:
+																	8'hAA;
 
 assign	DATA_REG1	= !DDR1	?	DD_REG1:
 											KEYBOARD_IN;
@@ -1150,15 +1241,18 @@ assign	cache_hit = (sdram_cpu_addr[24:1] == sdram_cpu_addr_L[24:1]);
 reg cpu_cycle_ena;
 
 
+
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
 		CLK <= 6'h00;
 		SWITCH_L <= 3'b000;
+`ifndef CoCo3_CYC_ACC_6809
 		PH_2_RAW <= 1'b0;
-		hold <= 1'b0;
 		cpu_ena <= 1'b0;
+`endif
+		hold <= 1'b0;
 		end_hold <= 1'b0;
 		RAM0_BE0_L <= 1'b0;
 		RAM0_BE1_L <= 1'b0;
@@ -1201,7 +1295,9 @@ begin
 		begin
 //			kill end hold and cpu_ena for the read memory hold 
 			end_hold <= 1'b0;
+`ifndef CoCo3_CYC_ACC_6809
 			cpu_ena <= 1'b0;
+`endif
 		end
 
 		if (sdram_cpu_ack)
@@ -1217,19 +1313,23 @@ begin
 		begin
 			SWITCH_L <= {assigned_turbo_speed, (RATE | F_Turbo)};				// Normal speed
 			CLK <= 6'h01;
+`ifndef CoCo3_CYC_ACC_6809
 			PH_2_RAW <= 1'b1;
-
+`endif
 			if (~(hold | end_hold))	// Make sure we are not in a cycle before starting one....
 									// If we are still in one - we skip this cpu_enable cycle
 			begin
+`ifndef CoCo3_CYC_ACC_6809
 				cpu_ena <= 1'b1;
-
+`endif
 				cpu_cycle_ena <= 1'b1;  // Default cycle
 
 				if (AMW_EN)			// Automated Memory Write ?
 				begin
 					AMW_WR <= 1'b1;
+`ifndef CoCo3_CYC_ACC_6809
 					cpu_ena <= 1'b0; // Kill cpu enable
+`endif
 					cpu_cycle_ena <= 1'b0;  // Kill (defer) cycle based on memory transaction
 
 
@@ -1296,11 +1396,14 @@ begin
 		end
 		6'h01:
 		begin
+`ifndef CoCo3_CYC_ACC_6809
 			PH_2_RAW <= 1'b0;
-
+`endif
 //			if we are not in a memory read [hold] then terminate cpu_ena - just like PH_2
+`ifndef CoCo3_CYC_ACC_6809
 			if (!hold)
 				cpu_ena <= 1'b0;
+`endif
 			CLK <= 6'h02;
 		end
 		6'h05:								//	64/6 = 9.55
@@ -1351,22 +1454,18 @@ begin
 end
 
 
-
+//
+//	This is the reset in which includes the MiSTer button, system reset, cold boot reset [frm EE_cold_bt].
+//	Here we add the keyboard reset and turn it positive.
+//
 assign RESET_P =	!BUTTON_N[3]					// Button
-					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS
+					| RESET; 						// CTRL-ALT-DEL or CTRL-ALT-INS from Keyboard
 
-reg	first_time = 1'b1;
 
-// Make sure all resets are enabled for a long enough time to allow voltages to settle
 always @ (posedge clk_sys)
 begin
 	if (RESET)
 		MUGS <= RESET_INS;	   	//This is holding a <ctrl><alt><ins> across a reset to activate the Easter Egg
-	if (first_time)
-	begin
-		MUGS <= 1'b0;
-		first_time = 1'b0;
-	end
 end
 
 always @ (posedge clk_sys or posedge RESET_P)
@@ -1383,12 +1482,16 @@ begin
 	begin
 		case (RESET_SM)
 		25'h0800000:									// time = 143 mS
+														// Take away RESET_N
+														// Leave CPU_RESET Asserted
 		begin
 			RESET_N <= 1'b1;
 			CPU_RESET <= 1'b1;
 			RESET_SM <= RESET_SM + 1'b1;
 		end
 		25'h1000000:									// time = 286 mS
+														// Take away RESET_N & CPU_RESET
+														// Stop RESET_SM count
 		begin
 			RESET_N <= 1'b1;
 			CPU_RESET <= 1'b0;
@@ -1644,31 +1747,30 @@ sdc_top coco_sdc_top(
 reg cart_firq_enable;
 
 reg	firq_trig;
-reg	[15:0]	firq_tmr;
+reg	cart_lock;
 
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
 		firq_trig <= 1'b0;
-		firq_tmr <= 16'h0000;
 		cart_firq_enable <= 1'b1;
+		cart_lock <= 1'b0;
 	end
 	else
 	begin
-		if (firq_trig)
-			if (~(firq_tmr == 16'hffff))
-				firq_tmr = firq_tmr + 1'b1;
-			else
-				cart_firq_enable <= SWITCH[4] & ~ioctl_download;
-
-		if ((ioctl_index[5:0] == 6'd1) & ioctl_wr)
-		begin
+		if ((ioctl_index[5:0] == 6'd1) & ioctl_download)
 			firq_trig <= 1'b1;
-			firq_tmr <= 16'h0000;
-		end
+
+		if (firq_trig)
+			if (!ioctl_download)
+			begin
+				cart_firq_enable <= 1'b0;
+				cart_lock <= 1'b1;
+			end
 	end
 end
+
 
 //***********************************************************************
 // Interrupt Sources
@@ -1685,13 +1787,11 @@ begin
 		if (PH_2)
 			case (MPI_SCS)
 			2'b00:
-				CART_INT_IN_N <=  (!CART_INT_IN_N )
-										&(SER_IRQ);
+				CART_INT_IN_N <= (SER_IRQ);
 			2'b01:
 				CART_INT_IN_N <= (SER_IRQ);
 			2'b10:
-				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable)
-										&(SER_IRQ);
+				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable);
 			2'b11:
 				CART_INT_IN_N <= (SER_IRQ);
 			endcase
@@ -1717,90 +1817,92 @@ assign KEY_INT_N = (KEYBOARD_IN == 8'hFF);
 
 //***********************************************************************
 // Interrupt Latch RESETs
+// This code delays the asynchronus clears by 3 clocks to prevent race 
+// condition of reading and clearing at the same time.
 //***********************************************************************
+reg	[2:0]	RST_FF00_N_SFT, RST_FF02_N_SFT, RST_FF22_N_SFT, RST_FF92_N_SFT, RST_FF93_N_SFT;
+
+assign RST_FF00_N = RST_FF00_N_SFT[2];
+assign RST_FF02_N = RST_FF02_N_SFT[2];
+assign RST_FF22_N = RST_FF22_N_SFT[2];
+assign RST_FF92_N = RST_FF92_N_SFT[2];
+assign RST_FF93_N = RST_FF93_N_SFT[2];
+
+wire	[7:0]	FF93_Value;
+assign	FF93_Value = {2'b00, !TIMER3_FIRQ_N, !HSYNC3_FIRQ_N, !VSYNC3_FIRQ_N, 1'b0, !KEY3_FIRQ_N, !CART3_FIRQ_N};
+
+
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
-		RST_FF00_N <= 1'b1;
-		RST_FF02_N <= 1'b1;
-//		RST_FF20_N <= 1'b1;
-		RST_FF22_N <= 1'b1;
-		RST_FF92_N <= 1'b1;
-		RST_FF93_N <= 1'b1;
-		TMR_RST_N <= 1'b1;
+		RST_FF00_N_SFT <= 3'b111;
+		RST_FF02_N_SFT <= 3'b111;
+		RST_FF22_N_SFT <= 3'b111;
+		RST_FF92_N_SFT <= 3'b111;
+		RST_FF93_N_SFT <= 3'b111;
 	end
 	else
 	begin
+		RST_FF00_N_SFT[0] <= 1'b1;
+		RST_FF02_N_SFT[0] <= 1'b1;
+		RST_FF22_N_SFT[0] <= 1'b1;
+		RST_FF92_N_SFT[0] <= 1'b1;
+		RST_FF93_N_SFT[0] <= 1'b1;
+
+		RST_FF00_N_SFT[2:1] <= RST_FF00_N_SFT[1:0];
+		RST_FF02_N_SFT[2:1] <= RST_FF02_N_SFT[1:0];
+		RST_FF22_N_SFT[2:1] <= RST_FF22_N_SFT[1:0];
+		RST_FF92_N_SFT[2:1] <= RST_FF92_N_SFT[1:0];
+		RST_FF93_N_SFT[2:1] <= RST_FF93_N_SFT[1:0];
+
 		if (PH_2)
+		begin
+
 			case({RW_N,ADDRESS})
-			17'h1FF00:
-				RST_FF00_N <= 1'b0;
-			17'h1FF04:
-				RST_FF00_N <= 1'b0;
-			17'h1FF08:
-				RST_FF00_N <= 1'b0;
-			17'h1FF0C:
-				RST_FF00_N <= 1'b0;
-			17'h1FF10:
-				RST_FF00_N <= 1'b0;
-			17'h1FF14:
-				RST_FF00_N <= 1'b0;
-			17'h1FF18:
-				RST_FF00_N <= 1'b0;
+			17'h1FF00,
+			17'h1FF04,
+			17'h1FF08,
+			17'h1FF0C,
+			17'h1FF10,
+			17'h1FF14,
+			17'h1FF18,
 			17'h1FF1C:
-				RST_FF00_N <= 1'b0;
-			17'h1FF02:
-				RST_FF02_N <= 1'b0;
-			17'h1FF06:
-				RST_FF02_N <= 1'b0;
-			17'h1FF0A:
-				RST_FF02_N <= 1'b0;
-			17'h1FF0E:
-				RST_FF02_N <= 1'b0;
-			17'h1FF12:
-				RST_FF02_N <= 1'b0;
-			17'h1FF16:
-				RST_FF02_N <= 1'b0;
-			17'h1FF1A:
-				RST_FF02_N <= 1'b0;
+				RST_FF00_N_SFT[0] <= 1'b0;
+
+			17'h1FF02,
+			17'h1FF06,
+			17'h1FF0A,
+			17'h1FF0E,
+			17'h1FF12,
+			17'h1FF16,
+			17'h1FF1A,
 			17'h1FF1E:
-				RST_FF02_N <= 1'b0;
-			17'h1FF22:
-				RST_FF22_N <= 1'b0;
-			17'h1FF26:
-				RST_FF22_N <= 1'b0;
-			17'h1FF2A:
-				RST_FF22_N <= 1'b0;
-			17'h1FF2E:
-				RST_FF22_N <= 1'b0;
-			17'h0FF22:
-				RST_FF22_N <= 1'b0;
-			17'h0FF26:
-				RST_FF22_N <= 1'b0;
-			17'h0FF2A:
-				RST_FF22_N <= 1'b0;
+				RST_FF02_N_SFT[0] <= 1'b0;
+
+			17'h1FF22,
+			17'h1FF26,
+			17'h1FF2A,
+			17'h1FF2E,
+			17'h0FF22,
+			17'h0FF26,
+			17'h0FF2A,
 			17'h0FF2E:
-				RST_FF22_N <= 1'b0;
+				RST_FF22_N_SFT[0] <= 1'b0;
+
 			17'h1FF92:
-				RST_FF92_N <= 1'b0;
+				RST_FF92_N_SFT[0] <= 1'b0;
+
 			17'h1FF93:
-				RST_FF93_N <= 1'b0;
-			17'h0FF94:
-				TMR_RST_N <= 1'b0;
-			17'h0FF95:
-				TMR_RST_N <= 1'b0;
-			default:
-			begin
-				RST_FF00_N <= 1'b1;
-				RST_FF02_N <= 1'b1;
-//				RST_FF20_N <= 1'b1;
-				RST_FF22_N <= 1'b1;
-				RST_FF92_N <= 1'b1;
-				RST_FF93_N <= 1'b1;
-				TMR_RST_N <= 1'b1;
-			end
+				begin
+					if (!(FF93_Value == 8'h00))
+						RST_FF93_N_SFT[0] <= 1'b0;
+				end
+				
+			default:;
+
 			endcase
+		end
 	end
 end
 
@@ -2116,6 +2218,7 @@ begin
 	end
 end
 
+
 // Timer int for COCO3
 // Output	TIMER3_FIRQ_N
 // Status	TIMER3_FIRQ_STAT_N
@@ -2350,18 +2453,22 @@ begin
 end
 
 
-assign CPU_IRQ_N =  ( GIME_IRQ  | (HSYNC1_IRQ_N		&	VSYNC1_IRQ_N))
-						& (!GIME_IRQ  | (TIMER3_IRQ_N		&	HSYNC3_IRQ_N	&	VSYNC3_IRQ_N	&	KEY3_IRQ_N	&	CART3_IRQ_N));
-assign CPU_FIRQ_N = ( GIME_FIRQ | (CART1_FIRQ_N))
-						& (!GIME_FIRQ | (TIMER3_FIRQ_N	&	HSYNC3_FIRQ_N	&	VSYNC3_FIRQ_N	&	KEY3_FIRQ_N	&	CART3_FIRQ_N));
+//assign CPU_IRQ_N =  ( GIME_IRQ  | (HSYNC1_IRQ_N		&	VSYNC1_IRQ_N))
+//						& (!GIME_IRQ  | (TIMER3_IRQ_N		&	HSYNC3_IRQ_N	&	VSYNC3_IRQ_N	&	KEY3_IRQ_N	&	CART3_IRQ_N));
+//assign CPU_FIRQ_N = ( GIME_FIRQ | (CART1_FIRQ_N))
+//						& (!GIME_FIRQ | (TIMER3_FIRQ_N	&	HSYNC3_FIRQ_N	&	VSYNC3_FIRQ_N	&	KEY3_FIRQ_N	&	CART3_FIRQ_N));
+
+assign CPU_IRQ_N =  HSYNC1_IRQ_N & VSYNC1_IRQ_N
+                & (!GIME_IRQ  | (TIMER3_IRQ_N  & HSYNC3_IRQ_N  & VSYNC3_IRQ_N  & CART3_IRQ_N));
+
+assign CPU_FIRQ_N = CART1_FIRQ_N
+                & (!GIME_FIRQ | (TIMER3_FIRQ_N & HSYNC3_FIRQ_N & VSYNC3_FIRQ_N & CART3_FIRQ_N));
+
 
 
 // Timer
-//assign TMR_CLK = !TIMER_INS	?	(!H_SYNC_N | !H_FLAG):
-//											CLK3_57MHZ;					// 50 MHz / 14 = 3.57 MHz
-assign TMR_CLK = !TIMER_INS	?		!H_SYNC_N:
+assign TMR_CLK = !TIMER_INS	?		HSYNC_INT_N:
 									CLK3_57MHZ;					// 14.32Mhz... /4
-//assign CLK3_57MHZ = DIV_14;
 
 reg 	[1:0]	DIV_4;
 reg				CLK_14_D;
@@ -2391,52 +2498,148 @@ begin
 	end
 end
 
+assign TMR_RESET_N = TMR_ENABLE[1];             // Already == 0 when RESET_N is 0
 
-
-always @(negedge clk_sys or negedge TMR_RST_N)
+always @ (negedge clk_sys or negedge RESET_N)
 begin
-	if(!TMR_RST_N)
-	begin
-		TIMER_INT_N <= 1'b1;
-		BLINK <= 1'b1;
-		TIMER <= 13'h1FFF;
-	end
-	else
-	begin
-		if (TMR_CLK == 1'b0 && TMR_CLK_D == 1'b1)
+    if(!RESET_N)
+    begin
+        TMR_ENABLE <= 2'b00;
+    end
+    else
+    begin
+        if(PH_2)
+        begin
+            case ({RW_N,ADDRESS})
+            17'h0FF94:
+            begin
+                TMR_ENABLE <= 2'b01;
+            end
+            default:
+            begin
+                TMR_ENABLE <= {TMR_ENABLE[0],TMR_ENABLE[0]};	//	This is a write
+            end
+            endcase
+        end
+    end
+end
+
+reg		TIMER_LOAD;
+
+always @(negedge clk_sys or negedge TMR_RESET_N)
+begin
+    if(!TMR_RESET_N)
+    begin
+        TIMER_INT_N <= 1'b1;
+        BLINK <= 1'b0;
+        TIMER <= 13'h1FFF;
+		TIMER_LOAD <= 1'b1;
+    end
+    else
+    begin
+// This turns out being TIMER + 1 as in Sockmaster's GIME Reference 1987 GIME
+// 0 to TMR_MSB,TMR_LSB (0 to TMR_MSB,TMR_LSB is really counts + 1)
+
+		if (TIMER_LOAD)
 		begin
-			if(!TMR_ENABLE)
-			begin
-				TIMER_INT_N <= 1'b1;
-				BLINK <= 1'b1;
-				TIMER <= 13'h1FFF;
-			end
-			else
-			begin
-				case (TIMER)
-				13'h0000:
-				begin
-					TIMER_INT_N <= 1'b0;
-					BLINK <= !BLINK;
-					TIMER <= 13'h1FFF;
-				end
-				13'h1FFF: 												//Maybe this should be 1XXX
-				begin
+			TIMER <= {1'b0,TMR_MSB,TMR_LSB};
+			TIMER_LOAD <= 1'b0;
+		end
+
+        if (TMR_CLK == 1'b0 && TMR_CLK_D == 1'b1)
+        begin
+            case (TIMER)
+            13'h0000:
+            begin
+                if(({TMR_MSB,TMR_LSB} == 12'h000))
+                begin
+                    TIMER_INT_N <= 1'b0;
+                    TIMER <= 13'h0000;
+                    BLINK <= 1'b0;
+                end
+                else
+                begin
+                    TIMER_INT_N <= 1'b1;
+                    TIMER <= {1'b0,TMR_MSB,TMR_LSB};
+                    BLINK <= !BLINK;
+                end
+            end
+            13'h0001:
+            begin
+                TIMER_INT_N <= 1'b0;
+                TIMER <= 13'h0000;
+            end
+            default:
+            begin
+                if(TIMER[12])
+                    TIMER <= {1'b0,TMR_MSB,TMR_LSB};
+                else
+                    TIMER <= TIMER - 1'b1;
+            end
+            endcase
+        end
+    end
+end
+
+
+
+//reg		TIMER_LOAD;
+
+//always @(negedge clk_sys or negedge TMR_RESET_N)
+//begin
+//	if(!TMR_RESET_N)
+//	begin
+//		TIMER_INT_N <= 1'b1;
+//		BLINK <= 1'b0;
+//		TIMER <= 13'h1FFF;
+//		TIMER_LOAD <= 1'b1;
+//	end
+//	else
+//	begin
+
 // This turns out being TIMER + 2 as in Sockmaster's GIME Reference 1986 GIME
 // 0 to TIMER-1 (0 to TIMER is really TIMER counts + 1)
 // This timer goes from 0 directly to 1FFF where it loads the timer count and decrements from there
 // So 1FFF to TIMER to 0 is TIMER + 2 counts
-					TIMER_INT_N <= 1'b1;
-					if({TMR_MSB,TMR_LSB} != 12'h000)
-						TIMER <= {1'b0,TMR_MSB,TMR_LSB};
-				end
-				default:
-					TIMER <= TIMER - 1'b1;
-				endcase
-			end
-		end
-	end
-end
+
+//		if (TIMER_LOAD)
+//		begin
+//			TIMER <= {1'b0,TMR_MSB,TMR_LSB};
+//			TIMER_LOAD <= 1'b0;
+//		end
+
+//		if (!TIMER_INT_N)
+//		begin
+//			TIMER_INT_N <= 1'b1;
+//          TIMER <= {1'b0,TMR_MSB,TMR_LSB};
+//        end
+		
+//		if (TMR_CLK == 1'b0 && TMR_CLK_D == 1'b1)
+//		begin
+
+//			case (TIMER)
+//            13'h0000:
+//            begin
+//                if(({TMR_MSB,TMR_LSB} == 12'h000))
+//                begin
+//                    TIMER_INT_N <= 1'b0;
+//                    TIMER <= 13'h0000;
+//                    BLINK <= 1'b0;
+//                end
+//                else
+//                begin
+//					TIMER_INT_N <= 1'b0;
+//                    BLINK <= !BLINK;
+//				end
+//            end
+//            default:
+//            begin
+//                TIMER <= TIMER - 1'b1;
+//            end
+//			endcase
+//		end
+//	end
+//end
 
 reg	sync_rst1;
 
@@ -2517,7 +2720,6 @@ begin
 		CART3_FIRQ_INT <= 1'b0;
 // FF94
 		TMR_MSB <= 4'h0;
-		TMR_ENABLE <= 1'b0;
 // FF95
 		TMR_LSB <= 8'h00;
 // FF98
@@ -2824,7 +3026,6 @@ begin
 				16'hFF94:
 				begin
 					TMR_MSB <= DATA_OUT[3:0];
-					TMR_ENABLE <= 1'b1;
 				end
 				16'hFF95:
 				begin
@@ -3635,7 +3836,7 @@ begin
 //		RED[3:0] <= 4'B0000;
 //		GREEN[3:0] <= 4'B0000;
 //		BLUE[3:0] <= 4'B0000;
-		VGA_SYNC_N <= 1'b1;
+//		VGA_SYNC_N <= 1'b1;
 		
 		MISTER_HBLANK_D[3] <= ~HBORDER;
         MISTER_HBLANK_D[2:0] <= MISTER_HBLANK_D[3:1];

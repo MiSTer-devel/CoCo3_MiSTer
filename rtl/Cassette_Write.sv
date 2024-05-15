@@ -82,8 +82,6 @@ module Cassette_Write(
 
 );
 
-assign sd_blk_cnt = 6'd0;
-
 
 //	Create 16x sample clock for the 2400 Baud rate...
 //	~26us based on 1.78Mhz [562 ns]- divide by 46....
@@ -115,35 +113,38 @@ begin
 	end
 end
 
-// Mounted SD Image [for the cass]
+//	Mounted SD Image [for the cass]
+//	This is not used and only here for completeness
 
-reg	drive_wp;
-reg	[31:0]	drive_size;
+//reg				drive_wp;
+//reg		[31:0]	drive_size;
 
-always @(negedge img_mounted)
-begin
-	drive_wp <= img_readonly;
-	drive_size <= img_size[31:0];  //Size / 256  on [31:8]
-end
+//always @(negedge img_mounted)
+//begin
+//	drive_wp <= img_readonly;
+//	drive_size <= img_size[31:0];  //Size / 256  on [31:8]
+//end
+
+//	Set to 1 512 byte block per r/w
+assign sd_blk_cnt = 6'd0;
 
 
 //	Byte Receiver
 
-reg [15:0]	incomming_reg;
+reg 	[15:0]	incomming_reg;
 
-reg [5:0]	bit_time;
-reg	[2:0]	bit_count;
-reg			wave_negative;
+reg 	[5:0]	bit_time;
+reg		[2:0]	bit_count;
+reg				wave_negative;
 
-localparam			time_out		=	6'h3f;
-localparam			wave_zero_level	=	6'd32;
-localparam			bit_time_1		=	6'd22;
-//localparam			sync			=	15'b010_1010_1001_1110;	// Pre shift $553C
-localparam			sync			=	15'b0111_1000_1010_101;	// Pre shift $553C [L -> R]
-localparam			sync_proper		=	8'h3C;
-localparam			leader			=	8'h55;
-localparam			pre_rollover	=	9'h1FF;
-localparam			rollover		=	9'h000;
+localparam		time_out		=	6'h3f;
+localparam		wave_zero_level	=	6'd32;
+localparam		bit_time_1		=	6'd22;
+localparam		sync			=	15'b0111_1000_1010_101;	// Pre shift $553C [L -> R]
+localparam		sync_proper		=	8'h3C;
+localparam		leader			=	8'h55;
+localparam		pre_rollover	=	9'h1FF;
+localparam		rollover		=	9'h000;
 
 reg				byte_clk;
 reg				look_for_sync;
@@ -151,36 +152,37 @@ reg				flush_end, flush_end_que;
 reg				sd_hold;
 reg				pre_roll;
 reg		[7:0]	blk_type;
+reg 	[7:0]	protocol_data_count;
+reg				gap;
 
+//	Buffer interface
 wire 	[8:0]	buf_address;
 wire	[7:0]	buf_data_in;
 wire	[7:0]	buf_data_out;
 wire			buf_write;
 
-reg 	[7:0]	protocol_data_count;
-
-localparam st_beg0 = 			4'd0;
-localparam st_start = 			4'd1;
-localparam st_st1 = 			4'd2;
-localparam st_st2 = 			4'd3;
-localparam st_st3 = 			4'd4;
-localparam st_wr = 				4'd5;
-localparam st_wr1 = 			4'd6;
+//	State Mach states
+localparam 		st_beg0 = 			4'd0;
+localparam 		st_start = 			4'd1;
+localparam 		st_st1 = 			4'd2;
+localparam 		st_st2 = 			4'd3;
+localparam 		st_wr = 			4'd4;
+localparam 		st_wr1 = 			4'd5;
 
 reg		[3:0]	st_state;
 reg		[3:0]	state_stack;
 
-localparam p_sync =				3'd0;
-localparam p_blk_type =			3'd1;
-localparam p_len =				3'd2;
-localparam p_dta =				3'd3;
-localparam p_cksum =			3'd4;
+localparam 		p_sync =			3'd0;
+localparam 		p_blk_type =		3'd1;
+localparam 		p_len =				3'd2;
+localparam 		p_dta =				3'd3;
+localparam 		p_cksum =			3'd4;
 
 reg		[2:0]	p_state;
 
-localparam sd_wr_st =			2'd0;
-localparam sd_wr_st1 =			2'd1;
-localparam sd_wr_st2 =			2'd2;
+localparam 		sd_wr_st =			2'd0;
+localparam 		sd_wr_st1 =			2'd1;
+localparam 		sd_wr_st2 =			2'd2;
 
 reg		[1:0]	sd_wr_state;
 
@@ -210,6 +212,7 @@ begin
 		sd_wr_state <= sd_wr_st;
 		sd_hold <= 1'b0;
 		pre_roll <= 1'b0;
+		gap <= 1'b0;
 	end
 	else
 	begin
@@ -248,6 +251,7 @@ begin
 			sd_wr_state <= sd_wr_st;
 			sd_hold <= 1'b0;
 			pre_roll <= 1'b0;
+			gap <= 1'b0;
 		end
 
 		byte_clk <= 1'b0;
@@ -265,7 +269,7 @@ begin
 			if ((DTOA_CODE >= wave_zero_level) && wave_negative)
 			begin
 //				Initially we are not collecting the leader bytes just collecting them and
-//				waiting for the sync $$553C.  The write to file stage will automatically
+//				waiting for the sync $3C55.  The write to file stage will automatically
 //				write the 128 leader bytes befor we start transfering data.
 				if (!look_for_sync)
 				begin
@@ -301,7 +305,7 @@ begin
 				begin
 					buf_address <= 9'b000000000;
 					buf_data_in <= leader;
-					protocol_data_count <= 8'h7f;	// We will use this to count the 128 bytes
+					protocol_data_count <= 8'h80;	// We will use this to count the 128 bytes
 
 					st_state <= st_start;
 				end
@@ -363,6 +367,8 @@ begin
 							state_stack <= st_st1;				// We come back here
 							st_state <= st_wr;						// Write a byte
 							p_state <= p_dta;
+							if ((blk_type == 8'h00) & (protocol_data_count == 8'h05) & (incomming_reg[15:8] == 8'hff))
+								gap <= 1'b1;
 							if (protocol_data_count == 8'h01)
 								p_state <= p_cksum;
 						end
@@ -390,22 +396,11 @@ begin
 			st_st2:
 			begin
 				buf_data_in <= leader;
-				if (blk_type == 8'h00)
-					protocol_data_count <= 8'h7f;	// We will use this to count the 128 bytes
+				if ((blk_type == 8'h00) || gap)
+					protocol_data_count <= 8'h80;	// We will use this to count the 128 bytes
 				else
-					protocol_data_count <= 8'h01;	// We will use this to count the 128 bytes
+					protocol_data_count <= 8'h02;	// We will use this to count the 2 bytes
 				st_state <= st_start;				// No, don't write any more - were done
-			end
-
-			st_st3:
-			begin
-				state_stack <= st_st3;				// We come back here
-				st_state <= st_wr;					// Write a byte
-				protocol_data_count <= protocol_data_count - 1'b1;
-				if (protocol_data_count == 8'h00)	// 128 bytes
-				begin
-					st_state <= st_st1;				// No, don't write any more - were done
-				end
 			end
 
 //			Perform the byte writes to the buffer
