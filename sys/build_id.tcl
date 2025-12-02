@@ -2,16 +2,13 @@
 # Build TimeStamp Verilog Module
 # Jeff Wiencrot - 8/1/2011
 # Sorgelig - 02/11/2019
-# Stan Hodge - 04/22/2024
-
 proc generateBuildID_Verilog {} {
 
 	# Get the timestamp (see: http://www.altera.com/support/examples/tcl/tcl-date-time-stamp.html)
 	set buildDate "`define BUILD_DATE \"[clock format [ clock seconds ] -format %y%m%d]\""
 
-	# Create a Verilog file(s) for output
+	# Create a Verilog file for output
 	set outputFileName "build_id.v"
-	set outputFileNameNum "build_id_num.v"
 	
 	set fileData ""
 	if { [file exists $outputFileName]} {
@@ -20,35 +17,13 @@ proc generateBuildID_Verilog {} {
 		close $outputFile	
 	}
 
-	set fileData_num ""
-	if { [file exists $outputFileNameNum]} {
-		set outputFile [open $outputFileNameNum "r"]
-		set fileData_num [read $outputFile]
-		close $outputFile
-	}
-
-
 	if {$buildDate ne $fileData} {
 		set outputFile [open $outputFileName "w"]
 		puts -nonewline $outputFile $buildDate
 		close $outputFile
-
-		set buildnumbervar 1
-
 		# Send confirmation message to the Messages window
 		post_message "Generated: [pwd]/$outputFileName: $buildDate"
-	} else {
-		scan $fileData_num "`define BUILD_NUMBER \"%d" buildnumbervar
-		incr buildnumbervar
 	}
-
-	set buildnumber "`define BUILD_NUMBER \"[format "%03d" $buildnumbervar]\""
-	set outputFile [open $outputFileNameNum "w"]
-	puts -nonewline $outputFile $buildnumber
-	close $outputFile
-
-	post_message "Generated: [pwd]/$outputFileNameNum: $buildnumber"
-
 }
 
 # Build CDF file
