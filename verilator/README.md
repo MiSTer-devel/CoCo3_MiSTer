@@ -165,7 +165,20 @@ pty; `tests/fujinet_boot.sh`).
    generator (`RX_CLK = TX_CLK`). That is unchanged for control `$1x` and for
    baud select 0.
 
-With both fixes, the L3 cart at 19,200 (the MiSTer configuration) boots from the
+3. **Slot 3 hung FujiNet's CONFIG loader.** Once a cart finished downloading
+   after boot, slot 3 toggled the CART interrupt every CPU cycle, forever. That
+   is right for a program pak (CART tied to Q autostarts it), but a disk-style
+   ROM such as HDB-DOS never drives CART. FujiNet's `CFGLOAD.BIN` re-enables
+   that interrupt and then hung in an endless FIRQ, after reading 17 sectors.
+   A reset cleared it, which is why "load cart, then Reset" worked. The OSD's
+   "Cart Interrupt Disabled" option was not connected to anything. **Fix:** a
+   cart that starts with `DK` gets a cold boot instead, the way BASIC starts
+   it at power-on, and the OSD option now suppresses the autostart interrupt.
+   Program paks behave as before. The sim reproduces both cases with
+   `--cart-frame N`, which loads the cart after boot the way the OSD and MGL
+   do.
+
+With these fixes, the L3 cart at 19,200 (the MiSTer configuration) boots from the
 real FujiNet daemon with no checksum errors, and gets to FujiNet's CONFIG
 splash. The S3 cart (115,200) reaches the CONFIG host-slots screen.
 

@@ -4,7 +4,7 @@ fujinet_boot*/
 fujinet_boot/
 imgui.ini
 obj_dir/
-roms/*.rom
+roms/**/*.rom
 screenshot_*.png
 test-out*/
 test-out/

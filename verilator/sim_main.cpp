@@ -115,6 +115,9 @@ static int      reset_hold = 0;        // clk_sys cycles of RESET at start
 static std::string rom_path      = "roms/boot0.rom";
 static std::string diskrom_path  = "roms/boot1.rom";
 static std::string cart_path, cas_path, font_path;
+// --cart-frame: deliver the cart after boot, as Main_MiSTer does when the cart
+// is picked from the OSD or an MGL. -1 = with the ROMs, before reset ends.
+static int cart_frame = -1;
 static std::string fdc_path[4], sdc_path[2];
 
 // Screenshots / logging
@@ -564,6 +567,10 @@ static void on_frame(int frame) {
 		pulse_status(0);
 	}
 	if ((frame % 60) == 0) set_rtc();
+	if (frame == cart_frame && !cart_path.empty()) {
+		printf("Loading cartridge at frame %d: %s\n", frame, cart_path.c_str());
+		bus.QueueDownload(cart_path, IDX_CART, true);
+	}
 }
 
 // Edge counts over the last run_until_next_frame(), for the "no frame" report.
@@ -610,6 +617,7 @@ static void print_usage(const char* argv0) {
 "\n"
 "Media\n"
 "  --cart FILE                Program Pak (.ccc), index 1; selects MPI slot 3\n"
+"  --cart-frame N             load the cart at frame N, after boot (as the OSD/MGL do)\n"
 "  --cas FILE                 cassette image (.cas), index 2\n"
 "  --disk FILE  / --disk0..3  floppy drive 0..3 (.dsk); selects MPI slot 4\n"
 "  --sdc FILE   / --sdc1      CoCoSDC drive 0/1 (.dsk/.vhd); selects MPI slot 2\n"
@@ -677,6 +685,7 @@ static int parse_args(int argc, char** argv) {
 		else if (a == "--font")            font_path = next();
 		else if (a == "--cart")          { cart_path = next(); cart_or_disk_mpi = 1; }
 		else if (a == "--cas")             cas_path = next();
+		else if (a == "--cart-frame")      cart_frame = atoi(next());
 		else if (a == "--disk" || a == "--disk0") { fdc_path[0] = next(); cart_or_disk_mpi = 2; }
 		else if (a == "--disk1")           fdc_path[1] = next();
 		else if (a == "--disk2")           fdc_path[2] = next();
@@ -927,7 +936,8 @@ static void draw_control_window() {
 
 int main(int argc, char** argv, char** env) {
 	Verilated::commandArgs(argc, argv);
-	// Defaults, as a fresh MiSTer config: MPI slot 4 (disk), 512K.
+	// Default Multi-Pak slot 4 (Disk), 512K. A fresh MiSTer config is slot 2
+	// (CoCoSDC); slot 4 boots Disk BASIC from boot1.rom with no SDC image.
 	set_status_field(12, 2, 2);
 	if (parse_args(argc, argv)) return 0;
 
@@ -976,7 +986,7 @@ int main(int argc, char** argv, char** env) {
 	queue_rom(rom_path,     IDX_BOOT0, "CoCo3 ROM");
 	queue_rom(diskrom_path, IDX_BOOT1, "Disk BASIC ROM");
 	queue_rom(font_path,    IDX_FONT,  "font");
-	queue_rom(cart_path,    IDX_CART,  "cartridge");
+	if (cart_frame < 0) queue_rom(cart_path, IDX_CART, "cartridge");
 	queue_rom(cas_path,     IDX_CAS,   "cassette");
 	for (int d = 0; d < 4; d++) mount(BLK_FDC0 + d, fdc_path[d]);
 	for (int d = 0; d < 2; d++) mount(BLK_SDC0 + d, sdc_path[d]);
