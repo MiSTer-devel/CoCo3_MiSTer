@@ -896,10 +896,11 @@ assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)					?	1'b1:		
 																						1'b0;
 `endif
 
-//assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 1
-//																						1'b0 ;
-
-assign	RS232_EN = ({MPI_SCS[0], ADDRESS[15:2]} == 15'b111111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 2 and 4
+// FF68-FF6B: the RS-232 Pak decodes these itself from the address bus; the
+// Multi-Pak's SCS only covers FF40-FF5F. Gating on MPI_SCS (slot 1 originally,
+// later slots 2 and 4) left the 6551 unreachable with a cart in slot 3, e.g.
+// the FujiNet HDB-DOS SY6551 cart, which can only boot from slot 3.
+assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)							?	1'b1:		//FF68-FF6B, any slot
 																						1'b0;
 
 assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)				?	1'b1:		// FF40-FF5F  Ensure this only appears in slot 3 PHYSICALLY
