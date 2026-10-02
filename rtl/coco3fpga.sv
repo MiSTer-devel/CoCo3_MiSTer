@@ -1850,7 +1850,7 @@ begin
 			2'b01:
 				CART_INT_IN_N <= (SER_IRQ);
 			2'b10:
-				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable | SWITCH[4]);	// SWITCH[4]: OSD "Cart Interrupt Disabled"
+				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable | SWITCH[9]);	// SWITCH[9]: OSD "Cart Interrupt Disabled"
 			2'b11:
 				CART_INT_IN_N <= (SER_IRQ);
 			endcase
