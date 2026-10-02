@@ -896,10 +896,11 @@ assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)					?	1'b1:		
 																						1'b0;
 `endif
 
-//assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 1
-//																						1'b0 ;
-
-assign	RS232_EN = ({MPI_SCS[0], ADDRESS[15:2]} == 15'b111111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 2 and 4
+// FF68-FF6B: the RS-232 Pak decodes these itself from the address bus; the
+// Multi-Pak's SCS only covers FF40-FF5F. Gating on MPI_SCS (slot 1 originally,
+// later slots 2 and 4) left the 6551 unreachable with a cart in slot 3, e.g.
+// the FujiNet HDB-DOS SY6551 cart, which can only boot from slot 3.
+assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)							?	1'b1:		//FF68-FF6B, any slot
 																						1'b0;
 
 assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)				?	1'b1:		// FF40-FF5F  Ensure this only appears in slot 3 PHYSICALLY
@@ -1205,10 +1206,13 @@ wire			AMW_End;
 
 assign AMW_ACK = AMW_End;
 
+// Cart start-up state; see the cart_firq_enable block below.
+reg cart_dk_0, cart_is_dk, cart_coldboot;
+
 AMW coco_AMW (
 	.CLK(clk_sys),
 	.RESET_N(RESET_N),
-	.Trigger(AMW_Trigger),
+	.Trigger(AMW_Trigger | cart_coldboot),		// OSD cold boot, MPI/memory change, or a "DK" cart load
 	.Restart(1'b0),
 	.Cycle_Run(AMW_WR),
 	.AMW_Adrs(AMW_Adrs),
@@ -1785,6 +1789,13 @@ reg cart_firq_enable;
 reg	firq_trig;
 reg	cart_lock;
 
+// A cart loaded after boot is started one of two ways, as on a real CoCo:
+//  - a program pak ties CART to Q, so it gets the autostart FIRQ below
+//    (cart_firq_enable low: CART toggles every cycle while in slot 3);
+//  - a disk-style ROM (HDB-DOS, Disk BASIC: "DK" at $C000) never drives CART,
+//    and BASIC starts it from the signature at power-on. Such a cart gets a
+//    cold boot instead. Toggling CART under it made software that re-enables
+//    the CART interrupt -- FujiNet's CFGLOAD -- hang in an endless FIRQ.
 always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
@@ -1792,17 +1803,29 @@ begin
 		firq_trig <= 1'b0;
 		cart_firq_enable <= 1'b1;
 		cart_lock <= 1'b0;
+		cart_dk_0 <= 1'b0;
+		cart_is_dk <= 1'b0;
+		cart_coldboot <= 1'b0;
 	end
 	else
 	begin
 		if ((ioctl_index[5:0] == 6'd1) & ioctl_download)
 			firq_trig <= 1'b1;
 
+		if ((ioctl_index[5:0] == 6'd1) & ioctl_wr)
+		begin
+			if (ioctl_addr == 25'd0) cart_dk_0 <= (ioctl_data == 8'h44);			// 'D'
+			if (ioctl_addr == 25'd1) cart_is_dk <= cart_dk_0 & (ioctl_data == 8'h4B);	// 'K'
+		end
+
 		if (firq_trig)
 			if (!ioctl_download)
 			begin
-				cart_firq_enable <= 1'b0;
 				cart_lock <= 1'b1;
+				if (cart_is_dk)
+					cart_coldboot <= 1'b1;		// start it the way BASIC would: cold boot
+				else
+					cart_firq_enable <= 1'b0;	// program pak: autostart FIRQ
 			end
 	end
 end
@@ -1827,7 +1850,7 @@ begin
 			2'b01:
 				CART_INT_IN_N <= (SER_IRQ);
 			2'b10:
-				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable);
+				CART_INT_IN_N <= (!CART_INT_IN_N | cart_firq_enable | SWITCH[9]);	// SWITCH[9]: OSD "Cart Interrupt Disabled"
 			2'b11:
 				CART_INT_IN_N <= (SER_IRQ);
 			endcase

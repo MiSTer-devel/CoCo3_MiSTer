@@ -1,0 +1,12 @@
+*.vcd
+/dw_boot*
+/fujinet_boot*/
+fujinet_boot/
+imgui.ini
+obj_dir/
+roms/**/*.rom
+screenshot_*.png
+test-out*/
+test-out/
+tests/hello.dsk
+trace*.txt

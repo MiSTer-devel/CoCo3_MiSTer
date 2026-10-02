@@ -1,0 +1,4 @@
+`verilator_config
+// Nets sim.v overrides with `force` for --acia-any-slot. Without this Verilator
+// folds RS232_EN into its users and the force has no effect.
+forceable -module "coco3fpga" -var "RS232_EN"

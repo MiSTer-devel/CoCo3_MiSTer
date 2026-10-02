@@ -244,6 +244,7 @@ localparam  CONF_STR = {
         "P2OG,Swap MiSTer Uart,RS CART,Default;",
         "P2OU,Swap Uart to IO,RS IO,MiSTer;",
         "P2OT,Display Debug,Off,On;",
+        "P2OJ,Cart Interrupt Disabled,OFF,ON;",
         "-;",
         "ON,D-Pad Joystick emu,No,Yes;",
         "O6,Swap Joysticks,Off,On;",
@@ -651,6 +652,7 @@ wire [2:0]	Mem_Size = status[27:25];
 wire SWAP_M_J = status[28];
 wire display_debug = status[29];
 wire UART_INPUT = status[30];
+wire cartint = status[19];
 wire digitalJoy = status[23];
 reg	[2:0] mpi_d	= 2'b00;
 reg first_mpi_chg = 1'b0;
@@ -687,7 +689,7 @@ begin
 end
 
 //	Set bit 9 to swap serial ports...
-wire [9:0] switch = { 1'b0,UART_INPUT,art,sg4v6,rs_swap,CASS_REW_RECORD,mpi,1'b0};
+wire [9:0] switch = { cartint,UART_INPUT,art,sg4v6,rs_swap,CASS_REW_RECORD,mpi,1'b0};
 
 
 wire reset = RESET | status[0] | buttons[1];
