@@ -80,7 +80,7 @@ module emu
 	output        VGA_VS,
 	output        VGA_HB,
 	output        VGA_VB,
-	output        CE_PIXEL,         // = PIX_CLK (CLK_14); sample on its rising edge
+	output        CE_PIXEL,         // coco3fpga PIX_CLK: a clk_sys enable; sample RGB/syncs on a clk_sys rising edge when high
 
 	output [15:0] AUDIO_L,
 	output [15:0] AUDIO_R,
@@ -141,7 +141,8 @@ wire AMW_ACK;
 
 wire [1:0] mpi = status_q[13:12] + 1'b1;
 wire CASS_REW_RECORD = status_q[14];
-wire cartint = status_q[16];
+wire rs_swap = status_q[16];
+wire cartint = status_q[19];
 wire sg4v6 = status_q[21];
 
 wire PHASE = status_q[18];
@@ -151,6 +152,8 @@ wire coldboot = status_q[22];
 wire F_Turbo = status_q[24];
 wire [2:0] Mem_Size = status_q[27:25];
 wire SWAP_M_J = status_q[28];
+wire display_debug = status_q[29];
+wire UART_INPUT = status_q[30];
 
 wire digitalJoy = status_q[23];
 wire easter_egg = status_q[10];
@@ -184,7 +187,7 @@ always @(negedge CLK_14) begin
 end
 
 //	Set bit 9 to swap serial ports...
-wire [9:0] switch = { 2'b10,art,sg4v6,cartint,CASS_REW_RECORD,mpi,1'b0};
+wire [9:0] switch = { cartint,UART_INPUT,art,sg4v6,rs_swap,CASS_REW_RECORD,mpi,1'b0};
 
 wire reset = RESET | status_q[0] | buttons[1];
 
@@ -292,7 +295,7 @@ assign AUDIO_R = audio_right;
 
 wire [7:0] r, g, b;
 wire hblank, vblank, hs, vs, pix_clk;
-wire [31:0] probe;
+wire [6:0] probe_o;
 
 wire [71:0] Config_Data = {"SIMULATE", 8'h00};
 
@@ -327,9 +330,9 @@ coco3fpga coco3 (
 
 	.COCO_RESET_N((~reset & Programmed_RESET_N)),
 
-	.RED(r),
-	.GREEN(g),
-	.BLUE(b),
+	.RED_O(r),
+	.GREEN_O(g),
+	.BLUE_O(b),
 
 	.EE_N(Programmed_EE),
 	.PHASE(PHASE),
@@ -382,7 +385,8 @@ coco3fpga coco3 (
 
 	.GPIO(),
 
-	.PROBE(probe),
+	.PROBE_O(probe_o),
+	.PROBE_I(7'h7F),                     // SNAC (USER_IN) pins idle high
 	.clk_Q_out(clk_Q_out),
 	.casdout(casdout),
 	.cas_relay(cas_relay),
@@ -414,6 +418,7 @@ coco3fpga coco3 (
 	.Mem_Size(Mem_Size),
 	.AUTO_MODE(Auto_Mode),
 	.Config_Data(Config_Data),
+	.Display_Debug(display_debug),
 
 	.UART_TXD(UART_TXD),
 	.UART_RXD(uart_rxd),

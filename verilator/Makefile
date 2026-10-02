@@ -86,6 +86,7 @@ V_SRC = \
 	rtl/coco_rom.v \
 	rtl/coco_sram.v \
 	rtl/VDAC.v \
+	rtl/ovo.v \
 	../sys/hps_io.sv \
 	$(RTL)/coco3fpga.sv \
 	$(RTL)/EE_Cold_Bt.v \
@@ -107,8 +108,7 @@ V_SRC = \
 	$(RTL)/UART_6551/6551tx.v \
 	$(RTL)/UART_6551/6551rx.v \
 	$(RTL)/mc6809glb/mc6809glb.v \
-	$(RTL)/Mister_Video.v \
-	$(RTL)/Mister_Video_GIMEX.v
+	$(RTL)/Mister_Video.v
 
 C_SRC = \
 	sim_main.cpp dis6809.cpp serial.cpp \

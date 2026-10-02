@@ -1,6 +1,6 @@
 *.vcd
-dw_boot*
-fujinet_boot*/
+/dw_boot*
+/fujinet_boot*/
 fujinet_boot/
 imgui.ini
 obj_dir/

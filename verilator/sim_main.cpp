@@ -433,7 +433,6 @@ static void sim_step() {
 	const bool c28  = !((k >> 2) & 1);
 	const bool c14  = !((k >> 3) & 1);
 	const bool sys_rise = c57 && !top->CLK_57;
-	const bool pix_rise = c14 && !top->CLK_14;
 
 	// 50 MHz, free-running and asynchronous to the rest, as on the board.
 	clk50_acc += fast_clocks ? 8730 : 4365;   // step length in ps
@@ -454,6 +453,18 @@ static void sim_step() {
 		b_din  = top->dbg_din;
 		b_dout = top->dbg_dout;
 		b_rs232 = top->dbg_rs232_en;
+
+		// Video is captured the way sys/video_mixer.sv does it: on a clk_sys
+		// rising edge, taking the values that stand before the edge. The core's
+		// pixel enable (PIX_CLK) is high for 2 of every 4 clk_sys cycles; the
+		// mixer sees it oscillate and takes one pixel per rising edge
+		// (~old_ce & ce_pix), and so does this.
+		static bool old_ce = false;
+		if (top->CE_PIXEL && !old_ce) {
+			uint32_t colour = 0xFF000000 | (top->VGA_B << 16) | (top->VGA_G << 8) | top->VGA_R;
+			video.Clock(top->VGA_HB, top->VGA_VB, top->VGA_HS, top->VGA_VS, colour);
+		}
+		old_ce = top->CE_PIXEL;
 
 		bus.BeforeEval();
 		blk.BeforeEval(main_time);
@@ -531,10 +542,6 @@ static void sim_step() {
 		old_irqn = top->dbg_irqn;
 	}
 
-	if (pix_rise) {
-		uint32_t colour = 0xFF000000 | (top->VGA_B << 16) | (top->VGA_G << 8) | top->VGA_R;
-		video.Clock(top->VGA_HB, top->VGA_VB, top->VGA_HS, top->VGA_VS, colour);
-	}
 
 	main_time++;
 }

@@ -156,7 +156,9 @@ pty; `tests/fujinet_boot.sh`).
    `HDB-DOS 1.5 SY6551 COCO 3`, and transmitted nothing. On a real CoCo the
    SCS line covers only `$FF40-$FF5F`, and the RS-232 Pak decodes `$FF68` from
    the address bus, so it works in any slot. **Fix:** `RS232_EN` no longer
-   looks at `MPI_SCS`.
+   looks at `MPI_SCS`. (Upstream's 20260927 release moved the decode to slots
+   2 and 4, `MPI_SCS[0] == 1`; HDB-DOS carts can only boot from slot 3, so
+   that still missed every access.)
 2. **The 19,200 cart received at 115,200.** `HDBDW3L3_19200.CCC` writes
    control `$0F`. Bit 4 = 0 selects the "external" receive clock, which
    `uart_6551.v` tied to the 1.8475 MHz enable, i.e. 115,200 baud. The cart
@@ -173,7 +175,8 @@ pty; `tests/fujinet_boot.sh`).
    A reset cleared it, which is why "load cart, then Reset" worked. The OSD's
    "Cart Interrupt Disabled" option was not connected to anything. **Fix:** a
    cart that starts with `DK` gets a cold boot instead, the way BASIC starts
-   it at power-on, and the OSD option now suppresses the autostart interrupt.
+   it at power-on, and the OSD option (Debug menu, `status[19]` ->
+   `SWITCH[9]`) now suppresses the autostart interrupt.
    Program paks behave as before. The sim reproduces both cases with
    `--cart-frame N`, which loads the cart after boot the way the OSD and MGL
    do.
@@ -229,6 +232,7 @@ names and ports:
 | `rtl/rom/coco_rom_16.vhd` | `rtl/coco_rom.v` (`COCO_ROM_16`) |
 | `rtl/rom/coco3_char_rom.vhd` | `rtl/coco_rom.v` (`coco3_Char_ROM`) + `rtl/coco3_char_rom.mem` |
 | `rtl/sram/coco_ram.vhd`, `coco_vid_ram_buf.vhd` | `rtl/coco_sram.v` (`COCO_SRAM`, `COCO_VID_RAM_BUF`) |
+| `rtl/OVO.vhd` (debug / "NO ROM" overlay) | `rtl/ovo.v` (`ovo`) |
 
 `make mem` (`gen_mem.py`) regenerates `rtl/coco3_char_rom.mem` from the font
 table in the VHDL and `rtl/vdac.mem` from `rtl/VDAC.mif`.
