@@ -84,6 +84,11 @@ reg		[8:0]	read_count;
 reg		[4:0]	state;
 reg				second_write;
 reg				init_offset_a0;
+// End-of-line test for the fetch being requested, registered in state_start.
+// read_count only changes on SDRAM_VID_ACK, so this equals the old in-line
+// compare; it takes the 9-bit compare off the ACK -> VID_READ_OFFSET path,
+// which missed timing at 114 MHz.
+reg				last_fetch;
 reg		[4:0]	a0_delay;
 
 localparam state_pre_start = 	4'd0;
@@ -161,6 +166,7 @@ begin
 					SDRAM_VID_REQ <= 1'b1;
 					state <= state_wait_accept;
 					init_offset_a0 <= PHY_VID_ADD[1];
+					last_fetch <= (read_count >= WORD_END_COUNT);
 				end
 			end
 
@@ -170,7 +176,8 @@ begin
 				begin
 					SDRAM_VID_REQ <= 1'b0;
 
-					if (read_count >= WORD_END_COUNT)
+//					if (read_count >= WORD_END_COUNT)
+					if (last_fetch)
 					begin
 						read_count <= 9'h000;
 						state <= state_done;

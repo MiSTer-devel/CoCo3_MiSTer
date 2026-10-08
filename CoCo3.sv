@@ -198,7 +198,7 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 localparam  CONF_STR = {
         "COCO3;UART19200:9600:4800:2400:1200:300;",
         "-;",
-        "OCD,Multi-Pak,(Slot 2) CoCoSDC,(Slot3) ECB /Cart,(Slot 4) Disk;",
+        "OCD,Multi-Pak,(Slot 1) FujiNet,(Slot 2) CoCoSDC,(Slot3) ECB /Cart,(Slot 4) Disk;",
         "H3-;",
         "H3S2,DSK,Load Disk Drive 0;",
         "H3S3,DSK,Load Disk Drive 1;",
@@ -214,6 +214,7 @@ localparam  CONF_STR = {
         "H1S3,DSK,Load OS9 Floppy /d1;",
         "H1S4,DSK,Load OS9 Floppy /d3;",
         "H1S5,DSK,Load OS9 Floppy /d4;",
+		"H0-;",
         "-;",
 
         "F2,CAS,Load Cassette;",
@@ -339,7 +340,7 @@ hps_io #(.CONF_STR(CONF_STR),.PS2DIV(2400), .VDNUM(7), .BLKSZ(2)) hps_io
       .status_in(status_in),
       .status_set(status_set),
 
-      .status_menumask({ ~(mpi == 2'b11), ~(mpi == 2'b10),~(mpi == 2'b01), 1'b1}),
+      .status_menumask({ ~(mpi == 2'b11), ~(mpi == 2'b10),~(mpi == 2'b01), ~(mpi == 2'b00)}),
       .forced_scandoubler(forced_scandoubler),
 	  .RTC(RTC),
       .gamma_bus(gamma_bus),
@@ -636,7 +637,8 @@ wire AMW_ACK;
 
 //wire cpu_speed = status[11];
 
-wire [1:0] mpi = status[13:12] + 1'b1;
+//wire [1:0] mpi = status[13:12] + 1'b1;
+wire [1:0] mpi = status[13:12];
 //wire video=status[14];
 wire CASS_REW_RECORD=status[14];
 wire rs_swap=status[16];

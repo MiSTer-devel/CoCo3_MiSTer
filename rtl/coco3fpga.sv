@@ -328,6 +328,7 @@ wire			FLASH_CE_S;
 
 wire			ENA_DSK;
 wire			ENA_DISK2;
+wire			ENA_SLT0;
 wire			ENA_PAK;
 
 wire			HDD_EN;
@@ -700,7 +701,7 @@ wire UART_RXD_I;
 assign UART_TXD =	SWITCH[4]?	coco_rs232_out:
 								UART_TXD_I;
 
-assign uart_input =	SWITCH[8]?	PROBE_I[1]:
+assign uart_input =	~SWITCH[8]?	PROBE_I[1]:
 								UART_RXD;
 
 
@@ -801,10 +802,12 @@ assign FLASH_CE_S = ROM_SEL     ?   1'b1:
                     ENA_DISK2   ?   1'b1:
                     ENA_PAK     ?   1'b1:
                     ENA_DSK     ?   1'b1:
+                    ENA_SLT0    ?   1'b1:
                                     1'b0;
 
 wire	[7:0]	COCO3_ROM_DATA;
 wire	[7:0]	COCO3_DISK_ROM_DATA;
+wire	[7:0]	COCO3_HDB_DISK_ROM_DATA;
 
 localparam 	[1:0]	BOOT0 = 2'd0;
 localparam 	[1:0]	BOOT1 = 2'd1;
@@ -815,6 +818,7 @@ localparam	[5:0]	BOOT  = 6'd0;
 
 wire			COCO3_ROM_WRITE = (ioctl_index[7:0] == {BOOT0, BOOT})  & ioctl_wr;
 wire			COCO3_DISKROM_WRITE = (ioctl_index[7:0] == {BOOT1, BOOT}) & ioctl_wr;
+wire			COCO3_HDB_DISKROM_WRITE = (ioctl_index[7:0] == {BOOT2, BOOT}) & ioctl_wr;
 wire			COCO3_CART_WRITE = (ioctl_index[5:0] == 6'd1) & ioctl_wr & !cart_lock;
 
 reg				rom_loaded = 1'b0;
@@ -826,7 +830,7 @@ begin
 end
 
 //	A decision.
-//	Looking at this logic it is fairly obvious that the 8Kx8 ROM is not needed.
+//	Looking at this logic it is fairly obvious that the disk 8Kx8 ROM is not needed.
 //	Physically (bus wise) it sits in the same place as the CART rom and is obviously
 //	smaller.  I have made these changes at least twice during the development of
 //	this code.  While it works and saves the resources of a 8kx8 sram, it does not
@@ -857,9 +861,21 @@ COCO_ROM_8K CC3_DISK_ROM(
 .WRITE(COCO3_DISKROM_WRITE)
 );
 
+//	DOS Cart for slot 1
+
+COCO_ROM_8K CC3_HDB_DISK_ROM(
+.ADDR(FLASH_ADDRESS[12:0]),
+.DATA(COCO3_HDB_DISK_ROM_DATA),
+.CLK(~clk_sys),
+.WR_ADDR(ioctl_addr[12:0]),
+.WR_DATA(ioctl_data[7:0]),
+.WRITE(COCO3_HDB_DISKROM_WRITE)
+);
+
 
 assign FLASH_DATA =		ENA_PAK						?			CART_DATA:
 						(ENA_DSK || ENA_DISK2)		?			COCO3_DISK_ROM_DATA:
+						ENA_SLT0					?			COCO3_HDB_DISK_ROM_DATA:
 																COCO3_ROM_DATA;
 
 
@@ -873,6 +889,9 @@ COCO_ROM_CART CC3_ROM_CART(
 );
 
 wire	SDC_EN_CS;
+
+assign	ENA_SLT0 =	({CART_SEL, MPI_CTS} == 3'b100)									?	1'b1:		// Disk C000-DFFF Slot 1
+																						1'b0;
 
 assign	ENA_DISK2 =	({CART_SEL, MPI_CTS} == 3'b101)									?	1'b1:		// Alternative Disk controller ROM up to 32K
 																						1'b0;
@@ -899,7 +918,10 @@ assign	SDC_EN_CS = ({MPI_SCS, ADDRESS[15:5]} == 13'b0111111111010)					?	1'b1:		
 //assign	RS232_EN = ({MPI_SCS, ADDRESS[15:2]} == 16'b0011111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 1
 //																						1'b0 ;
 
-assign	RS232_EN = ({MPI_SCS[0], ADDRESS[15:2]} == 15'b111111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 2 and 4
+//assign	RS232_EN = ({MPI_SCS[0], ADDRESS[15:2]} == 15'b111111111011010)				?	1'b1:		//FF68-FF6B - Now in slot 2 and 4
+//																						1'b0;
+
+assign	RS232_EN = (ADDRESS[15:2] == 14'b11111111011010)							?	1'b1:		//FF68-FF6B - Now in all slots
 																						1'b0;
 
 assign	SLOT3_HW = ({SWITCH[2:1], ADDRESS[15:5]} == 13'b1011111111010)				?	1'b1:		// FF40-FF5F  Ensure this only appears in slot 3 PHYSICALLY

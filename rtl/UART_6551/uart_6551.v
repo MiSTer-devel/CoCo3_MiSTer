@@ -308,8 +308,15 @@ end
 assign TX_CLK = (CTL_REG[3:0] == 4'h0)	?	XTAL_CLK_IN:
 											TX_CLK_REG;
 
-assign RX_CLK = (CTL_REG[4] == 1'b0)	?	RX_CLK_IN:
-											TX_CLK;
+//assign RX_CLK = (CTL_REG[4] == 1'b0)	?	RX_CLK_IN:
+//											TX_CLK;
+
+// Receiver clock. CTL bit 4 = 0 selects the external RxC input, which used to
+// be the fixed 1.8475 MHz enable (115,200 baud): a program writing CTL=$0F
+// (19,200, bit 4 clear -- the FujiNet HDB-DOS L3 cart) then transmitted at
+// 19,200 but received at 115,200. RxC is taken from the baud generator
+// instead; for CTL[3:0]=0 that is the same 1.8475 MHz clock as before.
+assign RX_CLK = TX_CLK;
 
 assign RESET_X = RESET_NX 					?	1'b0:
 												RESET_N;
