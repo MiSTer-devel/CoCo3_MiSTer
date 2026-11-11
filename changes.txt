@@ -6,12 +6,30 @@
 	[done]
 4.	Routing RS-232 tx/rx lines to the SNAC port for initial serial debugging
 	of Fuji-Net interface. [done - untested]
-
+5.	Added Fujinet support.
+	a)	Install Fujinet [seperate instruction document]
+	a)	Slot 1 is now Fujunet only support.
+	b)	You will need HDBDos 'HDBDW3S3' which will be autoloaded if named
+		BOOT2.ROM.  Tested with ver 1.5 SY6551 @ 115,200 baud.
+	c)	In the Debug menu on the OSD 'Swap Mister Uart:' is set to RS CART.
+		'SWAP Uart to IO:' is set to 'Off'.
+	d)	In the 'System' page of the OSD, 'Uart Mode' Should be set to 'Fujinet'
+		and the baud rate to '115,200'.
+	e)	In slot 1 ONLY [Fujinet], a cold boot issued through the OSD will cause 
+		a firewire reset command [$FF] to be transmitted to the Fujinet daemon
+		which will cause the Fujinet Config screem to come up after boot.
+	f)	The SD drive in Fujinet is configured to the CoCo3 games area on the MiSTer
+		storage location.
+6.	A bug was fixed in that this core did not allow SAM registers to be set / cleared
+	by reads.  This was fixed with the side effect of preventing older OS9 disks
+	from booting. [OS9 L1v1.02].  In the OSD Debug Menu, 'SAM Wrt Only Ena' should
+	be set to 'Off' for true CoCo3 compadibility.  Turn it on if your old OS9
+	disks hang.
+	a)	This fix has moved the RTC availibility to be moved to the config data.
+		(see manual for details)
 
 To Do...
-1.	Add Fuji-Net port.
-2.	Add Speech / Music cart
-3.	Fix Castle of Tharoggad 
+1.	Fix Castle of Tharoggad 
 
 
 

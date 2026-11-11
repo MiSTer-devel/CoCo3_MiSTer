@@ -106,7 +106,7 @@ input				ps2_data,
 
 input		[24:0]	ps2_mouse,
 
-input				Display_Debug,
+input				SAM_WO,
 
 // RS-232
 output				UART_TXD,
@@ -698,6 +698,7 @@ assign BUTTON_N[3:0] = {COCO_RESET_N, 2'b1,EE_N};
 wire UART_TXD_I;
 wire UART_RXD_I;
 
+
 assign UART_TXD =	SWITCH[4]?	coco_rs232_out:
 								UART_TXD_I;
 
@@ -1024,7 +1025,7 @@ always @(negedge clk_sys or negedge RESET_N)
 begin
 	if(!RESET_N)
 	begin
-		Build_Info_Count <= 4'b0000;
+		Build_Info_Count <= 5'b00000;
 		Build_Info <= 8'h00;
 		Build_Info_Read <= 1'b0;
 		Build_Info_Read_Delay <= 1'b0;
@@ -1069,6 +1070,25 @@ begin
 			Build_Info <= Version_Hi;
 		4'd13:
 			Build_Info <= (Version_Lo + BOARD_TYPE);
+
+//		RTC Moved here so not to collide with SAM reads
+
+		4'd14:
+			Build_Info <= {3'b000, CENT};
+		4'd15:
+			Build_Info <= {1'b0, YEAR};
+		4'd16:
+			Build_Info <= {4'b0000, MNTH};
+		4'd17:
+			Build_Info <= {3'b000, DMTH};
+		4'd18:
+			Build_Info <= {5'b00000, DWK};
+		4'd19:
+			Build_Info <= {3'b000, HOUR};
+		4'd20:
+			Build_Info <= {2'b00, MIN};
+		4'd21:
+			Build_Info <= {2'b00, SEC};
 
         default:
 			Build_Info <= 8'h00;
@@ -1171,16 +1191,6 @@ assign	DATA_IN =
 									(ADDRESS == 16'hFFBD)		?	{2'b00, PALETTE[13][5:0]}:
 									(ADDRESS == 16'hFFBE)		?	{2'b00, PALETTE[14][5:0]}:
 									(ADDRESS == 16'hFFBF)		?	{2'b00, PALETTE[15][5:0]}:
-									(ADDRESS == 16'hFFC0)		?	{3'b000, CENT}:
-									(ADDRESS == 16'hFFC1)		?	{1'b0, YEAR}:
-									(ADDRESS == 16'hFFC2)		?	{4'h0, MNTH}:
-									(ADDRESS == 16'hFFC3)		?	{3'b000, DMTH}:
-									(ADDRESS == 16'hFFC4)		?	{5'b00000, DWK}:
-									(ADDRESS == 16'hFFC5)		?	{3'b000, HOUR}:
-									(ADDRESS == 16'hFFC6)		?	{2'b00, MIN}:
-									(ADDRESS == 16'hFFC7)		?	{2'b00, SEC}:
-
-									(ADDRESS == 16'hFFD9)       ?   {5'h00, RATE_PGM}:
 
 									(ADDRESS == 16'hFFEF)		?	Build_Info:
 																	8'hAA;
@@ -1225,7 +1235,7 @@ wire			AMW_EN;
 wire			AMW_Ready;
 wire			AMW_End;
 
-assign AMW_ACK = AMW_End;
+//assign AMW_ACK = AMW_End;
 
 AMW coco_AMW (
 	.CLK(clk_sys),
@@ -3553,19 +3563,125 @@ begin
 			end
 			else
 			begin
-                if(ADDRESS == 16'hFFE8)
+//				Register reads
+				if (~SAM_WO)
+				begin
+					case (ADDRESS)
+					16'hFFC0:
+					begin
+						V[0] <= 1'b0;
+					end
+					16'hFFC1:
+					begin
+						V[0] <= 1'b1;
+					end
+					16'hFFC2:
+					begin
+						V[1] <= 1'b0;
+					end
+					16'hFFC3:
+					begin
+						V[1] <= 1'b1;
+					end
+					16'hFFC4:
+					begin
+						V[2] <= 1'b0;
+					end
+					16'hFFC5:
+					begin
+						V[2] <= 1'b1;
+					end
+					16'hFFC6:
+					begin
+						VERT[0] <= 1'b0;
+					end
+					16'hFFC7:
+					begin
+						VERT[0] <= 1'b1;
+					end
+					16'hFFC8:
+					begin
+						VERT[1] <= 1'b0;
+					end
+					16'hFFC9:
+					begin
+						VERT[1] <= 1'b1;
+					end
+					16'hFFCA:
+					begin
+						VERT[2] <= 1'b0;
+					end
+					16'hFFCB:
+					begin
+						VERT[2] <= 1'b1;
+					end
+					16'hFFCC:
+					begin
+						VERT[3] <= 1'b0;
+					end
+					16'hFFCD:
+					begin
+						VERT[3] <= 1'b1;
+					end
+					16'hFFCE:
+					begin
+						VERT[4] <= 1'b0;
+					end
+					16'hFFCF:
+					begin
+						VERT[4] <= 1'b1;
+					end
+					16'hFFD0:
+					begin
+						VERT[5] <= 1'b0;
+					end
+					16'hFFD1:
+					begin
+						VERT[5] <= 1'b1;
+					end
+					16'hFFD2:
+					begin
+						VERT[6] <= 1'b0;
+					end
+					16'hFFD3:
+					begin
+						VERT[6] <= 1'b1;
+					end
+					16'hFFD8:
+					begin
+						RATE <= 1'b0;
+						RATE_PGM <= 3'b010;
+					end
+					16'hFFD9:
+					begin
+						RATE <= 1'b1;
+						RATE_PGM <= 3'b010;	// Normal Turbo
+					end
+					16'hFFDE:
+					begin
+						RAM <= 1'b0;
+					end
+					16'hFFDF:
+					begin
+						RAM <= 1'b1;
+					end
+					endcase
+				end
+				
+				case (ADDRESS)
+
+                16'hFFE8:
                 begin
                     if(GART_INC[1])
                         GART_READ <= GART_READ + 1'b1;
                 end
-                else
+
+                16'hFFE9:
                 begin
-                    if(ADDRESS == 16'hFFE9)
-                    begin
-                        if(GART_INC[1])
-                            GART_READ <= GART_READ + 1'b1;
-                    end
+                    if(GART_INC[1])
+                        GART_READ <= GART_READ + 1'b1;
                 end
+				endcase
 			end
 		end
 	end
@@ -4240,6 +4356,33 @@ begin
 end
 
 
+UIM UIM_COCO3(
+	.CLK(clk_sys),
+	.RESET_N(RESET_N),
+
+	.MPI_SCS(MPI_SCS),
+	.PH_2(PH_2),
+
+	.AMW_END_IN(AMW_End),
+	.ENABLE_IN(RS232_EN),
+	.RW_N_IN(RW_N),
+
+	.ADDRESS_IN(ADDRESS[1:0]),
+	.DATA_IN(DATA_OUT),
+
+	.AMW_END_OUT(AMW_ACK),
+	.ENABLE_OUT(RS232_EN_ST),
+	.RW_N_OUT(RW_N_ST),
+	
+	.ADDRESS_OUT(ADDRESS_ST),
+	.DATA_OUT(DATA_OUT_ST)
+);
+
+wire			RS232_EN_ST;
+wire			RW_N_ST;
+wire	[1:0]	ADDRESS_ST;
+wire	[7:0]	DATA_OUT_ST;
+
 // RS232PAK UART
 glb6551 RS232(
 .RESET_N(RESET_N),
@@ -4248,12 +4391,12 @@ glb6551 RS232(
 .RX_CLK_IN(CLK_6551_EN),		// These are now enables
 .XTAL_CLK_IN(CLK_6551_EN),
 .PH_2(PH_2),
-.DI(DATA_OUT),
+.DI(DATA_OUT_ST),
 .DO(DATA_RS232),
 .IRQ(SER_IRQ),
-.CS({1'b0, RS232_EN}),
-.RW_N(RW_N),
-.RS(ADDRESS[1:0]),
+.CS({1'b0, RS232_EN_ST}),
+.RW_N(RW_N_ST),
+.RS(ADDRESS_ST[1:0]),
 .TXDATA_OUT(UART_TXD_I),
 .RXDATA_IN(UART_RXD_I),
 .RTS(UART_RTS),
@@ -4320,7 +4463,7 @@ ovo #(.COLS(32), .LINES(23)) NOROMOVO
 	 .i_Hcount({1'b0, PIXEL_COUNT[10:1]}),
 	 .i_VCount(LINE),
     .o_r(CN_R),
-    .ena(Display_Debug || ((!rom_loaded) && SEC[0])),
+    .ena((!rom_loaded) && SEC[0]),
     .in0(NOrom1),
     .in1(NOrom2)
 );

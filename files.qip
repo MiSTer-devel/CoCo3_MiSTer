@@ -36,4 +36,5 @@ set_global_assignment -name VHDL_FILE rtl/rom/coco_rom_32K.vhd
 set_global_assignment -name VHDL_FILE rtl/rom/coco_rom_8K.vhd
 set_global_assignment -name VHDL_FILE rtl/rom/coco_rom_16.vhd
 set_global_assignment -name VHDL_FILE rtl/OVO.vhd
+set_global_assignment -name VERILOG_FILE rtl/UIM.v
 set_global_assignment -name SDC_FILE  rtl/CoCo3FPGA.sdc
