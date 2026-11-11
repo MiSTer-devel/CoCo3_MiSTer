@@ -957,7 +957,7 @@ end
 
 wire [3:0]	Config_FLAG = `Config_Debug_FLAG;
 wire [7:0]	Build_Info;
-reg	 [3:0]	Build_Info_Count;
+reg	 [4:0]	Build_Info_Count;
 reg			Build_Info_Read, Build_Info_Read_Delay;
 
 reg	[3:0]	i_count;
@@ -1038,56 +1038,56 @@ begin
 			Build_Info_Count <= Build_Info_Count + 1'b1;
 
 		case (Build_Info_Count)
-		4'd0:
+		5'd0:
 			Build_Info <= Config_Data[71:64];		// Year MSB
-		4'd1:
+		5'd1:
 			Build_Info <= Config_Data[63:56];		// Year LSB
-		4'd2:
+		5'd2:
 			Build_Info <= Config_Data[55:48];		// Month MSB
-		4'd3:
+		5'd3:
 			Build_Info <= Config_Data[47:40];		// Month LSB
-		4'd4:
+		5'd4:
 			Build_Info <= Config_Data[39:32];		// Day MSB
-		4'd5:
+		5'd5:
 			Build_Info <= Config_Data[31:24];		// Day LSB
-		4'd6:
+		5'd6:
 			Build_Info <= Config_Data[23:16];		// Daily Build ID
-		4'd7:
+		5'd7:
 			Build_Info <= Config_Data[15:8];		// Daily Build ID
-		4'd8:
+		5'd8:
 			Build_Info <= Config_Data[7:0];			// Daily Build ID
-		4'd9:
+		5'd9:
 			`ifdef Config_Debug
 				Build_Info <= {4'b1111, Config_FLAG};
 			`else
 				Build_Info <= {4'b0000, Config_FLAG};
 			`endif
-		4'd10:
+		5'd10:
 			Build_Info <= i_val;
-		4'd11:
+		5'd11:
 			Build_Info <= {Config_FLAG, sdram_sz[15], 1'b0, sdram_sz[1:0]};
-		4'd12:
+		5'd12:
 			Build_Info <= Version_Hi;
-		4'd13:
+		5'd13:
 			Build_Info <= (Version_Lo + BOARD_TYPE);
 
 //		RTC Moved here so not to collide with SAM reads
 
-		4'd14:
+		5'd14:
 			Build_Info <= {3'b000, CENT};
-		4'd15:
+		5'd15:
 			Build_Info <= {1'b0, YEAR};
-		4'd16:
+		5'd16:
 			Build_Info <= {4'b0000, MNTH};
-		4'd17:
+		5'd17:
 			Build_Info <= {3'b000, DMTH};
-		4'd18:
+		5'd18:
 			Build_Info <= {5'b00000, DWK};
-		4'd19:
+		5'd19:
 			Build_Info <= {3'b000, HOUR};
-		4'd20:
+		5'd20:
 			Build_Info <= {2'b00, MIN};
-		4'd21:
+		5'd21:
 			Build_Info <= {2'b00, SEC};
 
         default:
