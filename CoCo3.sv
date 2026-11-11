@@ -244,7 +244,7 @@ localparam  CONF_STR = {
         "P2F3,BIN,Load COCO Font;", 
         "P2OG,Swap MiSTer Uart,RS CART,Default;",
         "P2OU,Swap Uart to IO,RS IO,MiSTer;",
-        "P2OT,Display Debug,Off,On;",
+        "P2OT,SAM Wrt Only Ena,Off,On;",
         "-;",
         "ON,D-Pad Joystick emu,No,Yes;",
         "O6,Swap Joysticks,Off,On;",
@@ -614,7 +614,7 @@ coco3fpga coco3 (
   .AUTO_MODE(Auto_Mode),
 
   .Config_Data(Config_Data),
-  .Display_Debug(display_debug),
+  .SAM_WO(SAM_WO),
   
   .UART_TXD(UART_TXD),
   .UART_RXD(UART_RXD),
@@ -651,7 +651,7 @@ wire coldboot = status[22];
 wire F_Turbo = status[24];
 wire [2:0]	Mem_Size = status[27:25];
 wire SWAP_M_J = status[28];
-wire display_debug = status[29];
+wire SAM_WO = status[29];
 wire UART_INPUT = status[30];
 wire digitalJoy = status[23];
 reg	[2:0] mpi_d	= 2'b00;
